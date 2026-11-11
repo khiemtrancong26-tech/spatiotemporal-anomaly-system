@@ -1,0 +1,10 @@
+{
+  "name": "spatiotemporal-anomaly-system",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server",
+    "shared-core"
+  ]
+}
