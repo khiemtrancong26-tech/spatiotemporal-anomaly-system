@@ -1,13 +1,12 @@
 # SRS TINH GỌN — ĐẶC TẢ YÊU CẦU PHẦN MỀM
 
 **Đề tài:** Xây dựng hệ thống phân tích và phát hiện bất thường trong dữ liệu không gian – thời gian bằng trực quan 3D  
-**Phiên bản:** 0.4 — 11/11/2026  
+**Phiên bản:** 0.5 — 12/11/2026  
 **Nhóm:** 5 thành viên — Môn JavaScript/TypeScript — Thời gian dự kiến 4 tuần  
 **Người chủ trì yêu cầu:** Người 1 (Nhóm trưởng, Backend/Database)  
 **Trạng thái:** Bản đầu vào cho SDD, API Contract và Shared Schema; cần review các mục **[CHƯA CHỐT]** trước khi khóa thiết kế liên quan.
 
 > **Mục đích:** Tài liệu này trả lời **“Hệ thống phải làm gì, đối với dữ liệu nào và theo quy tắc nào?”**. Không quy định chi tiết cấu trúc class, folder, collection/index vật lý, endpoint, thư viện hay cách triển khai nội bộ; các nội dung đó nằm trong SDD/API Contract.
-
 
 ---
 
@@ -23,7 +22,7 @@ Hệ thống là ứng dụng web hỗ trợ người phân tích:
 4. Phát hiện các điểm nghi vấn bất thường bằng **phương pháp thống kê** và **một mô hình ML đã huấn luyện trước**; phân biệt kết quả của hai hướng.
 5. Quan sát cùng một dữ liệu trong **bản đồ địa lý Mapbox 3D** và **Three.js Space–Time Cube**, với trục thời gian tách biệt.
 6. Xem, xác nhận, đánh dấu phát hiện sai hoặc ghi chú bất thường.
-7. Tiếp tục xem dữ liệu **đã được hệ thống tự lưu khi truy cập online**, chạy thống kê khi mất kết nối Backend và tự đồng bộ chỉnh sửa hợp lệ khi kết nối phục hồi; hỗ trợ chủ động tải thêm dữ liệu để dùng offline.
+7. Tiếp tục xem dữ liệu **đã được hệ thống tự lưu khi truy cập online**, khôi phục trạng thái làm việc cần thiết sau khi đóng/mở lại ứng dụng, chạy thống kê khi mất kết nối Backend và tự đồng bộ chỉnh sửa hợp lệ khi kết nối phục hồi; hỗ trợ chủ động tải thêm dữ liệu để dùng offline.
 
 Phát hiện bất thường là **kết quả nghi vấn từ thuật toán**, không phải xác nhận nguyên nhân ô nhiễm hay một sự kiện môi trường có thật.
 
@@ -52,7 +51,8 @@ Người dùng chưa đăng nhập chỉ được truy cập những tài nguyê
 
 - MVP tập trung **một đại lượng PM2.5** với đơn vị chuẩn `µg/m³`; chưa cam kết hỗ trợ mọi loại cảm biến.
 - Trạm có vị trí cố định; mỗi lần đo gắn với một `sensor`, một `dataset` và một `timestamp`.
-- Quy mô **200–500 trạm và 100.000–500.000 readings** là mục tiêu thiết kế/kiểm thử, **chưa phải kết quả đạt được**.
+- Quy mô **200–500 trạm và 100.000–500.000 readings** là mục tiêu thiết kế/kiểm thử, **chưa phải kết quả đạt được** và **không phải giới hạn cứng của mọi dataset**.
+- **Chưa chốt** chu kỳ đo của trạm, nhịp cập nhật batch, thời lượng tối đa của dataset hay nguồn dữ liệu thực làm chuẩn. Phải dựa trên đặc tính nguồn được chọn, không mặc định 5 phút/trạm hoặc 72 giờ chỉ từ ví dụ thảo luận.
 - Khi online, ứng dụng **tự động lưu cục bộ** các dữ liệu đã tải thành công theo phạm vi truy cập; không yêu cầu người dùng dự báo mất mạng hay bấm nút tải offline trước mỗi lần sử dụng. Chỉ dữ liệu **đã thực sự lưu thành công** mới bảo đảm có thể truy cập offline, không mặc nhiên là toàn bộ dataset.
 - Ứng dụng phải được truy cập/khởi tạo thành công khi còn mạng để chuẩn bị các tài nguyên khởi chạy cần thiết; không bảo đảm đăng nhập lần đầu khi offline. Bản đồ nền Mapbox có thể thiếu tiles/tòa nhà khi không có mạng; dữ liệu cảm biến đã lưu vẫn có thể được xem qua giao diện offline phù hợp.
 
@@ -74,7 +74,7 @@ Người dùng chưa đăng nhập chỉ được truy cập những tài nguyê
 | **FR-08** | Phân tích bất thường bằng ML đã train trước | Analyst, Admin | P0 | Có kết quả inference khi online; không train theo upload |
 | **FR-09** | Hiển thị và chuyển đổi Mapbox 3D / Space–Time Cube | Analyst, Admin | P0 | Hai chế độ dùng chung dữ liệu/bộ lọc; thời gian thể hiện rõ |
 | **FR-10** | Xem chi tiết và đánh giá anomaly | Analyst, Admin | P0 | Xem score/method; đổi status/note được khi có quyền |
-| **FR-11** | **Tự động lưu** dữ liệu đã tải khi online, cho phép chủ động tải thêm dữ liệu và tiếp tục sử dụng offline | Analyst, Admin | P0 | Không cần thao tác chuẩn bị trước cho phần đã tự lưu; khi mất mạng đột ngột vẫn xem/chạy thống kê trên dữ liệu có sẵn |
+| **FR-11** | **Tự động lưu** dữ liệu đã tải và trạng thái làm việc thiết yếu, khôi phục phiên làm việc sau khi đóng/mở ứng dụng, cho phép chủ động tải thêm dữ liệu để sử dụng offline | Analyst, Admin | P0 | Phần dữ liệu đã lưu và bộ lọc/ngữ cảnh làm việc đã ghi bền vững được khôi phục; không cần thao tác chuẩn bị trước khi mất mạng |
 | **FR-12** | Tự đồng bộ các thay đổi ngoại tuyến với Server | Analyst, Admin | P0 | Không mất mutation; không áp dụng trùng; có phản hồi xung đột |
 | **FR-13** | Tổng hợp readings theo thời gian/vùng để giảm dữ liệu hiển thị | Analyst, Admin | P1 | Đọc dữ liệu tổng hợp phù hợp khi cần |
 | **FR-14** | Mở rộng phát hiện theo không gian/cụm hoặc thuật toán nâng cao | Analyst, Admin | P2 | Được đánh giá và hiển thị tách biệt nếu triển khai |
@@ -152,22 +152,22 @@ Trong MVP chỉ có hai role đăng nhập là `analyst` và `admin`. Bảng xá
 **Luồng chính — Khi online:**
 
 1. Người dùng truy cập ứng dụng và mở dataset, trạm, khoảng thời gian hoặc kết quả phân tích cần xem.
-2. Khi tải dữ liệu từ Backend **thành công**, hệ thống **tự động lưu cục bộ** chính phần dữ liệu đã nhận được để có thể sử dụng lại nếu mất mạng. Hệ thống chuẩn bị/lưu các tài nguyên ứng dụng cần thiết cho việc mở lại giao diện offline.
+2. Khi tải dữ liệu từ Backend **thành công**, hệ thống **tự động lưu cục bộ** chính phần dữ liệu đã nhận được để có thể sử dụng lại nếu mất mạng. Hệ thống chuẩn bị/lưu các tài nguyên ứng dụng cần thiết cho việc mở lại giao diện offline. Đồng thời lưu **ngữ cảnh làm việc cần khôi phục** khi có thay đổi: dataset, trạm/vùng, bộ lọc và khoảng thời gian đã chọn, chế độ xem, và góc camera khi có thể khôi phục; không cam kết lưu mọi trạng thái UI thoáng qua.
 3. *Tùy chọn:* Người dùng có thể chủ động chọn **Tải về dùng offline** cho dataset/phạm vi lớn hơn hoặc chưa từng mở; hệ thống hiển thị kết quả tải và trạng thái sẵn sàng offline. Đây **không phải bước bắt buộc** để sử dụng phần dữ liệu đã auto-cache.
 
 **Luồng chính — Khi mất mạng đột ngột hoặc Backend không truy cập được:**
 
-4. Ứng dụng chuyển sang sử dụng dữ liệu đã lưu trên thiết bị, thông báo rõ trạng thái offline và phạm vi dữ liệu sẵn có; không bắt người dùng phải tải trước ngay trước sự cố.
-5. Người dùng tiếp tục xem dữ liệu/kết quả đã lưu, lọc trong phạm vi sẵn có và chạy **thống kê** trên readings cục bộ. Nếu chỉ 100 readings đã được tải thì chỉ cam kết 100 readings ấy, **không suy diễn toàn bộ dataset đã lưu**.
-6. `analyst/admin` có thể sửa `status/note` của anomaly **đã tồn tại trên Server và được tải về trước đó**; hệ thống lưu thao tác vào hàng đợi cục bộ trước khi chờ đồng bộ.
+4. Nếu tab vẫn mở, ứng dụng cố gắng **giữ nguyên trạng thái làm việc hiện tại** và chuyển sang sử dụng dữ liệu đã lưu trên thiết bị; thông báo rõ trạng thái offline và phạm vi dữ liệu sẵn có, không bắt người dùng tải trước ngay trước sự cố. Nếu tải lại/đóng rồi mở tab khi offline, ứng dụng khôi phục ngữ cảnh đã ghi bền vững và phần dữ liệu còn lưu.
+5. Người dùng tiếp tục xem dữ liệu/kết quả đã lưu, lọc trong phạm vi sẵn có và chạy **thống kê** trên readings cục bộ. Ngữ cảnh khôi phục không được tạo cảm giác có dữ liệu chưa cache: nếu chỉ 100 readings đã được tải thì chỉ cam kết 100 readings ấy, **không suy diễn toàn bộ dataset đã lưu**.
+6. `analyst/admin` có thể sửa `status/note` của anomaly **đã tồn tại trên Server và được tải về trước đó**; hệ thống ghi mutation vào **hàng đợi cục bộ bền vững trước khi xác nhận đã lưu cục bộ**. Giao diện phân biệt rõ **đã lưu cục bộ/chờ sync**, **đã đồng bộ**, **lỗi**, **xung đột**; không báo đã đồng bộ khi Server chưa xác nhận.
 
 **Luồng chính — Khi Backend phục hồi:**
 
-7. Hệ thống tự thử đồng bộ những thao tác còn chờ, xác thực và kiểm tra phiên bản khi gửi lên Server; cập nhật kết quả hoặc thông báo xung đột rồi làm mới dữ liệu cục bộ phù hợp.
+7. Khi Backend thực sự truy cập lại được, hệ thống tự thử đồng bộ các mutation còn chờ, xác thực và kiểm tra phiên bản khi gửi lên Server; cập nhật kết quả hoặc thông báo xung đột rồi làm mới dữ liệu cục bộ phù hợp. Không chỉ dựa vào tín hiệu thiết bị có Internet; kết quả xung đột chưa xử lý phải được bảo toàn để người dùng quyết định.
 
-**Kết quả:** Mất mạng bất ngờ không làm mất khả năng sử dụng **phần dữ liệu đã lưu thành công**; thao tác offline đã ghi vào hàng đợi không bị mất khi tải lại ứng dụng và gửi lại không tạo tác động trùng.
+**Kết quả:** Mất mạng bất ngờ không làm mất khả năng sử dụng **phần dữ liệu đã lưu thành công**; ngữ cảnh làm việc đã ghi bền vững được khôi phục sau khi mở lại; thao tác offline đã ghi vào hàng đợi không bị mất khi tải lại ứng dụng và gửi lại không tạo tác động trùng.
 
-**Ngoại lệ:** Chưa từng khởi tạo ứng dụng khi online; dữ liệu chưa được tải hoặc chưa lưu xong; dung lượng lưu trữ không đủ; mất mạng giữa lúc tải/gửi; nhiều thiết bị sửa cùng anomaly; nhiều tab; Backend chết dù thiết bị còn Internet → hiển thị trạng thái thích hợp, không hứa có dữ liệu chưa lưu. Nếu việc lưu tự động thất bại, hệ thống không được báo nhầm rằng dữ liệu đã sẵn sàng offline.
+**Ngoại lệ:** Chưa từng khởi tạo ứng dụng khi online; dữ liệu hoặc trạng thái chưa được ghi xong; quota/storage bị từ chối, trình duyệt tự thu hồi cache, người dùng xóa dữ liệu site; mất mạng giữa lúc tải/gửi; nhiều thiết bị sửa cùng anomaly; nhiều tab; Backend chết dù thiết bị còn Internet → hiển thị trạng thái thích hợp, không hứa có dữ liệu/trạng thái chưa lưu. Nếu việc lưu tự động thất bại, hệ thống không được báo nhầm rằng dữ liệu đã sẵn sàng offline. Không thể bảo đảm dữ liệu sống sót khi người dùng xóa lưu trữ hoặc thiết bị hỏng.
 
 **Giới hạn:** Không upload/import hoàn chỉnh khi offline; **không chạy ML inference mới**; không bảo đảm đầy đủ bản đồ nền Mapbox khi không có mạng. Anomaly do thống kê mới phát hiện khi offline là **kết quả cục bộ**, không tự mang ID Server, không tự coi là đã lưu vào MongoDB.
 
@@ -177,6 +177,8 @@ Trong MVP chỉ có hai role đăng nhập là `analyst` và `admin`. Bảng xá
 - **AT-06B (Giới hạn dữ liệu):** Dataset có 10.000 readings nhưng trình duyệt chỉ tải/lưu 100 readings → ngắt mạng → không tuyên bố có đủ cả 10.000 readings; yêu cầu chưa được lưu phải nhận thông báo dữ liệu chưa sẵn có.
 - **AT-06C (Tải trước tùy chọn):** Analyst chọn lưu thêm khoảng thời gian chưa từng xem → khi thao tác tải hoàn tất, phần này cũng truy cập được offline.
 - **AT-06D (Đồng bộ):** Analyst sửa `note/status` của anomaly đã tải khi offline → khôi phục Backend → thay đổi được đồng bộ một lần; nếu phiên bản xung đột thì hệ thống báo xung đột thay vì âm thầm ghi đè.
+- **AT-06E (Khôi phục phiên làm việc):** Analyst đã chọn dataset, khoảng thời gian, vùng/trạm, chế độ xem và lưu thành công ngữ cảnh → ngắt mạng → đóng và mở lại tab (app shell đã cache) → hệ thống khôi phục ngữ cảnh và dữ liệu thực sự có trong IndexedDB; không giả định bản đồ Mapbox đầy đủ.
+- **AT-06F (Gián đoạn giữa chừng):** Analyst sửa anomaly, mutation đã lưu vào outbox → request tới Server nhưng phản hồi bị mất → mở lại ứng dụng và retry → Server không áp dụng cùng mutation hai lần; giao diện thể hiện trạng thái đúng sau khi nhận xác nhận hoặc conflict.
 
 ---
 
@@ -206,6 +208,8 @@ Trong MVP chỉ có hai role đăng nhập là `analyst` và `admin`. Bảng xá
 | **BR-20** | Khi online, dữ liệu đã tải thành công để người dùng xem phải được **tự động lưu cục bộ** trong phạm vi hệ thống hỗ trợ; người dùng không cần chủ động tải để phòng mất mạng. Phải phân biệt dữ liệu đã lưu và dữ liệu chưa lưu. |
 | **BR-21** | Chức năng tải trước dữ liệu offline chỉ là **tùy chọn** mở rộng phạm vi có sẵn. Tải chưa hoàn tất hoặc lưu thất bại không được hiển thị là sẵn sàng offline. |
 | **BR-22** | Khi offline, chỉ thao tác trên **phần dữ liệu thực sự có sẵn trên thiết bị**; không được ngầm suy diễn rằng toàn bộ dataset hoặc tài nguyên bản đồ nền đã được lưu chỉ vì người dùng từng mở một trang. |
+| **BR-23** | Trạng thái làm việc thiết yếu được lưu và khôi phục trên cùng trình duyệt/thiết bị trong phạm vi dữ liệu đã ghi bền vững. Khôi phục bộ lọc/camera **không đồng nghĩa** khôi phục tiles Mapbox hoặc dữ liệu chưa cache. |
+| **BR-24** | Mutation review phải được lưu bền vững trước khi hiển thị là **đã lưu cục bộ**; chỉ hiển thị **đã đồng bộ** khi Server xác nhận. Lỗi và conflict chưa giải quyết không được xóa âm thầm khỏi hàng chờ. |
 
 ---
 
@@ -222,7 +226,7 @@ Trong MVP chỉ có hai role đăng nhập là `analyst` và `admin`. Bảng xá
 | **Analysis Run** | ID, dataset, phương pháp, cấu hình, trạng thái, thời điểm, phiên bản engine/model | Một lần chạy có thể tạo nhiều anomalies |
 | **Anomaly** | ID, reading, sensor, dataset, analysis run, vị trí/thời gian, method, score, severity, status, note, version | Một reading có thể có nhiều phát hiện |
 | **Processed Mutation** | Mã mutation, người gửi, thời điểm, kết quả xử lý | Ngăn tác động lặp khi đồng bộ |
-| **Offline Local Data** | Phạm vi dataset/sensor/reading/anomaly **đã tự lưu hoặc đã tải trước thành công**, kết quả thống kê local, trạng thái sẵn sàng offline, hàng đợi thao tác, mốc sync | Hỗ trợ sử dụng ngay khi mất mạng đột ngột và đồng bộ khi phục hồi |
+| **Offline Local Data** | Phạm vi dataset/sensor/reading/anomaly **đã tự lưu hoặc đã tải trước thành công**, kết quả thống kê local, **ngữ cảnh phiên làm việc cần phục hồi**, trạng thái sẵn sàng offline, hàng đợi thao tác, mốc sync | Hỗ trợ sử dụng ngay khi mất mạng đột ngột, mở lại phiên làm việc và đồng bộ khi phục hồi |
 
 Đây là **mô hình dữ liệu logic**, chưa cố định tên collection, khóa, index hay biểu diễn ObjectId. Việc chuyển các thực thể thành MongoDB documents, index và TypeScript DTO thuộc SDD/Shared Schema.
 
@@ -259,8 +263,8 @@ Tên cột của file nguồn được phép khác tên trường chuẩn, ví d
 | **NFR-01** | Frontend và Backend phải sử dụng JavaScript/TypeScript; có API Client–Server. |
 | **NFR-02** | MongoDB là cơ sở dữ liệu chính; thiết kế lưu trữ và truy vấn dữ liệu không gian–thời gian phù hợp. |
 | **NFR-03** | Hệ thống chạy qua Nginx với HTTPS/TLS cổng `443`; nghiên cứu/sử dụng OpenSSL trong môi trường thử nghiệm. |
-| **NFR-04** | Ứng dụng có cơ chế lưu tài nguyên để mở lại giao diện và **tự động lưu dữ liệu người dùng đã tải thành công vào bộ nhớ cục bộ**; đáp ứng kịch bản mất mạng đột ngột mà không cần bấm tải offline trước. Cho phép tải thêm dữ liệu theo yêu cầu, có trạng thái xác nhận lưu thành công. |
-| **NFR-05** | Có cơ chế tự đồng bộ và xử lý gửi trùng/xung đột; không chỉ dựa vào trạng thái kết nối Internet của thiết bị. |
+| **NFR-04** | Ứng dụng có cơ chế lưu tài nguyên để mở lại giao diện, **tự động lưu dữ liệu đã tải và ngữ cảnh làm việc thiết yếu** vào bộ nhớ cục bộ; đáp ứng kịch bản mất mạng đột ngột và khôi phục sau khi đóng/mở tab nếu lưu thành công. Cho phép tải thêm dữ liệu theo yêu cầu; có trạng thái xác nhận lưu thành công và cảnh báo thất bại/hết dung lượng. |
+| **NFR-05** | Có cơ chế outbox bền vững, tự đồng bộ và xử lý gửi trùng/xung đột; phân biệt **đã lưu cục bộ** với **Server đã xác nhận**, không chỉ dựa vào trạng thái kết nối Internet của thiết bị. |
 | **NFR-06** | Có kiểm thử unit, integration, end-to-end, load/stress và báo cáo coverage. |
 | **NFR-07** | Có bằng chứng đánh giá hiệu năng truy vấn MongoDB, xử lý dữ liệu, thuật toán và hai chế độ trực quan 3D. |
 | **NFR-08** | Có xác thực, phân quyền phía Server; bảo vệ thông tin xác thực và giới hạn đầu vào upload phù hợp. |
@@ -287,14 +291,14 @@ Redis là **tùy chọn**, không phải yêu cầu bắt buộc trong MVP. Côn
 | **OPEN-03** | Thuật toán/model ML cuối cùng, feature và định dạng lưu model | ML, integration, analysis output | Isolation Forest chỉ là ứng viên; phải kiểm chứng train → load → predict |
 | **OPEN-04** | Các ngưỡng cụ thể để ánh xạ score sang severity, cấu hình mặc định của detector | Engine, Shared Schema, UI | Không tự coi ngưỡng minh họa là ngưỡng đã được duyệt |
 | **OPEN-05** | Giới hạn file upload, kích thước batch và chính sách báo cáo lỗi quá nhiều dòng | Import, performance | Phải có giới hạn an toàn; thông số trong SDD |
-| **OPEN-06** | Cơ chế xử lý phân tích lâu: phản hồi đồng bộ hay có trạng thái job | Analysis API, FE | Không thêm job queue phức tạp khi chưa đo thử |
+| **OPEN-06** | Cơ chế xử lý phân tích lâu: phản hồi đồng bộ hay có trạng thái job / Server Worker | Analysis API, FE | ML inference vẫn chạy phía Server; chưa mặc định thêm job queue hay Worker nếu chưa đo thử |
+| **OPEN-07** | Chu kỳ đo trạm, độ dài dataset, nhịp thêm batch và nguồn dữ liệu thực dùng làm chuẩn | Dataset source, benchmarking | Phụ thuộc dataset thực được chọn; không khóa 5 phút/72 giờ hay giới hạn cứng khi chưa có căn cứ |
 
 **OPEN-01 đã được giải quyết** bằng BR-08 (phương án B: giữ bản ghi hợp lệ đầu tiên, bỏ trùng có báo cáo); không còn là quyết định mở.
 
 Các mục còn lại **không được AI tự xem là đã chốt**. Nhóm trưởng có thể hoàn thiện SDD những phần độc lập trước; phần giao tiếp giữa các thành viên chỉ khóa khi quyết định liên quan được thống nhất.
 
 ---
-
 
 **Lịch sử phiên bản**
 
@@ -304,3 +308,4 @@ Các mục còn lại **không được AI tự xem là đã chốt**. Nhóm tr�
 | `0.2` | 11/11/2026 | Bỏ role `viewer`; giữ `analyst` và `admin` (Application Admin), tách quyền hạ tầng DevOps khỏi JWT role |
 | `0.3` | 11/11/2026 | Làm rõ auto-cache khi online, sử dụng khi mất mạng đột ngột, tải trước tùy chọn, phạm vi dữ liệu offline, nghiệm thu UC-06; cập nhật FR-11, BR-20–22, NFR-04 |
 | `0.4` | 11/11/2026 | Chốt BR-08 phương án B: giữ bản ghi hợp lệ đầu tiên; báo cáo trùng hoàn toàn/xung đột, loại OPEN-01 khỏi danh sách chưa chốt; cập nhật UC-02 |
+| `0.5` | 12/11/2026 | Ưu tiên khôi phục ngữ cảnh làm việc, bảo toàn outbox/đồng bộ khi gián đoạn, tiêu chí AT-06E/F; giữ mở thông số thời gian và chu kỳ dataset |
