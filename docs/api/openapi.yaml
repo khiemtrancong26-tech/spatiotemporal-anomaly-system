@@ -1,0 +1,3005 @@
+openapi: 3.0.3
+info:
+  title: Spatiotemporal PM2.5 Anomaly API
+  version: 0.2.0-draft
+  description: API contract draft based on SRS v0.5; API standardization review (2026-11-12).
+    Resource-oriented /api/v1; bounded sort, keyset cursor, POST idempotency, endpoint-specific status codes.
+    OPEN-02/03/04/05/06/07 & NEW-01/02/03/04 remain unresolved. No endpoint is assumed implemented.
+servers:
+- url: /
+  description: Same-origin Nginx HTTPS :443; paths include /api/v1
+tags:
+- name: System
+- name: Auth
+- name: Datasets
+- name: Import
+- name: Query
+- name: Analysis
+- name: Anomalies
+- name: Offline
+- name: Admin
+- name: Internal
+security:
+- bearerAuth: []
+paths:
+  /api/v1/health:
+    get:
+      tags:
+      - System
+      summary: 'Readiness: Backend và MongoDB'
+      operationId: get_api_v1_health
+      description: 200 khi sẵn sàng; 503 khi dependency bắt buộc không khả dụng. 503 trả cùng HealthResponse
+        với status=degraded. Không yêu cầu JWT.
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Dependency quan trọng không khả dụng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/auth/tokens:
+    post:
+      tags:
+      - Auth
+      summary: Đăng nhập, cấp JWT
+      operationId: post_api_v1_auth_tokens
+      description: Không bắt buộc Idempotency-Key; sai thông tin đăng nhập trả 401, không tiết lộ username
+        có tồn tại.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '429':
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Retry-After:
+              description: Đưa ra khi rate-limit được triển khai.
+              schema:
+                type: string
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/users/me:
+    get:
+      tags:
+      - Auth
+      summary: Thông tin tài khoản đã xác thực
+      operationId: get_api_v1_users_me
+      x-roles:
+      - analyst
+      - admin
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/datasets:
+    get:
+      tags:
+      - Datasets
+      summary: Liệt kê Dataset đã imported
+      operationId: get_api_v1_datasets
+      description: Only imported datasets; `createdAt` là khóa sắp xếp chính và `_id` là khóa phụ. Empty list
+        = 200 [].
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: sort
+        required: false
+        schema:
+          type: string
+          enum:
+          - createdAt:asc
+          - createdAt:desc
+          default: createdAt:desc
+        description: Whitelist sort. Backend thêm _id làm tie-breaker (createdAt + _id); cursor chứa khóa cuối
+          và fingerprint filter/sort.
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque; gắn với bộ lọc và sort; đổi filter/sort phải bỏ cursor và bắt đầu trang đầu.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetPage'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+      - Import
+      summary: Upload CSV/JSON và tạo Dataset
+      operationId: post_api_v1_datasets
+      description: POST uploads source file and initializes Dataset. Retry cùng Idempotency-Key và nội dung
+        trả lại cùng dataset/status 201; file content+metadata nằm trong fingerprint request. OPEN-05 file
+        size limit TBD.
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: UUID cho một thao tác logic; khi retry phải giữ nguyên key. Không dùng lại key cho thao tác khác.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                name:
+                  type: string
+              additionalProperties: false
+              required:
+              - file
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleDataset'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Content Too Large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/datasets/{id}/validation:
+    get:
+      tags:
+      - Import
+      summary: Báo cáo validation và mapping gợi ý
+      operationId: get_api_v1_datasets_by_id_validation
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          minLength: 1
+        description: ID opaque; API không yêu cầu Client giải mã ObjectId.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationReport'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/datasets/{id}/mapping:
+    put:
+      tags:
+      - Import
+      summary: Xác nhận mapping và đơn vị
+      operationId: put_api_v1_datasets_by_id_mapping
+      description: Replace mapping resource. Lặp lại cùng nội dung không tạo thay đổi nghiệp vụ mới; chỉ cho
+        phép khi state chấp nhận mapping. OPEN-02 chưa chốt timezone thiếu offset.
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          minLength: 1
+        description: ID opaque; API không yêu cầu Client giải mã ObjectId.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MappingRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleDataset'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/datasets/{id}/imports:
+    post:
+      tags:
+      - Import
+      summary: Thực hiện import Dataset theo BR-08
+      operationId: post_api_v1_datasets_by_id_imports
+      description: 'Profile synchronous draft: 200 khi imported hoàn tất, trả Dataset hiện tại. Cùng key retry
+        không chạy lại; dataset importing => 409 cho request khác; imported => không import lại. Một file thất
+        bại cần cleanup và thao tác retry có chủ đích/key mới. Path /imports thể hiện yêu cầu nhập dữ liệu; chưa có Import
+        resource ID độc lập. OPEN-06 chưa quyết định async.'
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          minLength: 1
+        description: ID opaque; API không yêu cầu Client giải mã ObjectId.
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: UUID cho một thao tác logic; khi retry phải giữ nguyên key. Không dùng lại key cho thao tác khác.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleDataset'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/sensors:
+    get:
+      tags:
+      - Query
+      summary: Lọc sensors trong dataset
+      operationId: get_api_v1_sensors
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: datasetId
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - in: query
+        name: bbox
+        required: false
+        schema:
+          type: string
+          example: 106.60,10.70,106.80,10.90
+        description: minLon,minLat,maxLon,maxLat (WGS84).
+      - in: query
+        name: sort
+        required: false
+        schema:
+          type: string
+          enum:
+          - externalId:asc
+          - externalId:desc
+          default: externalId:asc
+        description: Whitelist sort. Backend thêm _id làm tie-breaker (externalId + _id); cursor chứa khóa
+          cuối và fingerprint filter/sort.
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque; gắn với bộ lọc và sort; đổi filter/sort phải bỏ cursor và bắt đầu trang đầu.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SensorPage'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/readings:
+    get:
+      tags:
+      - Query
+      summary: Lọc readings theo không gian và thời gian
+      operationId: get_api_v1_readings
+      description: Stable keyset order (ts,_id) asc/desc. Cursor binds dataset/time/sensor/bbox/sort; không
+        tải cả dataset một request.
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: datasetId
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - in: query
+        name: sensorId
+        required: false
+        schema:
+          type: string
+          minLength: 1
+      - in: query
+        name: bbox
+        required: false
+        schema:
+          type: string
+          example: 106.60,10.70,106.80,10.90
+        description: minLon,minLat,maxLon,maxLat (WGS84).
+      - in: query
+        name: from
+        required: false
+        schema:
+          type: string
+          format: date-time
+        description: UTC ISO 8601 with Z; range áp dụng cho readings/anomalies.
+      - in: query
+        name: to
+        required: false
+        schema:
+          type: string
+          format: date-time
+        description: UTC ISO 8601 with Z; range áp dụng cho readings/anomalies.
+      - in: query
+        name: sort
+        required: false
+        schema:
+          type: string
+          enum:
+          - ts:asc
+          - ts:desc
+          default: ts:asc
+        description: Whitelist sort. Backend thêm _id làm tie-breaker (ts + _id); cursor chứa khóa cuối và
+          fingerprint filter/sort.
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque; gắn với bộ lọc và sort; đổi filter/sort phải bỏ cursor và bắt đầu trang đầu.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadingPage'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/reading-aggregates:
+    get:
+      tags:
+      - Query
+      summary: Tổng hợp PM2.5 theo thời gian/vùng (P1)
+      operationId: get_api_v1_reading_aggregates
+      description: 'P1 draft: bucket hours/days, derived readings; không biểu diễn giá trị trung bình như reading
+        quan sát thực.'
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: datasetId
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - in: query
+        name: bbox
+        required: false
+        schema:
+          type: string
+          example: 106.60,10.70,106.80,10.90
+        description: minLon,minLat,maxLon,maxLat (WGS84).
+      - in: query
+        name: bucket
+        required: false
+        schema:
+          type: string
+          enum:
+          - hour
+          - day
+      - in: query
+        name: from
+        required: false
+        schema:
+          type: string
+          format: date-time
+        description: UTC ISO 8601 with Z; range áp dụng cho readings/anomalies.
+      - in: query
+        name: to
+        required: false
+        schema:
+          type: string
+          format: date-time
+        description: UTC ISO 8601 with Z; range áp dụng cho readings/anomalies.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AggregatePage'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/reading-batches:
+    post:
+      tags:
+      - Internal
+      summary: Nhập Readings đã chuẩn hóa (internal only)
+      operationId: post_api_v1_reading_batches
+      description: Không công bố qua Nginx/public API; chỉ cho phép workflow nội bộ được xác thực/ủy quyền.
+        BR-08 first-valid-row-wins. Retry không được tạo duplicate nhờ unique key/dedup; không dành cho Browser.
+      x-internal: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkReadingRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkReadingResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-internal-only: true
+      x-auth-note: DO NOT expose via public Nginx; require internal authorization or reject external calls.
+        No new analyst/admin JWT role is implied.
+  /api/v1/analysis-runs:
+    post:
+      tags:
+      - Analysis
+      summary: Tạo và chạy AnalysisRun phía Server
+      operationId: post_api_v1_analysis_runs
+      description: 'Profile synchronous bounded work (OPEN-06): 201 khi AnalysisRun/anomalies persisted. Retry
+        cùng key trả lại same run, không chạy detector lại. OPEN-06 có thể đổi thành 202 + polling sau benchmark;
+        chưa khóa job queue. ML inference only Server.'
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: UUID cho một thao tác logic; khi retry phải giữ nguyên key. Không dùng lại key cho thao tác khác.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DetectionRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisCreateResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      tags:
+      - Analysis
+      summary: Lịch sử các lần phân tích
+      operationId: get_api_v1_analysis_runs
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: datasetId
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - in: query
+        name: sort
+        required: false
+        schema:
+          type: string
+          enum:
+          - createdAt:asc
+          - createdAt:desc
+          default: createdAt:desc
+        description: Whitelist sort. Backend thêm _id làm tie-breaker (createdAt + _id); cursor chứa khóa cuối
+          và fingerprint filter/sort.
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque; gắn với bộ lọc và sort; đổi filter/sort phải bỏ cursor và bắt đầu trang đầu.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisRunPage'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/anomalies:
+    get:
+      tags:
+      - Anomalies
+      summary: Truy vấn anomalies
+      operationId: get_api_v1_anomalies
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: datasetId
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - in: query
+        name: analysisRunId
+        required: false
+        schema:
+          type: string
+          minLength: 1
+      - in: query
+        name: status
+        required: false
+        schema:
+          type: string
+          enum:
+          - open
+          - confirmed
+          - false_positive
+      - in: query
+        name: severity
+        required: false
+        schema:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+      - in: query
+        name: family
+        required: false
+        schema:
+          type: string
+          enum:
+          - statistical
+          - ml
+      - in: query
+        name: method
+        required: false
+        schema:
+          type: string
+          minLength: 1
+      - in: query
+        name: from
+        required: false
+        schema:
+          type: string
+          format: date-time
+        description: UTC ISO 8601 with Z; range áp dụng cho readings/anomalies.
+      - in: query
+        name: to
+        required: false
+        schema:
+          type: string
+          format: date-time
+        description: UTC ISO 8601 with Z; range áp dụng cho readings/anomalies.
+      - in: query
+        name: sort
+        required: false
+        schema:
+          type: string
+          enum:
+          - ts:asc
+          - ts:desc
+          default: ts:asc
+        description: Whitelist sort. Backend thêm _id làm tie-breaker (ts + _id); cursor chứa khóa cuối và
+          fingerprint filter/sort.
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque; gắn với bộ lọc và sort; đổi filter/sort phải bỏ cursor và bắt đầu trang đầu.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnomalyPage'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/anomalies/{id}:
+    get:
+      tags:
+      - Anomalies
+      summary: Chi tiết anomaly
+      operationId: get_api_v1_anomalies_id
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          minLength: 1
+        description: ID opaque; API không yêu cầu Client giải mã ObjectId.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleAnomaly'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags:
+      - Anomalies
+      summary: 'Review anomaly: status/note'
+      operationId: patch_api_v1_anomalies_id
+      description: Only status/note; baseVersion CAS. Stale =>409 currentVersion. Khi mất response, Client
+        GET lại trạng thái và so sánh, không PATCH mù lặp.
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          minLength: 1
+        description: ID opaque; API không yêu cầu Client giải mã ObjectId.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewPatchRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleAnomaly'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/review-changes:
+    get:
+      tags:
+      - Offline
+      summary: Incremental pull review changes
+      operationId: get_api_v1_review_changes
+      description: Sync has fixed server order updatedAt,_id (draft). Không cho sort từ Client. Cần nghiệm
+        thu đồng thời nhiều thiết bị/NEW-04 trước khi claim không bỏ sót.
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque change checkpoint; Server controls fixed order.
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncPullResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/review-mutation-batches:
+    post:
+      tags:
+      - Offline
+      summary: Đồng bộ outbox mutations
+      operationId: post_api_v1_review_mutation_batches
+      description: Mỗi OfflineReviewMutation dùng clientMutationId bền vững. HTTP 200 nếu batch hợp lệ đã được
+        xử lý; mỗi item outcome applied|duplicate|conflict|rejected. ID đã dùng nhưng payload khác => outcome
+        rejected + item error, không tự HTTP 409 toàn batch. Receipt và review update atomic trong MongoDB
+        transaction.
+      x-roles:
+      - analyst
+      - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncPushRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncPushResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/exports:
+    get:
+      tags:
+      - Offline
+      summary: Tải dữ liệu theo trang để prefetch offline
+      operationId: get_api_v1_exports
+      description: Không cho client sort, fixed server order. ExportPage chứa sensors/readings/anomalies và
+        một cursor là mô hình DRAFT cần khóa NEW-03/NEW-04 trước khi tuyên bố cache coverage hoàn chỉnh; Client
+        chỉ đánh dấu complete khi toàn bộ scope đã được ghi vào IndexedDB.
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: datasetId
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - in: query
+        name: bbox
+        required: false
+        schema:
+          type: string
+          example: 106.60,10.70,106.80,10.90
+        description: minLon,minLat,maxLon,maxLat (WGS84).
+      - in: query
+        name: from
+        required: false
+        schema:
+          type: string
+          format: date-time
+        description: UTC ISO 8601 with Z; range áp dụng cho readings/anomalies.
+      - in: query
+        name: to
+        required: false
+        schema:
+          type: string
+          format: date-time
+        description: UTC ISO 8601 with Z; range áp dụng cho readings/anomalies.
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque; gắn với phạm vi export. Đổi bộ lọc phải bỏ cursor và bắt đầu từ trang đầu.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportPage'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/admin/users:
+    get:
+      tags:
+      - Admin
+      summary: Danh sách tài khoản
+      operationId: get_api_v1_admin_users
+      x-roles:
+      - admin
+      parameters:
+      - in: query
+        name: sort
+        required: false
+        schema:
+          type: string
+          enum:
+          - username:asc
+          - username:desc
+          default: username:asc
+        description: Whitelist sort. Backend thêm _id làm tie-breaker (usernameNormalized + _id); cursor chứa
+          khóa cuối và fingerprint filter/sort.
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque; gắn với bộ lọc và sort; đổi filter/sort phải bỏ cursor và bắt đầu trang đầu.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+      - Admin
+      summary: Tạo tài khoản analyst/admin
+      operationId: post_api_v1_admin_users
+      description: Unique usernameNormalized; retry cùng key/payload trả lại cùng 201, khác payload key cũ
+        =>422.
+      x-roles:
+      - admin
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: UUID cho một thao tác logic; khi retry phải giữ nguyên key. Không dùng lại key cho thao tác khác.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/admin/users/{id}:
+    patch:
+      tags:
+      - Admin
+      summary: Thay đổi role/isActive
+      operationId: patch_api_v1_admin_users_id
+      description: Only Admin. Không được vô hiệu hóa hoặc hạ quyền last active admin. Không quản trị OS, Nginx
+        hoặc Docker.
+      x-roles:
+      - admin
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          minLength: 1
+        description: ID opaque; API không yêu cầu Client giải mã ObjectId.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserUpdateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+          additionalProperties: false
+          required:
+          - code
+          - message
+      additionalProperties: false
+      required:
+      - error
+    PageInfo:
+      type: object
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+        nextCursor:
+          type: string
+          nullable: true
+      additionalProperties: false
+      required:
+      - limit
+      - nextCursor
+    UserPublic:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        username:
+          type: string
+        role:
+          type: string
+          enum:
+          - analyst
+          - admin
+        isActive:
+          type: boolean
+      additionalProperties: false
+      required:
+      - id
+      - username
+      - role
+      - isActive
+    ImportIssue:
+      type: object
+      properties:
+        rowNumber:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+          enum:
+          - DUPLICATE_SAME_VALUE
+          - DUPLICATE_VALUE_CONFLICT
+          - INVALID_ROW
+        field:
+          type: string
+        keptRowNumber:
+          type: integer
+          minimum: 1
+      additionalProperties: false
+      required:
+      - rowNumber
+      - reason
+    ImportSummary:
+      type: object
+      properties:
+        totalRows:
+          type: integer
+          minimum: 0
+        importedRows:
+          type: integer
+          minimum: 0
+        duplicateRows:
+          type: integer
+          minimum: 0
+        conflictingRows:
+          type: integer
+          minimum: 0
+        invalidRows:
+          type: integer
+          minimum: 0
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportIssue'
+      additionalProperties: false
+      required:
+      - totalRows
+      - importedRows
+      - duplicateRows
+      - conflictingRows
+      - invalidRows
+      - issues
+    Dataset:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        name:
+          type: string
+        sourceFilename:
+          type: string
+        status:
+          type: string
+          enum:
+          - uploaded
+          - awaiting_mapping
+          - importing
+          - imported
+          - failed
+        createdBy:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        createdAt:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+        importSummary:
+          $ref: '#/components/schemas/ImportSummary'
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - sourceFilename
+      - status
+      - createdBy
+      - createdAt
+    Sensor:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        externalId:
+          type: string
+        name:
+          type: string
+        location:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+              - Point
+            coordinates:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items:
+                type: number
+              description: '[longitude, latitude], WGS84'
+          additionalProperties: false
+          required:
+          - type
+          - coordinates
+        type:
+          type: string
+          enum:
+          - pm25
+        unit:
+          type: string
+          enum:
+          - ug/m3
+        region:
+          type: string
+      additionalProperties: false
+      required:
+      - id
+      - datasetId
+      - externalId
+      - name
+      - location
+      - type
+      - unit
+    Reading:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        sensorId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        ts:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+        location:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+              - Point
+            coordinates:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items:
+                type: number
+              description: '[longitude, latitude], WGS84'
+          additionalProperties: false
+          required:
+          - type
+          - coordinates
+        value:
+          type: number
+          minimum: 0
+          description: Finite number; NaN/Infinity forbidden
+        unit:
+          type: string
+          enum:
+          - ug/m3
+      additionalProperties: false
+      required:
+      - id
+      - datasetId
+      - sensorId
+      - ts
+      - location
+      - value
+      - unit
+    AnalysisRun:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        family:
+          type: string
+          enum:
+          - statistical
+          - ml
+        method:
+          type: string
+        config:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum:
+          - running
+          - completed
+          - failed
+        createdAt:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+        completedAt:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+        engineVersion:
+          type: string
+        modelVersion:
+          type: string
+      additionalProperties: false
+      required:
+      - id
+      - datasetId
+      - family
+      - method
+      - config
+      - status
+      - createdAt
+    Anomaly:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        sensorId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        readingId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        analysisRunId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        ts:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+        location:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+              - Point
+            coordinates:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items:
+                type: number
+              description: '[longitude, latitude], WGS84'
+          additionalProperties: false
+          required:
+          - type
+          - coordinates
+        family:
+          type: string
+          enum:
+          - statistical
+          - ml
+        method:
+          type: string
+        score:
+          type: number
+          description: Finite detector-specific score, not air-quality probability
+        severity:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+        status:
+          type: string
+          enum:
+          - open
+          - confirmed
+          - false_positive
+        note:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        updatedAt:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+      additionalProperties: false
+      required:
+      - id
+      - datasetId
+      - sensorId
+      - readingId
+      - analysisRunId
+      - ts
+      - location
+      - family
+      - method
+      - score
+      - severity
+      - status
+      - note
+      - version
+      - updatedAt
+    ReviewChanges:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - open
+          - confirmed
+          - false_positive
+        note:
+          type: string
+      additionalProperties: false
+      minProperties: 1
+    OfflineReviewMutation:
+      type: object
+      properties:
+        clientMutationId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        anomalyId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        baseVersion:
+          type: integer
+          minimum: 1
+        changes:
+          $ref: '#/components/schemas/ReviewChanges'
+        createdAt:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+      additionalProperties: false
+      required:
+      - clientMutationId
+      - anomalyId
+      - baseVersion
+      - changes
+      - createdAt
+    SingleDataset:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Dataset'
+      additionalProperties: false
+      required:
+      - data
+    SingleAnomaly:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Anomaly'
+      additionalProperties: false
+      required:
+      - data
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      additionalProperties: false
+      required:
+      - username
+      - password
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          enum:
+          - Bearer
+        user:
+          $ref: '#/components/schemas/UserPublic'
+      additionalProperties: false
+      required:
+      - accessToken
+      - tokenType
+      - user
+    MappingRequest:
+      type: object
+      properties:
+        fieldMap:
+          type: object
+          properties:
+            sensorId:
+              type: string
+            latitude:
+              type: string
+            longitude:
+              type: string
+            timestamp:
+              type: string
+            value:
+              type: string
+            unit:
+              type: string
+            name:
+              type: string
+            region:
+              type: string
+          additionalProperties: false
+          required:
+          - sensorId
+          - latitude
+          - longitude
+          - timestamp
+          - value
+        unit:
+          type: string
+          enum:
+          - ug/m3
+      additionalProperties: false
+      required:
+      - fieldMap
+      - unit
+    ValidationReport:
+      type: object
+      properties:
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        status:
+          type: string
+          enum:
+          - uploaded
+          - awaiting_mapping
+          - importing
+          - imported
+          - failed
+        sourceColumns:
+          type: array
+          items:
+            type: string
+        totalRows:
+          type: integer
+          minimum: 0
+        validRows:
+          type: integer
+          minimum: 0
+        invalidRows:
+          type: integer
+          minimum: 0
+        mappingSuggestions:
+          type: object
+          additionalProperties:
+            type: string
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportIssue'
+      additionalProperties: false
+      required:
+      - datasetId
+      - status
+      - sourceColumns
+      - totalRows
+      - validRows
+      - invalidRows
+      - mappingSuggestions
+      - issues
+    DetectionRequest:
+      type: object
+      properties:
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        family:
+          type: string
+          enum:
+          - statistical
+          - ml
+        method:
+          type: string
+        config:
+          type: object
+          additionalProperties: true
+        scope:
+          type: object
+          properties:
+            sensorIds:
+              type: array
+              items:
+                type: string
+                description: Opaque ID string; do not assume MongoDB _id format
+                minLength: 1
+            from:
+              type: string
+              format: date-time
+              description: UTC ISO 8601 with Z; payload normalized by server
+            to:
+              type: string
+              format: date-time
+              description: UTC ISO 8601 with Z; payload normalized by server
+          additionalProperties: false
+      additionalProperties: false
+      required:
+      - datasetId
+      - family
+      - method
+      - config
+    ReviewPatchRequest:
+      type: object
+      properties:
+        baseVersion:
+          type: integer
+          minimum: 1
+        changes:
+          $ref: '#/components/schemas/ReviewChanges'
+      additionalProperties: false
+      required:
+      - baseVersion
+      - changes
+    SyncPushRequest:
+      type: object
+      properties:
+        mutations:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfflineReviewMutation'
+      additionalProperties: false
+      required:
+      - mutations
+    SyncMutationResult:
+      type: object
+      properties:
+        clientMutationId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        outcome:
+          type: string
+          enum:
+          - applied
+          - duplicate
+          - conflict
+          - rejected
+        anomaly:
+          $ref: '#/components/schemas/Anomaly'
+        error:
+          $ref: '#/components/schemas/Error'
+      additionalProperties: false
+      required:
+      - clientMutationId
+      - outcome
+    SyncPushResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncMutationResult'
+      additionalProperties: false
+      required:
+      - results
+    SyncPullResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Anomaly'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+      additionalProperties: false
+      required:
+      - data
+      - page
+    ExportPage:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            sensors:
+              type: array
+              items:
+                $ref: '#/components/schemas/Sensor'
+            readings:
+              type: array
+              items:
+                $ref: '#/components/schemas/Reading'
+            anomalies:
+              type: array
+              items:
+                $ref: '#/components/schemas/Anomaly'
+          additionalProperties: false
+          required:
+          - sensors
+          - readings
+          - anomalies
+        page:
+          $ref: '#/components/schemas/PageInfo'
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      additionalProperties: false
+      required:
+      - data
+      - page
+      - datasetId
+    AggregatedReading:
+      type: object
+      properties:
+        ts:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+        location:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+              - Point
+            coordinates:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items:
+                type: number
+              description: '[longitude, latitude], WGS84'
+          additionalProperties: false
+          required:
+          - type
+          - coordinates
+        average:
+          type: number
+        count:
+          type: integer
+          minimum: 1
+      additionalProperties: false
+      required:
+      - ts
+      - location
+      - average
+      - count
+    BulkReadingRequest:
+      type: object
+      properties:
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        readings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reading'
+      additionalProperties: false
+      required:
+      - datasetId
+      - readings
+    IdempotencyReceiptStatus:
+      type: string
+      enum:
+      - processing
+      - completed
+      - failed
+      description: Stored server-side; not a replacement for AnalysisRun.status.
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - ok
+          - degraded
+        timestamp:
+          type: string
+          format: date-time
+      additionalProperties: false
+      required:
+      - status
+      - timestamp
+    BulkReadingResponse:
+      type: object
+      properties:
+        accepted:
+          type: integer
+          minimum: 0
+        duplicates:
+          type: integer
+          minimum: 0
+        conflicts:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+      required:
+      - accepted
+      - duplicates
+      - conflicts
+    AnalysisCreateResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/AnalysisRun'
+        anomalies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Anomaly'
+      additionalProperties: false
+      required:
+      - data
+      - anomalies
+    UserResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/UserPublic'
+      additionalProperties: false
+      required:
+      - data
+    DatasetPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dataset'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+      additionalProperties: false
+      required:
+      - data
+      - page
+    SensorPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Sensor'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+      additionalProperties: false
+      required:
+      - data
+      - page
+    ReadingPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reading'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+      additionalProperties: false
+      required:
+      - data
+      - page
+    AnalysisRunPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisRun'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+      additionalProperties: false
+      required:
+      - data
+      - page
+    AnomalyPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Anomaly'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+      additionalProperties: false
+      required:
+      - data
+      - page
+    UserPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserPublic'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+      additionalProperties: false
+      required:
+      - data
+      - page
+    AggregatePage:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AggregatedReading'
+      additionalProperties: false
+      required:
+      - data
+    AdminUserCreateRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 8
+        role:
+          type: string
+          enum:
+          - analyst
+          - admin
+      additionalProperties: false
+      required:
+      - username
+      - password
+      - role
+    AdminUserUpdateRequest:
+      type: object
+      properties:
+        isActive:
+          type: boolean
+        role:
+          type: string
+          enum:
+          - analyst
+          - admin
+      additionalProperties: false
+      minProperties: 1
