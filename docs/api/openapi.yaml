@@ -1,0 +1,2599 @@
+openapi: 3.0.3
+info:
+  title: Spatiotemporal PM2.5 Anomaly API
+  version: 0.1.0-draft
+  description: 'API Contract for SDD v0.3 / SRS v0.4. Review with team before merging as stable. Roles: analyst
+    and application admin only; public login/health. Canonical DTO follows shared-core/src/contracts/schemas.ts
+    v0.1; some request envelopes and lifecycle are DRAFT until API acceptance. Timestamp UTC Z, GeoJSON [longitude,latitude],
+    PM2.5 ug/m3. OPEN-02/03/04/05/06 remain unresolved; see docs/api/README.md.'
+servers:
+- url: /
+  description: Same-origin via Nginx HTTPS; routes already include /api
+tags:
+- name: System
+- name: Auth
+- name: Datasets
+- name: Import
+- name: Query
+- name: Analysis
+- name: Anomalies
+- name: Offline
+- name: Admin
+- name: Internal
+security:
+- bearerAuth: []
+paths:
+  /api/health:
+    get:
+      tags:
+      - System
+      summary: Kiểm tra Backend và MongoDB (public/monitoring)
+      operationId: get_api_health
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum:
+                    - ok
+                    - degraded
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: UTC ISO 8601 with Z; payload normalized by server
+                additionalProperties: false
+                required:
+                - status
+                - timestamp
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/auth/login:
+    post:
+      tags:
+      - Auth
+      summary: Đăng nhập, nhận bearer JWT
+      operationId: post_api_auth_login
+      description: Do not log password/token; credentials transported via HTTPS.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/auth/me:
+    get:
+      tags:
+      - Auth
+      summary: Lấy thông tin tài khoản hiện tại
+      operationId: get_api_auth_me
+      x-roles:
+      - analyst
+      - admin
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserPublic'
+                additionalProperties: false
+                required:
+                - data
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/datasets:
+    get:
+      tags:
+      - Datasets
+      summary: Liệt kê dataset đã imported
+      operationId: get_api_datasets
+      description: Default listing only status=imported. Draft/incomplete datasets are not listed to normal readers.
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque pagination token returned by previous page
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Dataset'
+                  page:
+                    $ref: '#/components/schemas/PageInfo'
+                additionalProperties: false
+                required:
+                - data
+                - page
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/datasets/upload:
+    post:
+      tags:
+      - Import
+      summary: Upload CSV/JSON, tạo phiên nhập
+      operationId: post_api_datasets_upload
+      description: Online only. File size cap OPEN-05; reject unsupported format with error. Response dataset in
+        uploaded/awaiting_mapping state.
+      x-roles:
+      - analyst
+      - admin
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                name:
+                  type: string
+              additionalProperties: false
+              required:
+              - file
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleDataset'
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency/model unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Upload limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: File media type unsupported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/datasets/{id}/validation:
+    get:
+      tags:
+      - Import
+      summary: Xem báo cáo kiểm tra và gợi ý mapping
+      operationId: get_api_datasets_id_validation
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationReport'
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/datasets/{id}/mapping:
+    put:
+      tags:
+      - Import
+      summary: Xác nhận mapping trước khi nhập
+      operationId: put_api_datasets_id_mapping
+      description: User explicitly confirms source-to-canonical mapping and PM2.5 unit; timestamp without timezone
+        blocked pending OPEN-02 decision.
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MappingRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleDataset'
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/datasets/{id}/import:
+    post:
+      tags:
+      - Import
+      summary: Chuẩn hóa và nhập dataset theo BR-08
+      operationId: post_api_datasets_id_import
+      description: 'DRAFT synchronous response: finalize after OPEN-05/OPEN-06 perf tests. Import completes only
+        when dataset status imported; partial data invisible. ImportSummary reports exact duplicates and conflicts.'
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleDataset'
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency/model unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-decision-status: 'PROVISIONAL: OPEN-06 analysis/import execution mode'
+  /api/sensors:
+    get:
+      tags:
+      - Query
+      summary: Lọc sensor theo dataset/vùng
+      operationId: get_api_sensors
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: datasetId
+        required: true
+        schema:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      - in: query
+        name: bbox
+        required: false
+        schema:
+          type: string
+          example: 106.60,10.70,106.80,10.90
+        description: '4 decimal numbers: minLon,minLat,maxLon,maxLat WGS84'
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque pagination token returned by previous page
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Sensor'
+                  page:
+                    $ref: '#/components/schemas/PageInfo'
+                additionalProperties: false
+                required:
+                - data
+                - page
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/readings:
+    get:
+      tags:
+      - Query
+      summary: Lấy readings theo dataset/thời gian/vùng/trạm
+      operationId: get_api_readings
+      description: Cursor stable by (ts ASC, id ASC) within filters. API returns GeoJSON location on Reading. Do
+        not fetch entire dataset without pagination.
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: datasetId
+        required: true
+        schema:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      - in: query
+        name: sensorId
+        required: false
+        schema:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      - in: query
+        name: bbox
+        required: false
+        schema:
+          type: string
+          example: 106.60,10.70,106.80,10.90
+        description: '4 decimal numbers: minLon,minLat,maxLon,maxLat WGS84'
+      - in: query
+        name: from
+        required: false
+        schema:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+      - in: query
+        name: to
+        required: false
+        schema:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque pagination token returned by previous page
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Reading'
+                  page:
+                    $ref: '#/components/schemas/PageInfo'
+                additionalProperties: false
+                required:
+                - data
+                - page
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/readings/aggregate:
+    get:
+      tags:
+      - Query
+      summary: Tổng hợp readings theo thời gian/vùng (P1)
+      operationId: get_api_readings_aggregate
+      description: P1; aggregation output format may be refined before implementation. Results must not imply measurements
+        existed between stations.
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: datasetId
+        required: true
+        schema:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      - in: query
+        name: bbox
+        required: false
+        schema:
+          type: string
+          example: 106.60,10.70,106.80,10.90
+        description: '4 decimal numbers: minLon,minLat,maxLon,maxLat WGS84'
+      - in: true
+        name: bucket
+        required: false
+        schema:
+          type: string
+          enum:
+          - hour
+          - day
+      - in: query
+        name: from
+        required: false
+        schema:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+      - in: query
+        name: to
+        required: false
+        schema:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AggregatedReading'
+                additionalProperties: false
+                required:
+                - data
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/readings/bulk:
+    post:
+      tags:
+      - Internal
+      summary: Nhập readings đã chuẩn hóa (internal only)
+      operationId: post_api_readings_bulk
+      description: Internal/backend-controlled maintenance/import workflow only; not called by public client; enforce
+        BR-08, dataset scope and authorization. Pending implementation choice.
+      x-roles:
+      - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkReadingRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted:
+                    type: integer
+                    minimum: 0
+                  duplicates:
+                    type: integer
+                    minimum: 0
+                  conflicts:
+                    type: integer
+                    minimum: 0
+                additionalProperties: false
+                required:
+                - accepted
+                - duplicates
+                - conflicts
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-internal: true
+  /api/analysis/detect:
+    post:
+      tags:
+      - Analysis
+      summary: Chạy phát hiện bất thường ở Server
+      operationId: post_api_analysis_detect
+      description: 'Draft synchronous bounded-run profile. Statistical methods zscore/iqr/moving_avg; ML method/model
+        OPEN-03. If insufficient data: 422. Run/anomaly results must not appear as completed until persisted. OPEN-06:
+        may become asynchronous 202 + polling.'
+      x-roles:
+      - analyst
+      - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DetectionRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AnalysisRun'
+                  anomalies:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Anomaly'
+                additionalProperties: false
+                required:
+                - data
+                - anomalies
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency/model unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-decision-status: 'PROVISIONAL: OPEN-06 analysis/import execution mode'
+  /api/analysis/runs:
+    get:
+      tags:
+      - Analysis
+      summary: Liệt kê các lần chạy phân tích
+      operationId: get_api_analysis_runs
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: datasetId
+        required: true
+        schema:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque pagination token returned by previous page
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AnalysisRun'
+                  page:
+                    $ref: '#/components/schemas/PageInfo'
+                additionalProperties: false
+                required:
+                - data
+                - page
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/anomalies:
+    get:
+      tags:
+      - Anomalies
+      summary: Truy vấn anomaly theo phạm vi và trạng thái
+      operationId: get_api_anomalies
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: datasetId
+        required: true
+        schema:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      - in: query
+        name: analysisRunId
+        required: false
+        schema:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      - in: query
+        name: status
+        required: false
+        schema:
+          type: string
+          enum:
+          - open
+          - confirmed
+          - false_positive
+      - in: query
+        name: severity
+        required: false
+        schema:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+      - in: query
+        name: family
+        required: false
+        schema:
+          type: string
+          enum:
+          - statistical
+          - ml
+      - in: query
+        name: method
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: from
+        required: false
+        schema:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+      - in: query
+        name: to
+        required: false
+        schema:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque pagination token returned by previous page
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Anomaly'
+                  page:
+                    $ref: '#/components/schemas/PageInfo'
+                additionalProperties: false
+                required:
+                - data
+                - page
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/anomalies/{id}:
+    get:
+      tags:
+      - Anomalies
+      summary: Xem chi tiết anomaly
+      operationId: get_api_anomalies_id
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleAnomaly'
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags:
+      - Anomalies
+      summary: Đánh giá anomaly với optimistic concurrency
+      operationId: patch_api_anomalies_id
+      description: Only status/note allowed; baseVersion must equal stored version. A successful change increments
+        version by 1; stale baseVersion returns 409 with current version details.
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewPatchRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleAnomaly'
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/sync/pull:
+    get:
+      tags:
+      - Offline
+      summary: Lấy thay đổi review anomaly từ Server
+      operationId: get_api_sync_pull
+      description: Review changes since checkpoint; client applies only newer anomaly versions. Cursor strategy
+        using ordered (updatedAt,id) is a starting protocol; re-poll overlap for race recovery; guarantees require
+        integration tests.
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque incremental sync checkpoint; empty means initial pull
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncPullResponse'
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/sync/push:
+    post:
+      tags:
+      - Offline
+      summary: Đồng bộ outbox mutations idempotently
+      operationId: post_api_sync_push
+      description: 'One transaction per mutation: insert unique receipt + conditional anomaly update by baseVersion.
+        Duplicate ID/same payload => prior result; duplicate ID/different payload => 409; stale version => outcome
+        conflict (never overwrite). Partial batch success returns per-item results.'
+      x-roles:
+      - analyst
+      - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncPushRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncPushResponse'
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/export:
+    get:
+      tags:
+      - Offline
+      summary: Tải trang dữ liệu cho offline prefetch
+      operationId: get_api_export
+      description: Bounded page export; user chooses scope. Client sets CacheCoverage.complete only when all pages
+        for scope persisted successfully in IndexedDB. Does not promise offline Mapbox tile coverage.
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: query
+        name: datasetId
+        required: true
+        schema:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      - in: query
+        name: bbox
+        required: false
+        schema:
+          type: string
+          example: 106.60,10.70,106.80,10.90
+        description: '4 decimal numbers: minLon,minLat,maxLon,maxLat WGS84'
+      - in: query
+        name: from
+        required: false
+        schema:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+      - in: query
+        name: to
+        required: false
+        schema:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque pagination token returned by previous page
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportPage'
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/admin/users:
+    get:
+      tags:
+      - Admin
+      summary: Danh sách tài khoản (admin)
+      operationId: get_api_admin_users
+      x-roles:
+      - admin
+      parameters:
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Opaque pagination token returned by previous page
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserPublic'
+                  page:
+                    $ref: '#/components/schemas/PageInfo'
+                additionalProperties: false
+                required:
+                - data
+                - page
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+      - Admin
+      summary: Tạo tài khoản analyst hoặc admin
+      operationId: post_api_admin_users
+      x-roles:
+      - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  minLength: 1
+                password:
+                  type: string
+                  minLength: 8
+                role:
+                  type: string
+                  enum:
+                  - analyst
+                  - admin
+              additionalProperties: false
+              required:
+              - username
+              - password
+              - role
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserPublic'
+                additionalProperties: false
+                required:
+                - data
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/admin/users/{id}:
+    patch:
+      tags:
+      - Admin
+      summary: Khóa/mở khóa hoặc thay đổi role tài khoản
+      operationId: patch_api_admin_users_id
+      description: Prevent disabling or demoting last active admin account. No Server OS, Docker or Nginx actions
+        via this role.
+      x-roles:
+      - admin
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                isActive:
+                  type: boolean
+                role:
+                  type: string
+                  enum:
+                  - analyst
+                  - admin
+              additionalProperties: false
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserPublic'
+                additionalProperties: false
+                required:
+                - data
+        '400':
+          description: Malformed query/payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict/version mismatch/reused mutation ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation or insufficient detector data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+          additionalProperties: false
+          required:
+          - code
+          - message
+      additionalProperties: false
+      required:
+      - error
+    PageInfo:
+      type: object
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+        nextCursor:
+          type: string
+          nullable: true
+      additionalProperties: false
+      required:
+      - limit
+      - nextCursor
+    UserPublic:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        username:
+          type: string
+        role:
+          type: string
+          enum:
+          - analyst
+          - admin
+        isActive:
+          type: boolean
+      additionalProperties: false
+      required:
+      - id
+      - username
+      - role
+      - isActive
+    ImportIssue:
+      type: object
+      properties:
+        rowNumber:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+          enum:
+          - DUPLICATE_SAME_VALUE
+          - DUPLICATE_VALUE_CONFLICT
+          - INVALID_ROW
+        field:
+          type: string
+        keptRowNumber:
+          type: integer
+          minimum: 1
+      additionalProperties: false
+      required:
+      - rowNumber
+      - reason
+    ImportSummary:
+      type: object
+      properties:
+        totalRows:
+          type: integer
+          minimum: 0
+        importedRows:
+          type: integer
+          minimum: 0
+        duplicateRows:
+          type: integer
+          minimum: 0
+        conflictingRows:
+          type: integer
+          minimum: 0
+        invalidRows:
+          type: integer
+          minimum: 0
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportIssue'
+      additionalProperties: false
+      required:
+      - totalRows
+      - importedRows
+      - duplicateRows
+      - conflictingRows
+      - invalidRows
+      - issues
+    Dataset:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        name:
+          type: string
+        sourceFilename:
+          type: string
+        status:
+          type: string
+          enum:
+          - uploaded
+          - awaiting_mapping
+          - importing
+          - imported
+          - failed
+        createdBy:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        createdAt:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+        importSummary:
+          $ref: '#/components/schemas/ImportSummary'
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - sourceFilename
+      - status
+      - createdBy
+      - createdAt
+    Sensor:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        externalId:
+          type: string
+        name:
+          type: string
+        location:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+              - Point
+            coordinates:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items:
+                type: number
+              description: '[longitude, latitude], WGS84'
+          additionalProperties: false
+          required:
+          - type
+          - coordinates
+        type:
+          type: string
+          enum:
+          - pm25
+        unit:
+          type: string
+          enum:
+          - ug/m3
+        region:
+          type: string
+      additionalProperties: false
+      required:
+      - id
+      - datasetId
+      - externalId
+      - name
+      - location
+      - type
+      - unit
+    Reading:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        sensorId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        ts:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+        location:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+              - Point
+            coordinates:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items:
+                type: number
+              description: '[longitude, latitude], WGS84'
+          additionalProperties: false
+          required:
+          - type
+          - coordinates
+        value:
+          type: number
+          minimum: 0
+          description: Finite number; NaN/Infinity forbidden
+        unit:
+          type: string
+          enum:
+          - ug/m3
+      additionalProperties: false
+      required:
+      - id
+      - datasetId
+      - sensorId
+      - ts
+      - location
+      - value
+      - unit
+    AnalysisRun:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        family:
+          type: string
+          enum:
+          - statistical
+          - ml
+        method:
+          type: string
+        config:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum:
+          - running
+          - completed
+          - failed
+        createdAt:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+        completedAt:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+        engineVersion:
+          type: string
+        modelVersion:
+          type: string
+      additionalProperties: false
+      required:
+      - id
+      - datasetId
+      - family
+      - method
+      - config
+      - status
+      - createdAt
+    Anomaly:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        sensorId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        readingId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        analysisRunId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        ts:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+        location:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+              - Point
+            coordinates:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items:
+                type: number
+              description: '[longitude, latitude], WGS84'
+          additionalProperties: false
+          required:
+          - type
+          - coordinates
+        family:
+          type: string
+          enum:
+          - statistical
+          - ml
+        method:
+          type: string
+        score:
+          type: number
+          description: Finite detector-specific score, not air-quality probability
+        severity:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+        status:
+          type: string
+          enum:
+          - open
+          - confirmed
+          - false_positive
+        note:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        updatedAt:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+      additionalProperties: false
+      required:
+      - id
+      - datasetId
+      - sensorId
+      - readingId
+      - analysisRunId
+      - ts
+      - location
+      - family
+      - method
+      - score
+      - severity
+      - status
+      - note
+      - version
+      - updatedAt
+    ReviewChanges:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - open
+          - confirmed
+          - false_positive
+        note:
+          type: string
+      additionalProperties: false
+    OfflineReviewMutation:
+      type: object
+      properties:
+        clientMutationId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        anomalyId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        baseVersion:
+          type: integer
+          minimum: 1
+        changes:
+          $ref: '#/components/schemas/ReviewChanges'
+        createdAt:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+      additionalProperties: false
+      required:
+      - clientMutationId
+      - anomalyId
+      - baseVersion
+      - changes
+      - createdAt
+    SingleDataset:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Dataset'
+      additionalProperties: false
+      required:
+      - data
+    SingleAnomaly:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Anomaly'
+      additionalProperties: false
+      required:
+      - data
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      additionalProperties: false
+      required:
+      - username
+      - password
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          enum:
+          - Bearer
+        user:
+          $ref: '#/components/schemas/UserPublic'
+      additionalProperties: false
+      required:
+      - accessToken
+      - tokenType
+      - user
+    MappingRequest:
+      type: object
+      properties:
+        fieldMap:
+          type: object
+          properties:
+            sensorId:
+              type: string
+            latitude:
+              type: string
+            longitude:
+              type: string
+            timestamp:
+              type: string
+            value:
+              type: string
+            unit:
+              type: string
+            name:
+              type: string
+            region:
+              type: string
+          additionalProperties: false
+          required:
+          - sensorId
+          - latitude
+          - longitude
+          - timestamp
+          - value
+        unit:
+          type: string
+          enum:
+          - ug/m3
+      additionalProperties: false
+      required:
+      - fieldMap
+      - unit
+    ValidationReport:
+      type: object
+      properties:
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        status:
+          type: string
+          enum:
+          - uploaded
+          - awaiting_mapping
+          - importing
+          - imported
+          - failed
+        sourceColumns:
+          type: array
+          items:
+            type: string
+        totalRows:
+          type: integer
+          minimum: 0
+        validRows:
+          type: integer
+          minimum: 0
+        invalidRows:
+          type: integer
+          minimum: 0
+        mappingSuggestions:
+          type: object
+          additionalProperties:
+            type: string
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportIssue'
+      additionalProperties: false
+      required:
+      - datasetId
+      - status
+      - sourceColumns
+      - totalRows
+      - validRows
+      - invalidRows
+      - mappingSuggestions
+      - issues
+    DetectionRequest:
+      type: object
+      properties:
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        family:
+          type: string
+          enum:
+          - statistical
+          - ml
+        method:
+          type: string
+        config:
+          type: object
+          additionalProperties: true
+        scope:
+          type: object
+          properties:
+            sensorIds:
+              type: array
+              items:
+                type: string
+                description: Opaque ID string; do not assume MongoDB _id format
+                minLength: 1
+            from:
+              type: string
+              format: date-time
+              description: UTC ISO 8601 with Z; payload normalized by server
+            to:
+              type: string
+              format: date-time
+              description: UTC ISO 8601 with Z; payload normalized by server
+          additionalProperties: false
+      additionalProperties: false
+      required:
+      - datasetId
+      - family
+      - method
+      - config
+    ReviewPatchRequest:
+      type: object
+      properties:
+        baseVersion:
+          type: integer
+          minimum: 1
+        changes:
+          $ref: '#/components/schemas/ReviewChanges'
+      additionalProperties: false
+      required:
+      - baseVersion
+      - changes
+    SyncPushRequest:
+      type: object
+      properties:
+        mutations:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfflineReviewMutation'
+      additionalProperties: false
+      required:
+      - mutations
+    SyncMutationResult:
+      type: object
+      properties:
+        clientMutationId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        outcome:
+          type: string
+          enum:
+          - applied
+          - duplicate
+          - conflict
+          - rejected
+        anomaly:
+          $ref: '#/components/schemas/Anomaly'
+        error:
+          $ref: '#/components/schemas/Error'
+      additionalProperties: false
+      required:
+      - clientMutationId
+      - outcome
+    SyncPushResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncMutationResult'
+      additionalProperties: false
+      required:
+      - results
+    SyncPullResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Anomaly'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+      additionalProperties: false
+      required:
+      - data
+      - page
+    ExportPage:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            sensors:
+              type: array
+              items:
+                $ref: '#/components/schemas/Sensor'
+            readings:
+              type: array
+              items:
+                $ref: '#/components/schemas/Reading'
+            anomalies:
+              type: array
+              items:
+                $ref: '#/components/schemas/Anomaly'
+          additionalProperties: false
+          required:
+          - sensors
+          - readings
+          - anomalies
+        page:
+          $ref: '#/components/schemas/PageInfo'
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+      additionalProperties: false
+      required:
+      - data
+      - page
+      - datasetId
+    AggregatedReading:
+      type: object
+      properties:
+        ts:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+        location:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+              - Point
+            coordinates:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items:
+                type: number
+              description: '[longitude, latitude], WGS84'
+          additionalProperties: false
+          required:
+          - type
+          - coordinates
+        average:
+          type: number
+        count:
+          type: integer
+          minimum: 1
+      additionalProperties: false
+      required:
+      - ts
+      - location
+      - average
+      - count
+    BulkReadingRequest:
+      type: object
+      properties:
+        datasetId:
+          type: string
+          description: Opaque ID string; do not assume MongoDB _id format
+          minLength: 1
+        readings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reading'
+      additionalProperties: false
+      required:
+      - datasetId
+      - readings
