@@ -1,9 +1,9 @@
-# SDD v0.3 — Kiến trúc, dữ liệu dùng chung, API Contract và MongoDB vật lý
+# SDD v0.4 — Kiến trúc, dữ liệu dùng chung, API Contract và MongoDB vật lý
 
 **Đề tài:** Xây dựng hệ thống phân tích và phát hiện bất thường trong dữ liệu không gian – thời gian bằng trực quan 3D  
 **Phạm vi tài liệu:** **Bước 1–3** — System Architecture, Module Boundary, Logical Data Model, Shared Data Contract, API Contract và MongoDB Physical Design  
-**Cơ sở yêu cầu:** `SRS_TINH_GON_SPATIOTEMPORAL_ANOMALY_v0.4.md` (11/11/2026) và `KE_HOACH_DO_AN_THONG_NHAT_NHOM_5_NGUOI.md` (11/11/2026).  
-**Trạng thái:** Thiết kế khởi động để phân công và bắt đầu code độc lập; đã bổ sung dữ liệu logic/hợp đồng dùng chung. **Chưa phải SDD cuối cùng; API/DB v0.3 là bản thiết kế đề xuất cần review trước khi khóa triển khai.**
+**Cơ sở yêu cầu:** `docs/SRS.md` v0.5 (12/11/2026) và `KE_HOACH_DO_AN_THONG_NHAT_NHOM_5_NGUOI.md` (11/11/2026).  
+**Trạng thái:** Thiết kế khởi động để phân công và bắt đầu code độc lập. **Đã chốt định hướng Backend/Frontend và phân luồng Mapbox; API/DB v0.3 vẫn là bản draft cần review, chưa phải SDD cuối cùng.**
 
 > **Quy tắc đọc:** Phần này chốt trách nhiệm và hướng phụ thuộc giữa các module. Không tự suy diễn thành API/DTO, index MongoDB hay chi tiết class đã được chốt. Hợp đồng dữ liệu ở Bước 2 là bản khởi đầu; REST API/HTTP và MongoDB vật lý có bản thiết kế ở Bước 3 bên dưới, hiện chưa khóa các quyết định mở.
 
@@ -13,30 +13,47 @@
 
 **Bản gốc có thể chỉnh sửa:** [`diagrams/system-architecture.drawio`](diagrams/system-architecture.drawio).
 
+> **Lưu ý đồng bộ sơ đồ:** Hình ở trên là bản v0.1 thể hiện các khối chính. Các quyết định bổ sung trong mục 1.1–1.4 (file-based routing, tầng module, Mapbox là dịch vụ ngoài đi thẳng từ Browser) được mô tả bằng văn bản ở v0.4; cần cập nhật `.drawio`/`.png` trong lần đồng bộ sơ đồ kế tiếp, tránh coi hình cũ là đầy đủ.
+
 ### 1.1. Phong cách kiến trúc
 
-- **Modular monolith ở Backend:** một ứng dụng **Fastify + TypeScript** chứa các module nghiệp vụ riêng; không triển khai microservices trong MVP.
-- **Single-page Web App / PWA ở Client:** **React + Vite + TypeScript**; **Mapbox 3D** và **Three.js Space–Time Cube** là hai chế độ hiển thị thay phiên nhau; dùng cùng bộ lọc, dataset và kết quả anomaly.
-- **Nguồn dữ liệu Server:** MongoDB do **Backend** truy cập; Client chỉ giao tiếp qua HTTPS REST API hoặc đọc bản sao cục bộ trong IndexedDB.
-- **Offline-first có giới hạn rõ:** dữ liệu đã nhận thành công online được **tự động lưu** để dùng offline; người dùng có thể tải trước thêm. App shell sử dụng PWA/Cache Storage; dữ liệu nghiệp vụ nằm trong IndexedDB/Dexie; bộ lập lịch đồng bộ dùng outbox.
+- **Backend đã chốt:** **Fastify + TypeScript**, kiến trúc **Feature-based Modular Monolith**, trong mỗi feature áp dụng **Layered Architecture**: `Route → Validation → Service → Repository → MongoDB`. Dùng Fastify plugin/encapsulation và dependency injection tối giản qua factory/constructor; **không dùng NestJS** và không tự xây DI container, event bus hay CQRS cho MVP.
+- **Frontend đã chốt:** **React + Vite + TypeScript**, **Feature-based Modular Frontend Architecture** kết hợp **TanStack Router (file-based routing)**. File trong `routes/` chủ yếu khai báo route và lắp ghép page; logic/dữ liệu thuộc `features/`, phần offline thuộc `offline/`, tiện ích chung thuộc `shared/`. **Mapbox 3D** và **Three.js Space–Time Cube** là hai chế độ hiển thị thay phiên nhau, dùng cùng bộ lọc/dataset/anomaly; tránh duy trì hai render loop nặng đồng thời.
+- **Nguồn dữ liệu nghiệp vụ:** MongoDB chỉ do **Fastify Backend** truy cập; Browser đọc/ghi thông qua HTTPS REST API của ứng dụng hoặc bản sao cục bộ trong IndexedDB. **Riêng bản đồ nền Mapbox**: Browser dùng **public access token `pk.`** để gọi trực tiếp Mapbox-hosted APIs lấy styles/tiles/glyphs; **không định tuyến qua Fastify** và không cần Mapbox token tại Backend cho luồng bản đồ thông thường.
+- **Offline-first ưu tiên khôi phục:** dữ liệu đã nhận online được **tự động lưu** để dùng offline, đồng thời lưu **ngữ cảnh làm việc cần khôi phục** (dataset, bộ lọc, khoảng thời gian, chế độ xem, camera khi phù hợp). App shell dùng PWA/Cache Storage; dữ liệu nghiệp vụ/ngữ cảnh/outbox dùng IndexedDB/Dexie. Mất mạng không được làm mất mutation đã lưu; tải trước dữ liệu lớn hơn chỉ là tùy chọn.
 - **Algorithm core dùng chung:** `shared-core` viết TypeScript thuần, chứa Zod schema và thuật toán thống kê; dùng tại Backend và trong Client Web Worker. **ML inference chỉ ở Server** với model đã huấn luyện trước.
 - **Môi trường triển khai:** Nginx kết thúc TLS ở HTTPS `:443`, phân phối tài nguyên Client và reverse proxy các request `/api` tới Fastify; Docker Compose dùng để dựng môi trường demo/test.
 
 ### 1.2. Hai tuyến thực thi cơ bản
 
-**Online:** Browser → Nginx HTTPS → Fastify → MongoDB / statistical engine / ML inference → response về Browser → `dataSource` cập nhật IndexedDB → Mapbox hoặc Cube hiển thị.
+**Online — dữ liệu nghiệp vụ:** Browser → Nginx HTTPS (`/api`) → Fastify → MongoDB / statistical engine / **ML inference Server** → response về Browser → `dataSource` tự lưu IndexedDB → Mapbox hoặc Cube hiển thị.
 
-**Offline:** Browser → `dataSource` → IndexedDB; thống kê chạy qua Web Worker + `shared-core`; thao tác đánh giá anomaly đã tồn tại ở Server ghi vào outbox, rồi push/pull khi Server hoạt động trở lại.
+**Online — nền bản đồ:** Browser (Mapbox GL JS + `pk.` token) **→ Mapbox Servers trực tiếp** để tải style/tiles/glyphs; Mapbox GL JS render trên GPU Client. Fastify không chuyển tiếp dữ liệu nền và không giữ token này.
 
-> Bản đồ nền Mapbox và hình học tòa nhà có thể cần mạng; SRS không cam kết tile 3D đầy đủ khi offline. Offline phải giữ **khả năng xem dữ liệu đã lưu trong giao diện phù hợp**, không phải mô phỏng nguyên vẹn mọi lớp bản đồ.
+**Offline:** Browser → `dataSource`/session restoration → IndexedDB; thống kê chạy qua **Browser Web Worker** + `shared-core`. Chỉnh `status/note` anomaly đã tồn tại trên Server phải ghi outbox bền vững trước khi báo đã lưu cục bộ; khi Backend thực sự phản hồi, push/pull với `clientMutationId`/`baseVersion`, cập nhật trạng thái đã đồng bộ hoặc xung đột.
+
+> Bản đồ nền Mapbox và hình học tòa nhà có thể cần mạng; SRS không cam kết tile 3D đầy đủ khi offline. **Có thể khôi phục camera/bộ lọc nhưng không bảo đảm tile/tòa nhà có sẵn**. Offline phải giữ khả năng xem dữ liệu đã lưu bằng renderer/giao diện phù hợp (ví dụ bảng/biểu đồ/Space–Time Cube) mà không phụ thuộc nền Mapbox.
+
+### 1.3. Mapbox Public Token và phạm vi tính tải
+
+- `client/` khai báo biến môi trường Vite `VITE_MAPBOX_TOKEN=pk....` tại thời điểm build/chạy theo cấu hình; **biến `VITE_` đi vào bundle và công khai với Client**, không phải kho chứa bí mật. Chỉ dùng public token, quyền tối thiểu và cấu hình giới hạn URL/origin phù hợp. Không đưa secret token `sk.` vào Frontend.
+- Nhiều Client có thể dùng chung public token thuộc **tài khoản Mapbox của nhóm**; sử dụng được ghi nhận về tài khoản, không quản lý một token/người dùng. Backend JWT dành cho API nghiệp vụ là cơ chế **khác**.
+- Trình duyệt tạo một Mapbox instance khi vào chế độ bản đồ và cần tránh khởi tạo lặp không cần thiết; chi phí/tải Mapbox phụ thuộc cơ chế tính phí dịch vụ tại thời điểm triển khai. **Không làm giả định chi phí hay availability trong SDD**.
+- Frontend gọi hai nguồn dữ liệu độc lập: `Mapbox` (nền bản đồ) và `Fastify /api` (PM2.5/anomalies). Khi mất kết nối, chỉ phần dữ liệu đã ghi bền vững được cam kết offline; Mapbox không được xem là nguồn dữ liệu PM2.5.
+
+### 1.4. ML inference và phân biệt Worker
+
+- **Đã chốt:** ML inference dùng model đã huấn luyện trước và **chạy phía Server**; không chạy trên trình duyệt mỗi người dùng. **Browser Web Worker** (Duy/Khải) chỉ xử lý thống kê offline.
+- **Chưa chốt — OPEN-06:** Có cần tách công việc inference CPU-bound sang **Server Worker Thread/process** và mô hình Job (`queued/running/completed/...`) hay không. Chỉ quyết định sau POC/benchmark; không mặc định thêm queue, Redis, process phụ hoặc endpoint mới.
+- Nếu chọn Server Worker thì worker vẫn chạy trên tài nguyên Server (có thể cùng máy), không chuyển tải ML sang Client và không tự làm tổng CPU/RAM nhỏ đi. Bộ hợp đồng `POST /api/analysis/detect` trong OpenAPI hiện vẫn là **draft đồng bộ phạm vi giới hạn**.
 
 ## 2. Module Boundary & Responsibility
 
 | Module / vị trí | Owner chính | Có trách nhiệm | Không có trách nhiệm |
 |---|---|---|---|
-| **`client/` — UI & 3D** | **Tài (Người 2)** | React dashboard, bộ lọc chung (Zustand), màn hình upload/review, Mapbox 3D, Three.js Cube, component states | Kết nối MongoDB, triển khai retry/sync trong component, viết lại thuật toán thống kê, inference ML |
-| **`client/` — Offline & Data Source** | **Duy (Người 3)** | PWA/Service Worker, Cache Storage app shell, Dexie/IndexedDB, **auto-cache dữ liệu đã tải**, prefetch tùy chọn, interface `dataSource`, outbox, connectivity, sync, Web Worker tích hợp | Vẽ renderer 3D, tự sửa API Contract, xử lý ML offline, upload/import hoàn chỉnh offline |
-| **`server/` — API & Database** | **Khiêm (Người 1)** | Fastify, JWT 2 role (`analyst`/`admin`), tài khoản, CSV/JSON parse/validate/mapping/import, BR-08 dedup, query, MongoDB, API analysis/anomaly/sync, error handling | Chỉ đạo cách render Mapbox/Three.js, quản trị hạ tầng qua JWT role |
+| **`client/` — UI & 3D** | **Tài (Người 2)** | React dashboard, **TanStack Router file-based routes**, `features/`, bộ lọc chung (Zustand), màn hình upload/review, Mapbox 3D, Three.js Cube, trạng thái giao diện và camera cần khôi phục (phối hợp Duy) | Kết nối MongoDB, triển khai retry/sync trong component, viết lại thuật toán thống kê, inference ML |
+| **`client/` — Offline & Data Source** | **Duy (Người 3)** | PWA/Service Worker, Cache Storage app shell, Dexie/IndexedDB, **auto-cache dữ liệu**, lưu/khôi phục session state từ interface với Tài, prefetch tùy chọn, `dataSource`, durable outbox, connectivity, sync, Browser Web Worker | Vẽ renderer 3D, tự sửa API Contract, xử lý ML offline, upload/import hoàn chỉnh offline |
+| **`server/` — API & Database** | **Khiêm (Người 1)** | Fastify **feature modules với Route → Validation → Service → Repository**, JWT 2 role (`analyst`/`admin`), tài khoản, CSV/JSON parse/validate/mapping/import, BR-08 dedup, query, MongoDB, API analysis/anomaly/sync, error handling | Triển khai NestJS hay DI framework tự chế; render Mapbox/Three.js; quản trị hạ tầng qua JWT role |
 | **`shared-core/` — Schema & Statistics** | **Khải (Người 4)** | Shared DTO/Zod, Z-score, IQR, Moving Average, unit test, cùng một định nghĩa thuật toán tại Server/Worker | Import Fastify/MongoDB/DOM/Node-only API; xử lý UI, lưu trữ trực tiếp |
 | **`server/` — ML module** | **Khải (thuật toán) + Khiêm (tích hợp)** | Train ngoài request, lưu model, kiểm chứng `train → save → load → predict`; server-side inference adapter và metadata method/version/score | Inference mới khi offline, train tự động khi upload; đồng nhất kết quả ML với kết quả thống kê |
 | **`infra/` và `tests/`** | **Cường (Người 5)** | Docker Compose, Nginx HTTPS `:443`, chứng chỉ dev (OpenSSL), pipeline CI, setup test/fixture, k6, tổng hợp coverage/performance | Thay đổi nghiệp vụ/DTO/API của người khác mà không thảo luận; coi DevOps là JWT `admin` |
@@ -55,10 +72,10 @@
 
 | Từ | Được phép phụ thuộc | Không được phép |
 |---|---|---|
-| Client UI / 3D | `dataSource` của Duy, UI state, shared public types | MongoDB trực tiếp; HTTP tự phát trong renderer; xử lý outbox/sync trong component bản đồ |
+| Client UI / 3D | `dataSource` của Duy, UI state, shared public types; **Mapbox GL JS gọi Mapbox-hosted APIs trực tiếp bằng public token** | MongoDB trực tiếp; gọi `/api` tùy tiện trong renderer; xử lý outbox/sync trong component bản đồ; lưu secret Mapbox token |
 | Client Offline / Data Source | API qua Nginx, IndexedDB/Dexie, Cache Storage, Worker, public schemas | Logic và state nội bộ riêng của Mapbox/Cube; gọi ML inference khi offline |
 | Client Web Worker | Statistical detectors, kiểu dữ liệu thuộc `shared-core` | Fastify, MongoDB, DOM/window, model ML trên Server |
-| Backend Fastify | MongoDB driver/ODM, `shared-core`, server ML adapter, HTTP APIs | Import module/DOM/Worker của Browser |
+| Backend Fastify | MongoDB driver/ODM (còn mở lựa chọn), `shared-core`, server ML adapter, HTTP APIs; module route/service/repository theo public interface | Import module/DOM/Worker của Browser; feature tự truy cập repository nội bộ của feature khác; phụ thuộc ngược service vào route |
 | `shared-core` | TypeScript thuần, Zod và tiện ích không phụ thuộc runtime | Fastify, MongoDB, `window`, `document`, Service Worker, Node-only API |
 | Infra | Build/start/health của Client và Server, file cấu hình | Truy cập nghiệp vụ thông qua role Server Administrator giả định trong JWT |
 
@@ -69,8 +86,10 @@
 3. **Nhập dữ liệu trùng:** với một dataset và `(sensorId, timestamp)`, giữ bản ghi hợp lệ đầu tiên; phần trùng và xung đột được báo cáo, không ghi đè (BR-08).
 4. **Kết quả phát hiện:** thống kê và ML là nguồn riêng, truy vết được method/analysis run; trạng thái review là `open / confirmed / false_positive` (BR-09–BR-13).
 5. **Sync:** mutation có `clientMutationId`, cập nhật anomaly theo `baseVersion`; Server chống áp dụng trùng và báo conflict, không ghi đè âm thầm (BR-15–BR-18).
-6. **Auto-cache:** dữ liệu đã tải online phải tự lưu cục bộ nếu có thể; chỉ coi là offline-ready khi lưu thành công; không mặc định toàn bộ dataset đã cache (BR-20–BR-22).
-7. **RBAC:** chỉ có `analyst` và `admin` ở tầng ứng dụng. `admin` là **Application Admin**, không phải account quản trị Nginx/Docker/OS.
+6. **Auto-cache + session restoration:** dữ liệu đã tải online phải tự lưu cục bộ nếu có thể; lưu ngữ cảnh làm việc cần khôi phục; chỉ coi là offline-ready khi lưu thành công; không mặc định toàn bộ dataset đã cache (BR-20–BR-23).
+7. **Outbox an toàn:** mutation ghi bền vững trước khi báo lưu cục bộ; chỉ báo đồng bộ khi Server xác nhận; lỗi/conflict được giữ để xử lý (BR-16–BR-17, BR-24).
+8. **Tổ chức module:** `routes/` của TanStack Router chỉ ghép trang; feature expose public API. Fastify `Route → Validation → Service → Repository`; không truy cập cross-feature internal repositories.
+9. **RBAC:** chỉ có `analyst` và `admin` ở tầng ứng dụng. `admin` là **Application Admin**, không phải account quản trị Nginx/Docker/OS.
 
 ## 4. Giao tiếp giữa các module (đủ cho khởi động)
 
@@ -79,6 +98,8 @@
 | UI / renderer | `dataSource` | Bộ lọc dataset, trạm, vùng, thời gian; đọc sensors/readings/anomalies; gửi review | **Duy + Tài**, thống nhất types với Khải |
 | `dataSource` | Backend API | Auth; datasets; sensors/readings; analysis; anomalies; export/sync | **Khiêm**, review với Duy/Tài |
 | `dataSource` | IndexedDB | Dữ liệu đã tải, trạng thái offline-ready, outbox, sync metadata | **Duy**, tuân shared types |
+| UI / session state | Offline session repository | Dataset, trạm/vùng, bộ lọc, khoảng thời gian, chế độ xem, camera (nếu có); khôi phục sau reload/offline | **Tài + Duy**, thống nhất shape và thời điểm ghi |
+| Browser Mapbox GL JS | Mapbox-hosted APIs | Public `pk.` token; bản đồ/styles/tiles/glyphs; **ngoài `/api` của Fastify** | **Tài**, quản lý token public và giới hạn domain phối hợp Cường |
 | Web Worker | `shared-core` | Reading array + detector configuration → kết quả thống kê cục bộ | **Khải + Duy** |
 | Backend | `shared-core` | Đầu vào và đầu ra thống kê nhất quán với offline | **Khải + Khiêm** |
 | Backend | ML inference adapter | Feature input → predicted score/flag + model version | **Khải + Khiêm**, cần POC |
@@ -97,7 +118,7 @@ project-root/                           # Monorepo đã dựng
 ├── infra/                              # Cường
 ├── tests/                              # Cường + các owner module
 └── docs/
-    ├── SRS.md                          # SRS v0.4 (khi đưa vào repo)
+    ├── SRS.md                          # SRS v0.5
     ├── SDD.md                          # Tài liệu này
     ├── diagrams/
     │   ├── system-architecture.drawio  # Bản nguồn, mở bằng draw.io
@@ -106,6 +127,8 @@ project-root/                           # Monorepo đã dựng
     ├── ownership.md                     # Đã có; sửa nếu phân công thay đổi
     └── decisions.md                     # Đã có; ghi kiến trúc đã chốt
 ```
+
+**Định hướng thư mục triển khai (đã thống nhất, chưa khẳng định đã scaffold):** `server/src/modules/<feature>/{*.routes.ts,*.schema.ts,*.service.ts,*.repository.ts,index.ts}`; `server/src/plugins/` dành cho Fastify infrastructure. `client/src/routes/` chứa TanStack file-based routes; `client/src/features/` chứa feature modules; `client/src/offline/` chứa data-source, Dexie, sync, workers; `client/src/shared/` chứa API client/UI tiện ích. Không đưa toàn bộ business logic vào route file hoặc root React component.
 
 **Quy tắc tài liệu:** Cùng một quyết định kỹ thuật chỉ có một nơi quản lý chính. `SDD.md` mô tả thiết kế; `ownership.md` ghi phân công; `decisions.md` ghi quyết định/thay đổi; OpenAPI là hợp đồng HTTP cuối cùng. Không nhân đôi và để mâu thuẫn giữa các nguồn.
 
@@ -130,7 +153,7 @@ project-root/                           # Monorepo đã dựng
 | FR-06; FR-09 | Backend query → `dataSource` → Mapbox/Cube |
 | FR-07–FR-08; BR-09–BR-12 | `shared-core` thống kê + ML inference Server |
 | FR-10; BR-13, BR-15 | Anomaly review, version check |
-| FR-11–FR-12; BR-16–BR-18, BR-20–BR-22 | PWA, auto-cache, IndexedDB, Worker, outbox, sync |
+| FR-11–FR-12; BR-16–BR-18, BR-20–BR-24 | PWA, auto-cache, IndexedDB, Browser Worker, **session restoration**, durable outbox, sync |
 | NFR-01–NFR-09 | Stack, phân ranh runtime, HTTPS, Docker, test/benchmark |
 
 
@@ -172,7 +195,7 @@ project-root/                           # Monorepo đã dựng
 - **Duy** dùng DTO cho IndexedDB, auto-cache và Outbox; `baseVersion`/`clientMutationId` chống xung đột/trùng; cache chỉ cam kết phạm vi thực sự lưu.
 - **Cường** dùng fixture này trong smoke/integration tests; test dữ liệu lỗi và trùng nhập.
 
-**Các điểm chưa khóa:** timezone của dữ liệu nguồn thiếu offset; ML cụ thể/feature; ngưỡng severity; giới hạn upload; cách chạy analysis async; quy tắc trạm cùng externalId khác tọa độ; trạng thái vòng đời Dataset/AnalysisRun là enum dự thảo. Chi tiết và thời điểm cần chốt ở mục G `shared-data-contract.md`.
+**Các điểm chưa khóa:** timezone của dữ liệu nguồn thiếu offset; ML cụ thể/feature; ngưỡng severity; giới hạn upload; cách chạy analysis async/Server Worker; **chu kỳ đo, nhịp batch và thời lượng dataset phụ thuộc dữ liệu thực**; quy tắc trạm cùng externalId khác tọa độ; trạng thái vòng đời Dataset/AnalysisRun là enum dự thảo. Chi tiết và thời điểm cần chốt ở mục G `shared-data-contract.md`.
 
 **Kết quả Bước 2:** đủ để UI/Offline/Engine viết code với kiểu dữ liệu thống nhất và fixture; **chưa thay thế OpenAPI**, chưa quy định payload từng endpoint, status HTTP hay index MongoDB tối ưu.
 
@@ -210,7 +233,7 @@ project-root/                           # Monorepo đã dựng
 2. Khiêm ↔ Duy: Export page boundaries, cache coverage, sync conflict/receipt/checkpoint.
 3. Khiêm ↔ Khải: Analysis output, severity, ML feature contract, schema enum.
 4. Khiêm ↔ Cường: MongoDB replica-set/transactions, HTTPS routing, DB index script, CI integration tests.
-5. OPEN-02/03/04/05/06 và NEW-01/02/03/04 vẫn **chưa chốt**; cập nhật SRS/SDD/Contract cùng lúc khi quyết định.
+5. OPEN-02/03/04/05/06/07 và NEW-01/02/03/04 vẫn **chưa chốt**; cập nhật SRS/SDD/Contract cùng lúc khi quyết định.
 
 ---
 
@@ -221,3 +244,4 @@ project-root/                           # Monorepo đã dựng
 | v0.1 | 11/11/2026 | Chốt kiến trúc tổng thể, trách nhiệm, luật phụ thuộc; chưa chốt DB/API chi tiết |
 | v0.2 | 11/11/2026 | Bổ sung Logical Data Model, quy tắc tham chiếu/unique, Shared Data Contract, Zod starter và JSON fixture; API/DB vật lý chưa khóa |
 | v0.3 | 11/11/2026 | Bổ sung OpenAPI v0.1 draft, MongoDB Physical Design, indexes.js và HTTP fixtures; chưa khóa quyết định mở |
+| v0.4 | 12/11/2026 | Chốt Fastify feature-modular layered backend, React feature-modular + TanStack Router, Mapbox trực tiếp từ Client/public token, ưu tiên session restoration/offline outbox; giữ ML job/Server Worker và thông số dataset chưa chốt |
