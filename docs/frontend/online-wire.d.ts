@@ -2,8 +2,8 @@
  * Not a validator. Regenerate/reconcile at M1; OpenAPI remains authoritative. */
 export type AdminUserCreateRequest = { "username": string; "password": string; "role": "analyst" | "admin"; };
 export type AdminUserUpdateRequest = { "isActive"?: boolean; "role"?: "analyst" | "admin"; };
-export type AnalysisCreateResponse = { "data": AnalysisRun; "anomalies": Array<Anomaly>; };
-export type AnalysisRun = { "id": string; "datasetId": string; "family": "statistical" | "ml"; "method": string; "config": { [key: string]: unknown; }; "status": "running" | "completed" | "failed"; "createdAt": string; "completedAt"?: string; "engineVersion"?: string; "modelVersion"?: string; };
+export type AnalysisCreateResponse = { "data": AnalysisRun; };
+export type AnalysisRun = { "id": string; "datasetId": string; "family": "statistical" | "ml"; "method": string; "config": { [key: string]: unknown; }; "scope": NonNullable<DetectionRequest["scope"]>; "error"?: { "code": string; "message": string }; "status": "queued" | "running" | "completed" | "failed"; "createdAt": string; "completedAt"?: string; "engineVersion"?: string; "modelVersion"?: string; };
 export type AnalysisRunPage = { "data": Array<AnalysisRun>; "page": PageInfo; };
 export type Anomaly = { "id": string; "datasetId": string; "sensorId": string; "readingId": string; "analysisRunId": string; "ts": string; "location": { "type": "Point"; "coordinates": Array<number>; }; "family": "statistical" | "ml"; "method": string; "score": number; "severity": "low" | "medium" | "high"; "status": "open" | "confirmed" | "false_positive"; "note": string; "version": number; "updatedAt": string; };
 export type AnomalyPage = { "data": Array<Anomaly>; "page": PageInfo; };

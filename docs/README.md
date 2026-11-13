@@ -13,7 +13,7 @@ Tài liệu phân tích yêu cầu, thiết kế và phối hợp phát triển 
 | **SRS — Software Requirements Specification** | [SRS.md](SRS.md) | Mục tiêu, actor, chức năng, business rules, dữ liệu và yêu cầu phi chức năng | **v0.4** đã thống nhất các thay đổi chính |
 | **SDD — Software Design Description** | [SDD.md](SDD.md) | Kiến trúc tổng thể, ranh giới module, quan hệ logic, tích hợp dữ liệu, API và DB | **v0.3 draft** (Bước 1–3) |
 | **Shared Data Contract** | [shared-data-contract.md](shared-data-contract.md) | DTO, kiểu dữ liệu, enum, ràng buộc và đầu vào/đầu ra giữa các module | **v0.1 draft**, thuộc SDD Bước 2 |
-| **API Contract** | [api/README.md](api/README.md) · [openapi.yaml](api/openapi.yaml) | Endpoint, request/response, lỗi, JWT, phân trang, import và offline-sync | **v0.1 draft**, OpenAPI 3.0.3; chưa xác nhận API chạy thật |
+| **API Contract** | [api/README.md](api/README.md) · [openapi.yaml](api/openapi.yaml) | Endpoint, request/response, lỗi, JWT, phân trang, import và offline-sync | **v0.3.0-draft**, OpenAPI 3.0.3 / D008 async; chưa migrate runtime |
 | **MongoDB Physical Design** | [mongodb-physical-design.md](mongodb-physical-design.md) | Collections, cấu trúc document, indexes, import và transaction đồng bộ | **v0.3 draft**; index chưa được benchmark |
 | **Module Ownership** | [ownership.md](ownership.md) | Phân công trách nhiệm và quy tắc phối hợp của 5 thành viên | Đã có |
 | **Frontend P0 online — Kế hoạch** | [frontend-online-plan.md](frontend-online-plan.md) | Lộ trình hoàn thiện UI/3D và tích hợp API online; loại trừ PWA, Offline/Sync, P1/P2 | M2 frontend đã triển khai/kiểm tra; M0 còn xác nhận interface với Duy |
@@ -74,7 +74,7 @@ File `.drawio` là **bản gốc có thể chỉnh sửa**; file `.png` dùng đ
 - `OPEN-03`: model ML cuối cùng, đặc trưng đầu vào và cách lưu model.
 - `OPEN-04`: ngưỡng phân loại `severity` và cấu hình detector mặc định.
 - `OPEN-05`: giới hạn file upload, batch và báo cáo lỗi.
-- `OPEN-06`: cách xử lý phân tích kéo dài (đồng bộ hay job bất đồng bộ).
+- `OPEN-06` / D008: Analysis async đã chốt; công nghệ queue, concurrency, recovery/retention và polling còn mở. Import giữ đồng bộ.
 - Các câu hỏi thiết kế phát sinh trong SDD/API: tọa độ trạm không nhất quán, enum vòng đời, phạm vi cache và checkpoint đồng bộ.
 
 Chi tiết nằm trong [SRS](#1-danh-mục-tài-liệu), [API Contract](api/README.md), [Shared Data Contract](shared-data-contract.md) và [MongoDB Physical Design](mongodb-physical-design.md). Khi nhóm chốt, cập nhật tài liệu liên quan và ghi lại tại [decisions.md](decisions.md).
@@ -89,3 +89,5 @@ Chi tiết nằm trong [SRS](#1-danh-mục-tài-liệu), [API Contract](api/READ
 6. Ghi quyết định đã chốt vào **decisions.md**; lịch sử thay đổi chi tiết được lưu bằng Git commit/PR, không cần nhân bản tài liệu theo mỗi phiên bản.
 
 **Nguyên tắc:** `docs/README.md` là **trang mục lục và hướng dẫn đọc**, không thay thế SRS, SDD, OpenAPI hoặc các đặc tả kỹ thuật chi tiết.
+
+**13/11/2026 — D008:** [Analysis async](decisions.md#d008--analysis-online-bất-đồng-bộ), OpenAPI v0.3.0-draft (25 operations / 20 online), FE M5 và BE B5/B8 đã cập nhật tài liệu. Runtime/shared-core/generated contract chưa migrate; báo cáo test cũ giữ tính lịch sử.

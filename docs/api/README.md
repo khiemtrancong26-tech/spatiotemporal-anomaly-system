@@ -1,4 +1,4 @@
-# API Contract v0.2.0-draft — PM2.5 Spatial–Temporal Anomaly
+# API Contract v0.3.0-draft — PM2.5 Spatial–Temporal Anomaly
 
 **Nguồn máy đọc:** [`openapi.yaml`](openapi.yaml), OpenAPI 3.0.3. **Yêu cầu:** [`../SRS.md`](../SRS.md) v0.5; thiết kế [`../SDD.md`](../SDD.md) v0.4 (phiên bản trong ZIP).  
 **Owner:** Khiêm (Backend/API), cần Tài, Duy, Khải review trước khi khóa hợp đồng. **OpenAPI là nguồn chuẩn về endpoint, method, request và response; chưa phải API đã triển khai.**
@@ -7,11 +7,11 @@
 
 1. Nginx HTTPS `:443`, REST paths bắt đầu `/api/v1`. `analyst`/`admin` dùng JWT Bearer; public `/api/v1/health`, `/api/v1/auth/tokens`, `/api/v1/auth/register`; `admin` là quản trị ứng dụng, không phải quyền hạ tầng.
 2. JSON `camelCase`; ID public `string` opaque; GeoJSON Point `[longitude,latitude]`; UTC ISO `Z`; PM2.5 chuẩn `ug/m3` (hiển thị `µg/m³`). DTO không lộ MongoDB `_id`/passwordHash.
-3. List `{data:[...],page:{limit,nextCursor}}`, một đối tượng `{data:{...}}`; health, login, analysis và sync batch giữ đúng envelopes riêng trong OpenAPI.
+3. List `{data:[...],page:{limit,nextCursor}}`, một đối tượng `{data:{...}}`; health, login và sync batch giữ đúng envelopes riêng trong OpenAPI.
 4. HTTP lỗi `{error:{code:string,message:string,details?:{...}}}`; không gửi stack trace hoặc thông tin nhạy cảm. 401 Bearer API kèm `WWW-Authenticate`; 405 kèm `Allow`.
 5. `PATCH` hợp lệ cho cập nhật một phần. `PUT /datasets/{id}/mapping` là thay toàn bộ mapping, lặp cùng nội dung không tạo nghiệp vụ mới.
 
-## Danh sách 24 operations (20 resource paths)
+## Danh sách 25 operations (21 resource paths)
 
 | HTTP | Resource path (sau `/api/v1`) | Ý nghĩa |
 |---|---|---|
@@ -27,7 +27,8 @@
 | GET | `/readings` | Filtered PM2.5 series |
 | GET | `/reading-aggregates` | Aggregations (P1) |
 | POST | `/reading-batches` | Internal-only import bulk API |
-| GET / POST | `/analysis-runs` | List / create server-side analysis run |
+| GET / POST | `/analysis-runs` | History / tiếp nhận Analysis async (statistical và ml) |
+| GET | `/analysis-runs/{id}` | Trạng thái hiện tại và metadata run để polling/reload |
 | GET | `/anomalies` | Filtered anomaly list |
 | GET / PATCH | `/anomalies/{id}` | Detail / update review |
 | GET | `/review-changes` | Incremental offline pull (draft checkpoint) |
@@ -62,7 +63,7 @@ Ví dụ: `GET /api/v1/readings?datasetId=abc&sort=ts:desc&limit=100`.
 ## Idempotence / Retries
 
 - **Bắt buộc header** `Idempotency-Key: <UUID>` cho 4 POST: `/datasets`, `/datasets/{id}/imports`, `/analysis-runs`, `/admin/users`. Retry cùng thao tác giữ nguyên key; thao tác mới sinh key mới.
-- Key được xét trong phạm vi người dùng. Cùng key và cùng nội dung request đã hoàn tất -> trả lại **cùng HTTP status/body**, không xử lý lại; request cùng key đang chạy -> `409`; cùng key nhưng payload khác -> `422`; thiếu/không hợp lệ -> `400`. Thời hạn lưu kết quả retry chưa được khóa, không tự động retry vô hạn.
+- Key được xét trong phạm vi người dùng. Cùng key và cùng nội dung request đã hoàn tất -> trả lại **cùng HTTP status/body**, không xử lý lại; request cùng key chưa hoàn tất bước xử lý HTTP -> `409` (riêng Analysis là bước tiếp nhận, không phải toàn thời gian job); cùng key nhưng payload khác -> `422`; thiếu/không hợp lệ -> `400`. Thời hạn lưu kết quả retry chưa được khóa, không tự động retry vô hạn.
 - POST `/auth/tokens` và `/auth/register` không bắt buộc header này. Register không có cơ chế retry idempotent mới; gửi lại sau khi đã tạo có thể trả 409. Batch offline **không dùng header trên**, mà dùng `clientMutationId` theo từng mutation.
 - Đây là **ngữ nghĩa hợp đồng HTTP**, không yêu cầu thêm collection, index, Redis hay tài liệu triển khai nào trong lần sửa API. Backend phải hiện thực và kiểm thử cơ chế chống trùng trước khi triển khai thực tế.
 
@@ -71,8 +72,8 @@ Ví dụ: `GET /api/v1/readings?datasetId=abc&sort=ts:desc&limit=100`.
 | Status | Khi nào |
 |---|---|
 | `200` | Query, import đã hoàn tất, review, sync batch có outcomes, login |
-| `201` | Mới tạo Dataset, AnalysisRun (sync draft), User |
-| `202` | Dành cho job async khi OPEN-06 được chốt, chưa áp dụng |
+| `201` | Mới tạo Dataset, User |
+| `202` | Analysis đã tiếp nhận bền vững, chưa phải inference hoàn tất |
 | `400` | Cú pháp, query/cursor, thiếu/invalid Idempotency-Key |
 | `401` | Auth sai/thiếu/hết hạn |
 | `403` | Đủ auth nhưng không đủ quyền |
@@ -90,7 +91,15 @@ Ví dụ: `GET /api/v1/readings?datasetId=abc&sort=ts:desc&limit=100`.
 
 ## Các mục vẫn mở
 
-- OPEN-02: timestamp nguồn không có timezone; OPEN-03 model/ML features; OPEN-04 mapping severity; OPEN-05 file/batch limits; OPEN-06 synchronous vs async analysis/import; OPEN-07 dataset sampling source.
-- NEW-01/02: sensor coordinate consistency, Dataset/Run lifecycle enums.
+- OPEN-02: timestamp nguồn không có timezone; OPEN-03 model/ML features; OPEN-04 mapping severity; OPEN-05 file/batch limits; OPEN-06/D008 execution technology/concurrency/recovery/retention (Analysis async đã chốt; Import đồng bộ); OPEN-07 dataset sampling source.
+- NEW-01/02: sensor coordinate consistency, Dataset lifecycle; Run lifecycle theo D008, cơ chế recovery còn mở.
 - **NEW-03/04:** `GET /exports` trả nhiều loại tài nguyên trong một trang và một cursor; sync pull checkpoint khi có concurrent updates. Cần review với Duy trước khi đảm bảo không bỏ sót dữ liệu.
 - Tài liệu này chốt quy ước REST ở mức draft; chưa thay thế integration tests/benchmark và chưa chứng minh endpoint chạy thật.
+
+## Analysis async — D008 và migration
+
+Xem [quyết định D008](../decisions.md#d008--analysis-online-bất-đồng-bộ). POST trả snapshot queued trong `202 {data}`, không anomalies; cùng key/payload replay nguyên snapshot 202 kể cả job đã completed. GET detail trả trạng thái mới nhất, history cùng DTO. Key khác payload 422; trước tiếp nhận HTTP error khác job failed sau tiếp nhận. Retention/recovery/overload/poll interval chưa chốt, không tự retry vô hạn.
+
+Run bắt buộc scope snapshot; failed có error an toàn, completedAt khi terminal. Anomalies chỉ công bố khi completed; GET anomalies chỉ định run chưa completed trả 409, list tổng loại partial, detail partial 404. Query kết quả lỗi không đồng nghĩa zero anomalies.
+
+**Chỉ contract tài liệu được cập nhật ở đợt này.** Client generated types/adapter/mock, shared-core Zod và tests chưa migrate; không coi `npm run check` hiện tại là kiểm chứng v0.3. Fixtures trong docs là mẫu mục tiêu. `verify_m0.py` là công cụ lịch sử còn guard 19 operations; follow-up M1 cần đổi sang 20 và bổ sung tests lifecycle. Không thay các báo cáo lịch sử thành nghiệm thu async.

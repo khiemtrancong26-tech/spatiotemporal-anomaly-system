@@ -130,8 +130,8 @@ Trong MVP chỉ có hai role đăng nhập là `analyst` và `admin`. Bảng xá
 **Điều kiện trước:** Dataset hợp lệ; người dùng `analyst/admin`; có dữ liệu đáp ứng điều kiện thuật toán.
 
 1. Người dùng chọn dataset/phạm vi dữ liệu, phương pháp và tham số.
-2. Hệ thống chạy nhánh **thống kê** hoặc **ML inference** được chọn.
-3. Khi phân tích trên Server thành công, hệ thống quản lý một lượt phân tích và kết quả liên quan.
+2. Hệ thống tiếp nhận bền vững lượt phân tích online, trả định danh sớm; nhánh **thống kê** hoặc **ML inference** được xử lý nền trên Server với số tác vụ đồng thời giới hạn.
+3. Người dùng theo dõi chờ/đang chạy/hoàn thành/thất bại, tiếp tục theo dõi sau reload hoặc điều hướng. Mất kết nối không đồng nghĩa job thất bại; gửi lại cùng ý định không tạo run trùng. Chỉ công bố kết quả khi lưu hoàn tất; vẫn có thể tra cứu và tương tác renderer trong lúc chờ, không hiển thị phần trăm giả.
 4. Người dùng xem các điểm được gắn cờ trên 3D, score, severity, method và thông tin lần chạy.
 5. Nếu có nhiều phương pháp, kết quả được trình bày riêng để đối chiếu.
 
@@ -298,7 +298,7 @@ Redis là **tùy chọn**, không phải yêu cầu bắt buộc trong MVP. Côn
 | **OPEN-03** | Thuật toán/model ML cuối cùng, feature và định dạng lưu model | ML, integration, analysis output | Isolation Forest chỉ là ứng viên; phải kiểm chứng train → load → predict |
 | **OPEN-04** | Các ngưỡng cụ thể để ánh xạ score sang severity, cấu hình mặc định của detector | Engine, Shared Schema, UI | Không tự coi ngưỡng minh họa là ngưỡng đã được duyệt |
 | **OPEN-05** | Giới hạn file upload, kích thước batch và chính sách báo cáo lỗi quá nhiều dòng | Import, performance | Phải có giới hạn an toàn; thông số trong SDD |
-| **OPEN-06** | Cơ chế xử lý phân tích lâu: phản hồi đồng bộ hay có trạng thái job / Server Worker | Analysis API, FE | ML inference vẫn chạy phía Server; chưa mặc định thêm job queue hay Worker nếu chưa đo thử |
+| **OPEN-06 / D008** | Đã chốt Analysis online async cho statistical/ml; còn mở cơ chế nền, concurrency, recovery/retention và chính sách tải | Analysis API, FE | ML chỉ Server; queue technology chưa chọn. Upload/Import không chuyển async. Cần benchmark, không suy ra hệ thống cũ quá tải |
 | **OPEN-07** | Chu kỳ đo trạm, độ dài dataset, nhịp thêm batch và nguồn dữ liệu thực dùng làm chuẩn | Dataset source, benchmarking | Phụ thuộc dataset thực được chọn; không khóa 5 phút/72 giờ hay giới hạn cứng khi chưa có căn cứ |
 
 **OPEN-01 đã được giải quyết** bằng BR-08 (phương án B: giữ bản ghi hợp lệ đầu tiên, bỏ trùng có báo cáo); không còn là quyết định mở.

@@ -99,10 +99,14 @@ Phạm vi analysis: Dataset ... | Trạm ... | Từ ... đến ... (UTC+07)
 [Cảnh báo nếu bbox chưa thể chuyển thành scope hợp lệ]
 Nhóm [Thống kê / ML]  Phương pháp [theo contract]
 Cấu hình [các field được method hỗ trợ]              [Chạy phân tích]
-Trạng thái request/run · Kết quả/không có anomaly/lỗi
+Gửi request → 202 tiếp nhận · Run ID ...
+Job: queued / running / completed / failed · Kết nối theo dõi: đang cập nhật / gián đoạn
+Completed → tải anomalies theo cursor · Failed → mã lỗi/thông điệp an toàn
 Lịch sử: thời gian | family | method | status | [Xem anomaly]
 [Tải thêm]
 ```
+
+Theo D008, POST không trả anomalies; polling GET run detail, reload phục hồi ID và scope từ Server. Mất mạng không đổi status job thành failed, retry tiếp nhận giữ key/payload; không phần trăm giả. History chứa cả job đang chờ/chạy. Workspace vẫn tương tác, không hủy job khi rời tab.
 
 Phạm vi analysis phải được xác nhận rõ, không dùng số điểm đang render để mô tả toàn bộ đầu vào Server. Nút ML có lý do disabled khi model chưa được hỗ trợ. Không dựng biểu đồ so sánh method hoặc form JSON tự do như UI cuối cùng khi config chưa được chốt.
 

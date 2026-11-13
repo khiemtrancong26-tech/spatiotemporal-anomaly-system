@@ -26,7 +26,7 @@
 
 ### 1.2. Hai tuyến thực thi cơ bản
 
-**Online — dữ liệu nghiệp vụ:** Browser → Nginx HTTPS (`/api`) → Fastify → MongoDB / statistical engine / **ML inference Server** → response về Browser → `dataSource` tự lưu IndexedDB → Mapbox hoặc Cube hiển thị.
+**Online — dữ liệu nghiệp vụ:** Browser → Nginx HTTPS (`/api/v1`) → Fastify → MongoDB. Analysis (statistical/ml) tiếp nhận bền vững rồi trả `202 {data: AnalysisRun}`; cơ chế thực thi nền Server chạy engine với concurrency giới hạn, lưu kết quả rồi công bố completed. Browser đọc `GET /api/v1/analysis-runs/{id}` và tải anomalies phân trang sau completed. Các luồng auto-cache/offline giữ thiết kế riêng, không nằm trong đợt frontend online này.
 
 **Online — nền bản đồ:** Browser (Mapbox GL JS + `pk.` token) **→ Mapbox Servers trực tiếp** để tải style/tiles/glyphs; Mapbox GL JS render trên GPU Client. Fastify không chuyển tiếp dữ liệu nền và không giữ token này.
 
@@ -44,8 +44,8 @@
 ### 1.4. ML inference và phân biệt Worker
 
 - **Đã chốt:** ML inference dùng model đã huấn luyện trước và **chạy phía Server**; không chạy trên trình duyệt mỗi người dùng. **Browser Web Worker** (Duy/Khải) chỉ xử lý thống kê offline.
-- **Chưa chốt — OPEN-06:** Có cần tách công việc inference CPU-bound sang **Server Worker Thread/process** và mô hình Job (`queued/running/completed/...`) hay không. Chỉ quyết định sau POC/benchmark; không mặc định thêm queue, Redis, process phụ hoặc endpoint mới.
-- Nếu chọn Server Worker thì worker vẫn chạy trên tài nguyên Server (có thể cùng máy), không chuyển tải ML sang Client và không tự làm tổng CPU/RAM nhỏ đi. Bộ hợp đồng `POST /api/analysis/detect` trong OpenAPI hiện vẫn là **draft đồng bộ phạm vi giới hạn**.
+- **Đã chốt hướng OPEN-06 — D008 (13/11/2026):** Analysis online dùng job `queued/running/completed/failed` cho cả statistical/ml, tiếp nhận và thực thi tách rời. Worker/cơ chế nền thuộc Server, giới hạn concurrency; công nghệ queue và process/thread topology, recovery/retention và mức tải còn cần owner chốt. Không mặc định Redis/BullMQ/Kafka/Spark.
+- Worker vẫn dùng CPU/RAM Server; async không phải bằng chứng giảm tài nguyên hoặc hệ thống cũ quá tải. `POST /api/v1/analysis-runs` trả 202 tiếp nhận, không anomalies; GET detail/history dùng cùng DTO. Completed chỉ sau persist đầy đủ. Chi tiết [D008](decisions.md#d008--analysis-online-bất-đồng-bộ). Upload/Import giữ đồng bộ.
 
 ## 2. Module Boundary & Responsibility
 
@@ -195,7 +195,7 @@ project-root/                           # Monorepo đã dựng
 - **Duy** dùng DTO cho IndexedDB, auto-cache và Outbox; `baseVersion`/`clientMutationId` chống xung đột/trùng; cache chỉ cam kết phạm vi thực sự lưu.
 - **Cường** dùng fixture này trong smoke/integration tests; test dữ liệu lỗi và trùng nhập.
 
-**Các điểm chưa khóa:** timezone của dữ liệu nguồn thiếu offset; ML cụ thể/feature; ngưỡng severity; giới hạn upload; cách chạy analysis async/Server Worker; **chu kỳ đo, nhịp batch và thời lượng dataset phụ thuộc dữ liệu thực**; quy tắc trạm cùng externalId khác tọa độ; trạng thái vòng đời Dataset/AnalysisRun là enum dự thảo. Chi tiết và thời điểm cần chốt ở mục G `shared-data-contract.md`.
+**Các điểm chưa khóa:** timezone của dữ liệu nguồn thiếu offset; ML cụ thể/feature; ngưỡng severity; giới hạn upload; công nghệ thực thi nền Analysis, concurrency và recovery (hướng async đã chốt); **chu kỳ đo, nhịp batch và thời lượng dataset phụ thuộc dữ liệu thực**; quy tắc trạm cùng externalId khác tọa độ; trạng thái vòng đời Dataset/AnalysisRun là enum dự thảo. Chi tiết và thời điểm cần chốt ở mục G `shared-data-contract.md`.
 
 **Kết quả Bước 2:** đủ để UI/Offline/Engine viết code với kiểu dữ liệu thống nhất và fixture; **chưa thay thế OpenAPI**, chưa quy định payload từng endpoint, status HTTP hay index MongoDB tối ưu.
 
@@ -210,7 +210,7 @@ project-root/                           # Monorepo đã dựng
 - Các nhóm chức năng: Auth, Import/Dataset, Sensor/Reading Query, Analysis/Anomaly, Export/Sync, Admin. Phân trang bounded với opaque cursor.
 - BR-08 báo duplicate/conflict và giữ first valid row; BR-15 dùng baseVersion; BR-16 dùng clientMutationId và idempotent receipt.
 - `GET /api/export` trả dữ liệu theo trang/phạm vi cho Duy cache, không có bảo đảm toàn dataset được tải chỉ bởi một trang.
-- `POST /api/analysis/detect` chọn **phương án đồng bộ hạn chế phạm vi như bản nháp** để các nhóm mock, nhưng vẫn OPEN-06. Không coi là chốt job model cho dữ liệu rất lớn.
+- Analysis async: `POST /api/v1/analysis-runs` → 202; `GET /api/v1/analysis-runs/{id}` → 200; GET history và anomalies phân trang giữ lại. Không có cancel/retry-job endpoint hoặc progress %; retry tiếp nhận giữ key/payload. API Contract v0.3.0-draft chưa phải implementation.
 - `POST /api/readings/bulk` đánh dấu `x-internal`; UI không trực tiếp gọi. `GET /api/readings/aggregate` P1.
 
 **Quyền sở hữu:** Khiêm viết Backend/OpenAPI; Tài dùng API list/analysis/review; Duy dùng export/sync; Khải kiểm tra tương ứng `shared-core` và methods.

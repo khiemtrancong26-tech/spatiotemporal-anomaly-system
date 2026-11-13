@@ -59,11 +59,11 @@
 ### `analysisRuns`
 ```js
 { _id:ObjectId('...'), datasetId:ObjectId('...'),family:'statistical',method:'zscore',
-  config:{threshold:3},status:'completed',createdAt:ISODate('2026-11-11T02:00:00Z'),
+  config:{threshold:3},scope:{},status:'completed',createdAt:ISODate('2026-11-11T02:00:00Z'),
   completedAt:ISODate('2026-11-11T02:00:03Z'),engineVersion:'0.1.0' }
 ```
-- Lưu config, method/version; ML model/feature còn OPEN-03. `running/completed/failed` là enum dự thảo của Shared Contract.
-- Đối với run lỗi, không được giả là completed; quyết định lưu Anomaly chỉ khi run thành công hoặc ghi trạng thái run là fail cần được thiết kế thống nhất.
+- Lưu config, scope tiếp nhận, method/version; ML model/feature còn OPEN-03. Analysis dùng `queued/running/completed/failed` theo D008. Metadata lỗi terminal theo Shared Contract. Chưa chốt cơ chế queue/receipt/recovery vật lý, không tự thêm collection/index/Redis.
+- Chỉ công bố anomalies của run completed sau persist đầy đủ; failed không lộ partial. Cách staging/cleanup, claim/lease/recovery và atomicity tiếp nhận + receipt cần thiết kế trước B5; không suy ra transaction khổng lồ hoặc exactly-once execution.
 
 ### `anomalies`
 ```js
@@ -170,7 +170,7 @@ Nguồn MongoDB về transaction và atomicity: https://www.mongodb.com/docs/man
 | OPEN-03 model ML, input features | Khải + Khiêm | ML integration |
 | OPEN-04 mapping severity, config | Khải + Khiêm + Tài | Kết quả detection |
 | OPEN-05 file size/batch/report limits | Khiêm + Cường | Upload/bulk and perf |
-| OPEN-06 analysis job model | Khiêm + Tài + Cường | Detect workflow |
+| OPEN-06 / D008 execution & recovery | Khiêm + Tài + Cường | Async đã chốt; cơ chế lưu/claim/restart/retention còn mở trước B5 |
 | NEW-01 trạm đổi tọa độ cùng externalId | Khiêm | Import dữ liệu nguồn |
 | NEW-02 Dataset/Run status enums | Khiêm + Khải + Tài | Khóa shared schemas |
 | NEW-04 incremental sync consistency | Duy + Khiêm | Khóa sync protocol |

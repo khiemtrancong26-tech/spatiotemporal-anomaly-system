@@ -98,6 +98,8 @@ Các checkbox là việc cần thực hiện, chưa đánh dấu hoàn thành ch
 
 **Đầu ra:** backlog theo feature, interface bản đầu, ma trận contract và bố cục đủ để bắt đầu. Những blocker riêng của import/analysis không chặn scaffold hoặc các màn hình độc lập.
 
+- [x] Bổ sung audit D008: ma trận Analysis POST 202 + GET detail, lifecycle/scope/error và idempotency tiếp nhận; giữ các kết quả M0 lịch sử.
+
 ### M1 — Khởi tạo ứng dụng và lớp dữ liệu online
 
 - [x] Khởi tạo package `client` trong npm workspaces; cấu hình TypeScript, Vite, router, lint và các script chạy/build/check/test.
@@ -113,9 +115,11 @@ Các checkbox là việc cần thực hiện, chưa đánh dấu hoàn thành ch
 
 **Nghiệm thu:** ứng dụng chạy/build được; mock và online đi qua cùng interface; lỗi và pagination không phải viết lại ở từng feature.
 
+- [ ] Migration D008 trước M5: regenerate TS/schema từ OpenAPI v0.3; cập nhật `analysis.create/get/list`, adapter, mock và tests; không thiết kế lại HTTP client/auth/import. Runtime/shared-core hiện còn v0.2, chưa tự generate trong lượt chỉ sửa tài liệu.
+
 ### M2 — Auth, Datasets và bộ khung Workspace
 
-**Quyết định đã được người dùng xác nhận:** giữ token trong sessionStorage, kiểm tra `/users/me` khi reload; deep-link thiếu metadata vẫn mở workspace bằng datasetId và thông báo rõ. Register đã được cho phép triển khai sau lượt chỉnh tài liệu: 19 operations online hiện được sinh/kiểm tra theo OpenAPI. M0/M1 giữ báo cáo lịch sử trước bổ sung.
+**Quyết định đã được người dùng xác nhận:** giữ token trong sessionStorage, kiểm tra `/users/me` khi reload; deep-link thiếu metadata vẫn mở workspace bằng datasetId và thông báo rõ. Register đã được cho phép triển khai sau lượt chỉnh tài liệu: 19 operations online đã được sinh/kiểm tra trước D008; contract tài liệu hiện có 20, migration runtime còn chờ. M0/M1 giữ báo cáo lịch sử trước bổ sung.
 
 **Bằng chứng frontend:** [M2 verification](frontend/m2-verification.md). Checkbox dưới đây xác nhận implementation/kiểm thử phía FE; chưa thay cho nghiệm thu API và quy tắc nghiệp vụ trên Backend thật.
 
@@ -131,43 +135,53 @@ Các checkbox là việc cần thực hiện, chưa đánh dấu hoàn thành ch
 
 ### M3 — Import Wizard hoàn chỉnh
 
-- [ ] Bước upload: file CSV/JSON, tên dataset, trạng thái đang gửi, xử lý 413/415/422 và network error.
-- [ ] Bước validation: số dòng valid/invalid, cột nguồn, lỗi theo dòng/trường, mapping gợi ý; phân biệt dữ liệu Server trả với dữ liệu UI tự hiển thị.
-- [ ] Bước mapping: sửa `fieldMap`, kiểm tra đủ sensorId/latitude/longitude/timestamp/value, gửi PUT thay toàn bộ mapping; đơn vị theo contract `ug/m3`.
-- [ ] Chặn hành vi tự đoán timezone nguồn thiếu offset hoặc hứa quy đổi đơn vị chưa được hỗ trợ; xử lý theo quyết định của nhóm ở mục 6.
-- [ ] Bước import: POST với key; hiển thị đúng lifecycle Server và importSummary, kể cả trùng hoàn toàn/xung đột nếu response có trả.
-- [ ] Chỉ mở workspace và cập nhật danh sách imported sau khi Server xác nhận hoàn tất.
-- [ ] Cảnh báo khi rời wizard chưa xong; thực hiện phương án reload/recovery đã thống nhất. Không tự gửi lại import như thao tác mới khi chưa rõ request trước đã hoàn tất hay chưa.
+- [x] Bước upload: file CSV/JSON, tên dataset, trạng thái đang gửi, xử lý 413/415/422 và network error.
+- [x] Bước validation: số dòng valid/invalid, cột nguồn, lỗi theo dòng/trường, mapping gợi ý; phân biệt dữ liệu Server trả với dữ liệu UI tự hiển thị.
+- [x] Bước mapping: sửa `fieldMap`, kiểm tra đủ sensorId/latitude/longitude/timestamp/value, gửi PUT thay toàn bộ mapping; đơn vị theo contract `ug/m3`.
+- [x] Chặn hành vi tự đoán timezone nguồn thiếu offset hoặc hứa quy đổi đơn vị chưa được hỗ trợ; xử lý theo quyết định của nhóm ở mục 6.
+- [x] Bước import: POST với key; hiển thị đúng lifecycle Server và importSummary, kể cả trùng hoàn toàn/xung đột nếu response có trả.
+- [x] Chỉ mở workspace và cập nhật danh sách imported sau khi Server xác nhận hoàn tất.
+- [x] Cảnh báo khi rời wizard chưa xong; thực hiện phương án reload/recovery đã thống nhất. Không tự gửi lại import như thao tác mới khi chưa rõ request trước đã hoàn tất hay chưa.
 
 **Nghiệm thu:** hoàn thành luồng với file hợp lệ; file lỗi hiển thị đúng nguyên nhân; thao tác gửi lại không tạo import trùng; dataset thất bại không xuất hiện như dữ liệu dùng được.
 
+**Bằng chứng FE:** [M3 verification](frontend/m3-verification.md). Đã kiểm tra bằng fixture/HTTP interception; nghiệm thu với Backend thật còn chờ.
+
 ### M4 — Tra cứu và hai chế độ trực quan
 
-- [ ] Nối sensors/readings theo dataset và filter; có validation from/to, bbox hợp lệ, sort và tải thêm trang có kiểm soát.
-- [ ] Hiển thị số điểm đã tải và trạng thái còn trang; không trình bày tập con như toàn bộ dataset.
-- [ ] Mapbox 3D: nền bản đồ, vị trí trạm/điểm đọc, biểu diễn PM2.5 có legend/đơn vị, chọn điểm và điều khiển camera. Quy tắc xử lý nhiều thời điểm tại cùng trạm phải rõ; không tùy tiện chồng điểm khiến người dùng hiểu sai giá trị đang xem.
-- [ ] Cube: chuyển tọa độ địa lý sang hệ tọa độ render nhất quán, X–Y là không gian, Z là thời gian; nhãn trục, legend, điều khiển camera/reset và chọn điểm.
-- [ ] Hai renderer dùng chung dữ liệu/phạm vi/selection; panel chi tiết có trạm, thời gian, PM2.5 và anomaly liên quan khi được tải.
-- [ ] Chỉ một renderer nặng hoạt động; cleanup canvas, event listeners, render loop và GPU resources khi chuyển hoặc rời workspace.
-- [ ] Có thông báo khi Mapbox lỗi token/tiles hoặc WebGL không khả dụng, cùng bảng dữ liệu/panel để người dùng tiếp tục xem dữ liệu online đã tải.
-- [ ] Đặt ngân sách số điểm/memory theo phép đo; việc giảm số điểm hiển thị phải có nhãn. Không tự biến thành dự án aggregates/LOD P1.
+- [x] Nối sensors/readings theo dataset và filter; có validation from/to, bbox hợp lệ, sort và tải thêm trang có kiểm soát.
+- [x] Hiển thị số điểm đã tải và trạng thái còn trang; không trình bày tập con như toàn bộ dataset.
+- [x] Mapbox 3D: nền bản đồ, vị trí trạm/điểm đọc, biểu diễn PM2.5 có legend/đơn vị, chọn điểm và điều khiển camera. Quy tắc xử lý nhiều thời điểm tại cùng trạm phải rõ; không tùy tiện chồng điểm khiến người dùng hiểu sai giá trị đang xem.
+- [x] Cube: chuyển tọa độ địa lý sang hệ tọa độ render nhất quán, X–Y là không gian, Z là thời gian; nhãn trục, legend, điều khiển camera/reset và chọn điểm.
+- [x] Hai renderer dùng chung dữ liệu/phạm vi/selection; panel chi tiết có trạm, thời gian, PM2.5 và anomaly liên quan khi được tải.
+- [x] Chỉ một renderer nặng hoạt động; cleanup canvas, event listeners, render loop và GPU resources khi chuyển hoặc rời workspace.
+- [x] Có thông báo khi Mapbox lỗi token/tiles hoặc WebGL không khả dụng, cùng bảng dữ liệu/panel để người dùng tiếp tục xem dữ liệu online đã tải.
+- [x] Đặt ngân sách số điểm/memory theo phép đo; việc giảm số điểm hiển thị phải có nhãn. Không tự biến thành dự án aggregates/LOD P1.
 
 **Nghiệm thu:** cùng bộ lọc cho cùng tập dữ liệu giữa Mapbox và Cube; tọa độ/thời gian đúng, chọn đúng reading; đổi dataset nhanh không trộn kết quả; không mặc định tải hết 100k–500k readings.
 
-### M5 — Analysis online và lịch sử
+**Bằng chứng FE:** [M4 verification](frontend/m4-verification.md). Code và kiểm thử fixture đã có; nghiệm thu Backend/Mapbox token thật và đo tổng memory/FPS trên thiết bị mục tiêu còn chờ. Giới hạn ban đầu 2.000 điểm, không tự tải toàn bộ dataset.
 
-- [ ] Form family/method/config dựa trên detector contract đã được Khiêm/Khải xác nhận; không hardcode thuật toán ứng viên thành tính năng đã hỗ trợ.
-- [ ] Hiển thị rõ phạm vi chuẩn bị phân tích. API hiện nhận `scope.sensorIds/from/to`, chưa nhận bbox; thực hiện quyết định mục 6, không âm thầm bỏ bbox.
-- [ ] POST `/analysis-runs` với idempotency key; thể hiện đang chờ phản hồi theo mô hình đồng bộ hiện tại, không giả lập phần trăm hay tự tạo polling endpoint.
-- [ ] GET lịch sử theo dataset có sort/cursor; giữ family, method, config, status và phiên bản engine/model nếu có.
-- [ ] Lấy anomaly theo analysisRunId và nối sang tab danh sách/lớp 3D; xử lý số lượng lớn bằng phân trang theo contract.
-- [ ] Phân biệt không phát hiện anomaly, đầu vào không đủ, config lỗi, model chưa sẵn sàng, request thất bại và run failed.
+### M5 — Analysis online bất đồng bộ và lịch sử
 
-**Nghiệm thu:** chạy thành công phương pháp thống kê và ML đã được hỗ trợ qua API thật; truy vết đúng run; phạm vi gửi đi khớp phần UI đã xác nhận. Analysis chạy theo phạm vi Server, không lấy tập readings hiện đang render làm toàn bộ đầu vào một cách ngầm định.
+Theo D008: cả statistical và ml dùng async; API Contract v0.3.0-draft. Chưa triển khai runtime M5; không coi fixture là Backend thật.
+
+- [ ] Form family/method/config theo detector contract Khiêm/Khải xác nhận; không chọn model, defaults hoặc severity thay nhóm.
+- [ ] Xác nhận snapshot dataset/scope.sensorIds/from/to trước gửi; bbox cần resolve đủ trạm và chốt tập rỗng/giới hạn. Không lấy 2.000 readings đang render hoặc trang sensors đầu làm toàn bộ input.
+- [ ] POST `/analysis-runs` với UUID key và payload bất biến cho một ý định; `202 {data: AnalysisRun}` chỉ là tiếp nhận. Không đọc anomalies từ response POST. Key/snapshot chờ tiếp nhận giữ tối thiểu trong sessionStorage theo phiên; không outbox, không tự resend khi mạng phục hồi.
+- [ ] Hiển thị queued/running/completed/failed riêng với trạng thái kết nối theo dõi. Mất mạng/timeout không đổi run thành failed; không phần trăm/ETA giả. HTTP lỗi trước tiếp nhận khác job error sau tiếp nhận.
+- [ ] Poll `GET /analysis-runs/{id}` có một request đang bay, backoff/jitter, chống response cũ, dừng ở terminal/logout/rời màn. Quay lại đọc trạng thái mới; interval/tab-background policy cần owner chốt trước implementation. Hủy chờ không hủy job Server.
+- [ ] Giữ run ID trong URL/ngữ cảnh điều hướng; reload đọc lại Server, history theo dataset là đường chọn lại run khi không còn ngữ cảnh tab. Không lấy bộ lọc hiện tại làm scope run cũ. Không scan history để thay GET detail.
+- [ ] POST mất response: báo chưa xác định, retry cùng key/payload trong replay window đã thống nhất; không tạo key mới. Đã có ID thì GET để tiếp tục theo dõi. Hết key/snapshot/retention phải đối soát, không tự tạo run thay thế. Chạy lại sau failed là ý định mới do người dùng xác nhận, không tự rerun.
+- [ ] Chỉ sau completed tải `GET /anomalies` theo datasetId/analysisRunId, phân trang và nối tab/lớp 3D. GET lỗi không đồng nghĩa zero anomalies. Không công bố partial/failed như kết quả hoàn chỉnh.
+- [ ] History hiển thị mọi status, scope, config/method và version nếu có; run failed có lỗi an toàn. Phân biệt thiếu dữ liệu/config lỗi/model chưa sẵn sàng theo contract detector, không tự gán thành completed rỗng.
+- [ ] Tra cứu/filter/renderer vẫn tương tác được trong lúc job chạy; đổi bộ lọc không thay scope run đã gửi. Đổi dataset/run hủy theo dõi cũ và không trộn kết quả.
+
+**Nghiệm thu:** thống kê và ML thật đi qua tiếp nhận → theo dõi → kết quả/failed; retry không tạo run/job trùng, reload theo dõi đúng run, không lộ partial; có và không có anomalies đều đúng. Chờ Backend thật, không nghiệm thu bằng mock.
 
 ### M6 — Anomaly list, chi tiết và review online
 
-- [ ] Danh sách theo dataset/run, family/method/severity/status/thời gian đúng các query hỗ trợ; cursor và trạng thái rỗng/lỗi rõ ràng.
+- [ ] Theo D008 chỉ hiển thị anomalies đã công bố của run completed; 409 chưa sẵn sàng khác kết quả rỗng. Danh sách theo dataset/run, family/method/severity/status/thời gian đúng các query hỗ trợ; cursor và trạng thái rỗng/lỗi rõ ràng.
 - [ ] GET chi tiết, panel reading/location/detector/score/severity/review/version; một reading có thể có nhiều anomalies, không ép quan hệ một-một.
 - [ ] PATCH chỉ `{baseVersion, changes: {status, note}}`; không sửa score/severity/method.
 - [ ] Chỉ báo đã lưu sau response thành công; dùng version mới và cập nhật danh sách/detail/lớp 3D liên quan.
@@ -186,6 +200,11 @@ Các checkbox là việc cần thực hiện, chưa đánh dấu hoàn thành ch
 **Nghiệm thu:** admin tạo/sửa được tài khoản, analyst không truy cập được chức năng; không giữ password đã nhập trong state lâu hơn cần thiết và không hiển thị trường nhạy cảm từ response.
 
 ### M8 — Tích hợp, kiểm thử và bàn giao
+
+- [ ] D008: queued/running/completed/failed (kể cả polling bỏ qua trạng thái trung gian), completed zero/nonzero anomalies, lỗi tải kết quả không giả rỗng; failure trước/sau tiếp nhận.
+- [ ] Mất response POST, hai client cùng key/payload, key đổi payload, hết retention; reload/điều hướng/mất mạng/response trễ/401/403/404 không tạo run mới hoặc trộn dataset.
+- [ ] Backend thật: nhiều client gửi đồng thời, giới hạn execution concurrency, restart worker/Server, không mất job đã nhận hoặc công bố partial/trùng kết quả. Đo acceptance latency, queue wait, execution time, CPU/RAM và API đọc riêng; không áp p95 đọc cho tổng inference.
+
 
 - [ ] Chạy toàn bộ luồng online với Backend thật và dữ liệu thử đã thống nhất; ghi rõ endpoint nào chưa sẵn sàng thay vì tính mock là hoàn thành.
 - [ ] Kiểm tra loading/empty/error/retry/401/403/404/409/422 và lỗi phụ thuộc ở các màn hình tương ứng; kiểm tra thao tác lặp và response về sai thứ tự.
@@ -224,11 +243,12 @@ Chưa ấn định ngày hoàn thành vì chưa có năng lực triển khai/ng�
 |---|---|---|---|
 | Interface `dataSource` chưa khóa | FE có online adapter riêng sau interface; thống nhất chữ ký và điểm ghép, không xây offline | Tài + Duy | M0/M1 |
 | Chưa có GET dataset theo ID | Đã chọn mở workspace bằng datasetId và thông báo thiếu metadata; metadata từ dataset người dùng chọn giữ trong RAM. Không scan toàn bộ danh sách, không suy ra 404 từ trang đầu; đọc dữ liệu nối ở M4 | Tài + Khiêm | M2 |
-| Reload wizard giữa chừng | Chốt thông tin có thể phục hồi bằng validation API và ID, phần nào yêu cầu bắt đầu lại; tránh upload/import lặp do không biết trạng thái | Tài + Khiêm | M3 |
-| Timezone nguồn/đơn vị/giới hạn file | Giữ khả năng contract hiện có; chốt OPEN-02/05 và cách báo lỗi. Không thêm trường timezone vào request khi schema chưa nhận | Tài + Khiêm | M3 |
+| Reload wizard giữa chừng | Đã chốt: giữ datasetId/key trong sessionStorage của tab, đọc lại validation; xác nhận lại mapping nếu chưa gửi import. Nếu đã gửi import, khóa mapping và chỉ retry cùng key. Không tự gửi lại upload/import; upload mất phản hồi trước ID báo chưa xác định | Tài + Khiêm | M3 |
+| Timezone nguồn/đơn vị/giới hạn file | Đã chốt chỉ nguồn timestamp có Z/offset và ug/m3, dữ liệu khác chuẩn hóa trước import. Không thêm trường timezone; giới hạn file theo Backend, hiển thị 413/415/422 | Tài + Khiêm | M3 |
 | Method/config/model/severity | Khải/Khiêm cung cấp danh sách method và schema config/default hợp lệ. FE chỉ hiển thị severity Server trả, không tự đặt ngưỡng nghiệp vụ | Tài + Khải + Khiêm | M5 |
 | Bbox không thuộc DetectionRequest.scope | Đề xuất resolve đầy đủ sensor IDs trong bbox qua phân trang trước khi gửi, có xác nhận phạm vi; nếu quá lớn hoặc chưa có quy tắc giới hạn, yêu cầu chọn trạm rõ hoặc báo chưa hỗ trợ. Nhóm phải thống nhất cách xử lý tập trạm rỗng và giới hạn payload; không dùng trang sensors đầu tiên làm toàn bộ vùng | Tài + Khiêm | M5 |
-| Import/analysis đồng bộ hay async | Theo draft đồng bộ để phát triển. Nếu Backend chuyển async, cập nhật contract và kế hoạch trước khi làm progress/polling | Tài + Khiêm | M3/M5 |
+| Analysis async D008 | Đã chốt POST 202 + GET detail và polling; còn queue/concurrency/recovery/retention, poll interval và detector errors cần owner chốt | Tài + Khiêm + Khải + Cường | M5/B5 |
+| Import đồng bộ | Giữ POST imports trả 200 khi hoàn tất; không đổi theo Analysis | Tài + Khiêm | M3/B3 |
 | Token, 401 và quyền tài khoản hiện tại | Đã chọn sessionStorage + `/users/me` khi reload; 401 xóa phiên, 403 giữ phiên và báo lỗi; không refresh API/offline auth | Tài + Khiêm | M2/M7 |
 | Mapbox token và môi trường demo | Cấp public token/origin hợp lệ và kiểm tra tải nền; môi trường không có token vẫn chạy được các màn khác và Cube | Tài + Cường | M4 |
 | API thật và dữ liệu đánh giá | Chốt endpoint ready, tài khoản analyst/admin, dataset lỗi/hợp lệ, run thống kê/ML và môi trường tích hợp | Tài + Khiêm + Khải + Cường | Theo feature, xong trước M8 |

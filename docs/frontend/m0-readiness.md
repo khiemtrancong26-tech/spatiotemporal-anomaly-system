@@ -49,7 +49,8 @@ Tất cả paths dưới đây bắt đầu `/api/v1`. **B** = đã có contract
 | M3 | POST /datasets/{id}/imports | key; không request body | 200 SingleDataset → Dataset | import | B |
 | M4 | GET /sensors | datasetId, bbox, sort/limit/cursor | 200 SensorPage → giữ nguyên | sensors | B |
 | M4 | GET /readings | datasetId, sensorId, bbox, from/to, sort/limit/cursor | 200 ReadingPage → giữ nguyên | readings | B |
-| M5 | POST /analysis-runs | DetectionRequest + key | 201 AnalysisCreateResponse → giữ nguyên | analysis-create | B |
+| M5 | GET /analysis-runs/{id} | ID + bearer | 200 AnalysisCreateResponse `{data}` | analysis-detail | B |
+| M5 | POST /analysis-runs | DetectionRequest + key | 202 AnalysisCreateResponse `{data}` → giữ nguyên | analysis-create | B |
 | M5 | GET /analysis-runs | datasetId, sort/limit/cursor | 200 AnalysisRunPage → giữ nguyên | analysis-list | B |
 | M6 | GET /anomalies | datasetId, run/family/method/severity/status/from/to, sort/limit/cursor | 200 AnomalyPage → giữ nguyên | anomalies | B |
 | M6 | GET /anomalies/{id} | anomaly ID | 200 SingleAnomaly → Anomaly | anomaly-detail | B |
@@ -98,14 +99,14 @@ Xem [online-data-source.d.ts](online-data-source.d.ts), [online-wire.d.ts](onlin
 | R01 | Duy có đồng ý chữ ký, lỗi/cancellation và quy tắc success online ở interface này không? | Tài + Duy | Trước ghép module; M1 có thể làm adapter độc lập |
 | R02 | Token chỉ giữ trong RAM hay có phiên online sống qua reload? Có chính sách bảo mật/session của Backend chưa? | Tài + Khiêm, người dùng nếu cần chọn UX | Trước M2; M1 chỉ dùng injected token getter, chưa chọn storage |
 | R03 | Workspace thiếu metadata khi deep-link: chấp nhận header datasetId và tải dữ liệu trước, hay cần contract hỗ trợ lấy metadata? | Tài + Khiêm | M2; không scan mọi trang hoặc kết luận 404 từ trang đầu |
-| R04 | Reload wizard phục hồi thế nào khi validation không trả mapping đã lưu, và mất key upload/import khi đóng tab? | Tài + Khiêm | M3; cảnh báo rời wizard, không tự upload/import lại |
-| R05 | Timestamp nguồn thiếu offset, unit khác ug/m3, file limits và lỗi invalid row được giải thích thế nào? | Khiêm + Khải | M3; không tự thêm field timezone hay ngưỡng upload |
+| R04 | Reload wizard phục hồi thế nào khi validation không trả mapping đã lưu, và mất key upload/import khi đóng tab? | Tài + Khiêm | Đã chốt M3: sessionStorage giữ ID/key trong tab, đọc validation, mapping xác nhận lại trước import; thao tác import đã gửi giữ nguyên mapping/key. Không tự upload/import; mất response upload trước ID báo chưa xác định |
+| R05 | Timestamp nguồn thiếu offset, unit khác ug/m3, file limits và lỗi invalid row được giải thích thế nào? | Khiêm + Khải | Đã chốt M3: chỉ timestamp có Z/offset và ug/m3, chuẩn hóa nguồn khác trước import; không thêm field timezone/ngưỡng upload; lỗi file theo Backend |
 | R06 | Có method/config/default nào thật sự chạy, ML model nào, insufficient-data trả status/error code nào? | Khiêm + Khải | M5; dùng fixtures giả có nhãn |
 | R07 | Analysis theo bbox có resolve tất cả sensors không, giới hạn payload bao nhiêu; sensorIds rỗng nghĩa gì? | Khiêm | M5; không gửi [] khi ý định là vùng rỗng, không bỏ bbox ngầm |
 | R08 | Semantics from/to inclusive hay exclusive và danh sách sensors thay đổi giữa các trang? | Khiêm | M4/M5; UI chưa gắn nhãn biên đóng/mở hoặc hứa snapshot |
 | R09 | Review cần giá trị reading chưa tải và bộ lọc anomalies theo trạm/vùng phía Server không? | Tài + Khiêm | M6; hiện hiển thị thiếu reading rõ và giữ đúng query hiện có |
 | R10 | Chặn tự hạ quyền/vô hiệu admin cuối cùng hay xử lý theo rule nào? | Khiêm | M7; FE không tự phát minh business rule |
-| R11 | Lifecycle đồng bộ, size response analysis và case mất kết nối sau Server commit được bảo đảm thế nào? | Khiêm | M3/M5; giữ draft sync, retry đúng key |
+| R11 | Analysis async D008: tiếp nhận durable, replay/recovery/retention và polling; Import giữ đồng bộ | Khiêm + Tài + Cường | M5/B5; hướng async đã chốt, thông số vận hành còn mở |
 
 Các câu hỏi trên đã có phương án phát triển độc lập, chưa cần người dùng quyết định thay Backend để bắt đầu M1. Không có thay đổi API được thực hiện trong M0.
 
@@ -130,3 +131,5 @@ Kết quả thực hiện ngày 13/11/2026:
 - PASS: 30 fixture cases, đủ 18 operations, 7 core DTO objects và 7 legacy payloads; negative check từ chối response review thiếu trường.
 - PASS: TypeScript kiểm tra hai declaration files ở strict mode, không sinh JavaScript.
 - PASS: `git diff --check` cho thay đổi tracked. Chưa chạy build ứng dụng/E2E vì M1 chưa được triển khai.
+
+**Cập nhật D008 (13/11/2026):** ma trận Analysis/fixtures mục tiêu đã đổi async; contract hiện 20 online operations. Số liệu M0 gốc là lịch sử. Runtime/shared-core/guard số operation của verify_m0.py chưa migrate; theo follow-up M1 trước M5.

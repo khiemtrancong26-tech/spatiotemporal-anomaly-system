@@ -22,12 +22,12 @@ Nguồn đã đọc và đối chiếu:
 
 | Thành phần | Hiện trạng kiểm tra | Hệ quả cho kế hoạch |
 |---|---|---|
-| `server/` | Chỉ có `README.md`, ghi chưa khởi tạo; không có package, source Fastify, route, repository hoặc test Backend | Bắt đầu từ scaffold; toàn bộ 19 operations online/health đều chưa triển khai trong checkout |
+| `server/` | Chỉ có `README.md`, ghi chưa khởi tạo; không có package, source Fastify, route, repository hoặc test Backend | Bắt đầu từ scaffold; toàn bộ 20 operations online/health đều chưa triển khai trong checkout |
 | Root workspace | Đã khai báo `client`, `server`, `shared-core`; scripts root hiện chỉ chạy client | Không xem `npm run check` hiện tại là đã kiểm tra Backend; bổ sung scripts khi triển khai B1 |
 | `client/` | Có source React, adapter online, mock và test; M2 gồm Register đã được ghi nhận kiểm tra bằng mock/HTTP intercept | B2 ưu tiên thay mock cho auth/datasets; chưa có bằng chứng tích hợp Backend thật |
 | `shared-core/` | Có draft contracts/Zod; chưa có package riêng hoặc implementation detector | Chữ ký/fixture không chứng minh engine chạy; B5 phụ thuộc sản phẩm thật của Khải |
 | `infra/`, `tests/` | README định hướng; có script indexes đề xuất, chưa có bằng chứng môi trường Backend/DB/CI đã chạy | Cường chuẩn bị môi trường song song B1; kiểm chứng index trên DB thật |
-| Tài liệu | Một số mục lục, đoạn SDD/DB và báo cáo FE M0/M1 giữ version/URL/số operations cũ | Dùng file nguồn hiện tại: 24 operations tổng cộng, 19 thuộc online/health; không tạo alias URL cũ |
+| Tài liệu | Một số mục lục, đoạn SDD/DB và báo cáo FE M0/M1 giữ version/URL/số operations cũ | Dùng file nguồn hiện tại: 25 operations tổng cộng, 20 thuộc online/health; không tạo alias URL cũ |
 
 Phần “client mới có README” trong mở đầu kế hoạch FE là mô tả lịch sử lúc lập kế hoạch; trạng thái M2 và source hiện tại mới phản ánh tiến độ hôm nay. Các thay đổi đang có sẵn trong working tree không thuộc phạm vi sửa của kế hoạch Backend.
 
@@ -93,14 +93,14 @@ Cross-feature chỉ qua public interface: Auth/Admin tái sử dụng nghiệp v
 
 ### 3.2. Các bất biến cần giữ khi triển khai
 
-- URL chuẩn `/api/v1`; giữ đúng envelope riêng: login/health/validation trả trực tiếp, analysis `{data: run, anomalies}`, list `{data, page}`, object `{data}`. Health `503` vẫn là `HealthResponse`, không đổi thành Error thông thường.
+- URL chuẩn `/api/v1`; giữ đúng envelope riêng: login/health/validation trả trực tiếp, analysis tiếp nhận/detail `{data: run}`, list `{data, page}`, object `{data}`. Health `503` vẫn là `HealthResponse`, không đổi thành Error thông thường.
 - Chỉ public health/register/login; API nghiệp vụ yêu cầu JWT và quyền analyst/admin; admin routes chỉ admin. Không lộ password/hash/token trong log hoặc trường nội bộ DB trong response. Register/Admin dùng cùng logic tạo User và unique username.
 - Lỗi theo operation trong OpenAPI: phân biệt cú pháp/query `400`, semantic `422`, auth `401`, quyền `403`, conflict `409`; `401` có `WWW-Authenticate`, `405` có `Allow`. Không tự biến mọi lỗi Fastify thành cùng một mã. Không phát sinh status/body mới cho tình huống chưa rõ; đưa vào bảng quyết định trước khi triển khai nhánh đó.
 - List `limit` mặc định 100, tối đa 200; keyset có tie-break `_id` nội bộ, cursor opaque gắn fingerprint filter/sort; cursor không tương thích trả `400`. Không thêm offset/total count, không cam kết snapshot khi dữ liệu thay đổi giữa các trang.
 - ObjectId/Date ở persistence → ID string/UTC ISO Z ở API. `externalId` là mã trạm nguồn; `sensorId` của Reading là ID nội bộ. Location WGS84 `[lon,lat]`, value hữu hạn và không âm; `0` hợp lệ, số rất cao không tự bị loại.
 - Dataset chỉ công bố sau `imported`; gate áp dụng ở mọi đường đọc/phân tích, không chỉ danh sách dataset. Không để truy vấn bằng ID biết trước đọc được dữ liệu nhập dở.
 - BR-08: chuẩn hóa rồi kiểm tra theo thứ tự dòng; giữ bản ghi hợp lệ đầu tiên, tách duplicate/conflict và dòng được giữ. Unique index là hàng rào cuối, không thay cho thuật toán dedup.
-- Bốn POST bắt buộc key UUID: upload, import, analysis, admin-create. Trong phạm vi user: cùng key/payload đã hoàn tất trả lại cùng status/body; đang xử lý trả `409`; key cũ khác payload trả `422`; thiếu/sai key trả `400`. Upload fingerprint gồm nội dung file và metadata. Cách lưu/recovery/retention cần được duyệt trước B3/B5/B7.
+- Bốn POST bắt buộc key UUID: upload, import, analysis, admin-create. Trong phạm vi user: cùng key/payload đã hoàn tất trả lại cùng status/body; đang xử lý trả `409`; key cũ khác payload trả `422`; thiếu/sai key trả `400`. Upload fingerprint gồm nội dung file và metadata. Riêng Analysis, hoàn tất ở đây là tiếp nhận bền vững, không đợi inference; replay 202 cùng run sau tiếp nhận, 409 chỉ trong cửa sổ tiếp nhận chưa hoàn tất. Cách lưu/recovery/retention cần được duyệt trước B3/B5/B7.
 - Review chỉ status/note, `baseVersion` dương, CAS tăng version và cập nhật updatedAt cùng thao tác. Không sửa score/severity/method. POST idempotency, PUT mapping idempotence và PATCH CAS là ba cơ chế khác nhau.
 
 ### 3.3. Persistence và chỉ mục
@@ -119,7 +119,7 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 **Mục tiêu:** Có backlog triển khai và ma trận kiểm chứng thống nhất trước khi viết API; phân biệt điều đã có trong contract với điều cần quyết định.
 
-**Endpoint:** rà soát 19 operations ở mục 5; không tạo runtime hoặc endpoint mới.
+**Endpoint:** rà soát 20 operations ở mục 5; không tạo runtime hoặc endpoint mới.
 
 - [ ] Khiêm/Tài đối chiếu HTTP với generated types/adapter/fixtures hiện tại, đặc biệt Register, envelope validation, lỗi review và POST idempotency.
 - [ ] Khiêm/Khải rà C02–C04 của FE M0: minLength, miền tọa độ, timestamp precision và schema detector; ghi kết quả review, không tự đổi schema.
@@ -129,7 +129,7 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 **Dependency:** tài liệu/checkout hiện tại; review Khiêm–Tài–Khải–Cường, Duy khi chạm shared DTO/interface tương lai. Chọn driver/ODM trước repository B1; các blocker import/analysis không chặn audit và scaffold.
 
-**Kiểm thử/kiểm tra:** kiểm tra parse/ref của OpenAPI; validate fixtures theo request/response từng operation bằng công cụ hiện có; đối chiếu 19 operations với online adapter. Đây là kiểm tra contract tĩnh, không phải test API thật. Kết quả chạy trong mốc này phải ghi riêng, không sao chép số test lịch sử FE thành bằng chứng mới.
+**Kiểm thử/kiểm tra:** kiểm tra parse/ref của OpenAPI; validate fixtures theo request/response từng operation bằng công cụ hiện có; đối chiếu 20 operations với online adapter. Đây là kiểm tra contract tĩnh, không phải test API thật. Kết quả chạy trong mốc này phải ghi riêng, không sao chép số test lịch sử FE thành bằng chứng mới.
 
 **Bàn giao/ nghiệm thu:** ma trận endpoints, backlog feature/test, danh sách lệch và decision gates được ghi rõ. FE tiếp tục mock đúng hợp đồng; các vấn đề chưa chốt có owner và hạn theo mốc, không có endpoint ngầm định.
 
@@ -215,7 +215,7 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 **Mục tiêu:** Backend điều phối và lưu analysis đúng phạm vi; Khải cung cấp engine/model thật, không dùng kết quả fixture để tuyên bố detector đã chạy.
 
-**Endpoint:** `POST /analysis-runs` → `201 {data: AnalysisRun, anomalies: Anomaly[]}`; `GET /analysis-runs` → `200 AnalysisRunPage`. Lấy kết quả tiếp qua GET anomalies của B6.
+**Endpoint:** `POST /analysis-runs` → `202 {data: AnalysisRun}` (snapshot queued), `GET /analysis-runs/{id}` → `200 {data: AnalysisRun}`, `GET /analysis-runs` → `200 AnalysisRunPage`. Cả statistical/ml dùng async; kết quả lấy qua anomalies của B6 sau completed.
 
 - [ ] Khiêm/Khải/Tài xác nhận method/config/default, điều kiện dữ liệu, ordering/grouping theo trạm, input/output, model/features và mapping score → severity. Danh sách zscore/iqr/moving_avg trong draft chưa chứng minh các method đã implement; Isolation Forest chưa phải model đã chọn.
 - [ ] Validation theo family/method và config được duyệt dù HTTP config là object mở; scope chỉ sensorIds/from/to. Xác minh dataset imported, sensor thuộc dataset; lấy đầy đủ phạm vi phân tích tại Server, không dùng trang readings đang render làm toàn bộ input.
@@ -223,12 +223,12 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 - [ ] Service gọi statistical engine của shared-core qua adapter; Khải chịu công thức, edge cases và tests engine. Sau đó tích hợp ML adapter Server với model đã train, load/predict và version; không train trong upload/request.
 - [ ] Ghi run/config/method/engineVersion/modelVersion phù hợp; kiểm tra output tham chiếu reading đúng dataset/scope, score hữu hạn; chỉ flagged=true thành Anomaly. Khởi tạo review open/note rỗng/version 1/updatedAt, location từ dữ liệu chuẩn; unique run+reading.
 - [ ] Chốt nhất quán run/anomalies và failure/recovery trước ghi dữ liệu thật: không để completed khi persist chưa xong, không coi kết quả partial là thành công. Retry cùng key không chạy engine/tạo run lần hai.
-- [ ] Dùng profile đồng bộ có phạm vi giới hạn của draft để phát triển; benchmark với Khải/Cường trước khóa OPEN-06. Không tự thêm 202, queued, polling hoặc Server Worker. Nếu cần đổi contract, dừng phần đó để review riêng.
-- [ ] AnalysisCreateResponse hiện chứa anomalies array không có cursor: chốt giới hạn công việc/response; không cắt array âm thầm. List history theo dataset, createdAt sort hai chiều, cursor/limit; không thêm run detail API.
+- [ ] D008: tiếp nhận run + công việc bền vững trước 202; thực thi nền có giới hạn concurrency. Chốt queue technology/process topology và admission/overload policy bằng benchmark, không mặc định Redis/BullMQ. Có recovery khi crash/restart, tránh mất job đã nhận và ghi kết quả trùng; không hứa exactly-once engine execution. Không train model trong request/job inference.
+- [ ] AnalysisCreateResponse chỉ có data; GET detail/history trả cùng DTO hiện tại gồm scope snapshot và lỗi terminal. Replay cùng key trả cùng 202/body/run ID dù job đang chạy hoặc terminal; receipt tiếp nhận khác lifecycle job. Chốt retention/atomicity/claim/restart trước implementation. List history giữ createdAt sort/cursor; anomalies chỉ công bố sau completed, GET theo run chưa completed trả 409.
 
 **Dependency:** B1/B2/B4, idempotency đã nghiệm thu từ B3 hoặc cùng cơ chế được hoàn tất độc lập; OPEN-03/04/06, NEW-02 và scope/response/failure policy ở mục 6. Khải bàn giao package statistical/ML thực; B6 có thể phát triển song song bằng seed.
 
-**Kiểm thử:** Khiêm unit orchestration với test double có nhãn; integration engine thật/DB thật cho không anomaly, có anomaly, invalid config, insufficient_data, phương sai 0, input rỗng, model không sẵn sàng (`503`), output lỗi. Hai run khác nhau có thể có anomaly cùng reading, một run không trùng reading; retry không tăng số run/anomaly. Test scope vượt một trang, sensor khác dataset, persist fail giữa chừng và mất response. Khải chạy deterministic/golden tests và đánh giá model riêng; Cường đo thời gian/memory/event-loop dưới tải để quyết định OPEN-06.
+**Kiểm thử:** Khiêm unit orchestration với test double có nhãn; integration engine thật/DB thật cho không anomaly, có anomaly, invalid config, insufficient_data, phương sai 0, input rỗng, model không sẵn sàng (`503`), output lỗi. Hai run khác nhau có thể có anomaly cùng reading, một run không trùng reading; retry không tăng số run/anomaly. Test scope vượt một trang, sensor khác dataset, persist fail giữa chừng và mất response. Khải chạy deterministic/golden tests và đánh giá model riêng; Cường đo thời gian/memory/event-loop dưới tải để chốt mức concurrency/admission và thông số vận hành D008.
 
 **Bàn giao/ nghiệm thu:** chia hai lần bàn giao B5a thống kê thật và B5b ML thật trên cùng endpoints; ghi method nào đã chạy và method nào còn chờ. FE M5 dùng được history/kết quả và liên kết B6; B5 chỉ đóng khi cả thống kê và ML P0 được hỗ trợ đã tích hợp thật. Chưa có model thì ghi chưa hoàn tất ML, không thu hẹp P0 hoặc trả anomaly giả để đạt mốc.
 
@@ -238,7 +238,7 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 **Endpoint:** `GET /anomalies` → `200 AnomalyPage`; `GET /anomalies/{id}` và `PATCH /anomalies/{id}` → `200 SingleAnomaly`.
 
-- [ ] List đúng query: datasetId, analysisRunId, family/method, severity/status, from/to, ts sort và cursor/limit. Không tự nhận sensorId/bbox; xác minh run/dataset nhất quán.
+- [ ] Chỉ công bố anomalies của run completed; GET theo run chưa completed trả 409, list tổng loại partial, detail chưa công bố 404. List đúng query: datasetId, analysisRunId, family/method, severity/status, from/to, ts sort và cursor/limit. Không tự nhận sensorId/bbox; xác minh run/dataset nhất quán.
 - [ ] Detail trả đầy đủ Anomaly theo schema, không join thêm value của reading vào wire DTO. FE dùng readingId để ghép dữ liệu đã tải hoặc báo chưa tải phép đo; score không thay cho PM2.5.
 - [ ] PATCH chỉ baseVersion + changes có ít nhất status/note; validate strict, chỉ ba review statuses. Repository conditional update theo ID/version, tăng version và updatedAt nguyên tử.
 - [ ] Stale trả `409` kèm currentVersion theo contract; không bắt buộc response conflict chứa full current anomaly. ID không tồn tại trả `404`; Tài GET detail để xử lý conflict. Mất response PATCH không có nghĩa chưa commit, không tự retry mù.
@@ -270,9 +270,12 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 ### B8 — Tích hợp online, hiệu năng và bàn giao
 
+- [ ] D008: integration thật cho tiếp nhận durable, queued/running/terminal, worker restart, mất response/replay cùng run, cạnh tranh cùng key, failed persist không lộ partial; nhiều client không vượt concurrency đã chốt. Đo acceptance, queue wait và execution riêng với CPU/RAM/event-loop, không dùng mock làm bằng chứng.
+
+
 **Mục tiêu:** Nghiệm thu toàn bộ Backend P0 online với FE thật, có bằng chứng DB/engine/hạ tầng và giới hạn thực tế.
 
-**Endpoint:** toàn bộ 19 operations mục 5; không bổ sung operations ở mốc nghiệm thu.
+**Endpoint:** toàn bộ 20 operations mục 5; không bổ sung operations ở mốc nghiệm thu.
 
 - [ ] Cường/Tài/Khiêm chạy E2E Register → Login → upload/validation/mapping/import → datasets → query/workspace → analysis thống kê/ML → review; thêm admin và conflict hai phiên. Suite nghiệm thu không dùng route intercept/mock transport.
 - [ ] Kiểm thử lỗi theo feature: auth, sai payload/media type, giới hạn upload, dữ liệu rỗng, cursor sai, DB/model unavailable, import thất bại, request trùng và mất response sau commit.
@@ -288,7 +291,7 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 ## 5. Đồng bộ bàn giao với Frontend và phân công
 
-### 5.1. Ma trận 19 operations online/health
+### 5.1. Ma trận 20 operations online/health
 
 Paths dưới đây đều có tiền tố `/api/v1`. **Hiện trạng tất cả: có contract, chưa có Backend implementation trong checkout**. Owner API/persistence là Khiêm; cột cuối là điều kiện/đầu ra FE, không phải thông báo API đã sẵn sàng.
 
@@ -313,6 +316,7 @@ Paths dưới đây đều có tiền tố `/api/v1`. **Hiện trạng tất c�
 | 17 | GET `/admin/users` | B7 | M7 | Admin only, cursor/sort |
 | 18 | POST `/admin/users` | B7 | M7 | Key/replay, unique chung với Register |
 | 19 | PATCH `/admin/users/{id}` | B7 | M7 | Role/active, last-admin guard chịu được race |
+| 20 | GET `/analysis-runs/{id}` | B5 | M5 | Trạng thái hiện tại, scope/error và phục hồi run |
 
 Mỗi lần bàn giao gửi kèm base URL/environment, revision contract đang dùng, account/seed có nhãn, request mẫu, kết quả contract/integration test và danh sách quyết định/giới hạn còn mở. Ghi trạng thái **theo endpoint và theo dependency**, không dùng một nhãn “Backend ready” cho toàn bộ hệ thống.
 
@@ -364,7 +368,7 @@ Người dùng đã xác nhận **giữ mở** các lựa chọn dưới đây. 
 | NEW-02 / recovery | Enum draft giữ nguyên; cần bảng chuyển trạng thái Dataset/Run, sửa mapping khi nào, retry failed/đã imported và dọn attempt lỗi. Imported không nhập lại; in-flight request khác `409` đã có trong OpenAPI | Khiêm + Khải + Tài | Trước state machine B3/B5 |
 | Query biên / parent state | from/to đóng hay mở chưa chốt; xử lý dataset ID không tồn tại/chưa imported và tham chiếu khác dataset phải thống nhất trong statuses hiện có (list query không khai báo `404`). Không trả partial data hoặc tự mở rộng mã lỗi | Khiêm + Tài | Trước B4 và query B5/B6 |
 | OPEN-03/04 / detector | Model/features/artifact/runtime, config/default, dữ liệu tối thiểu, grouping/window và severity; ánh xạ insufficient_data/invalid_input sang HTTP + run status. Không coi threshold fixture là quyết định | Khải + Khiêm + Tài | Trước engine integration B5a/B5b |
-| OPEN-06 / analysis response | Sync bounded là profile draft; cần giới hạn scope/response, timeout và benchmark. AnalysisCreateResponse không có cursor/truncation; không tự cắt anomalies, thêm queue/worker hoặc trả 202 | Khiêm + Khải + Cường + Tài | Trước khóa workflow import B3/analysis B5 |
+| OPEN-06 / D008 | Async statistical/ml đã chốt; còn queue/execution topology, concurrency, admission, claim/restart, retention và poll policy. Không áp cho Import | Khiêm + Khải + Cường + Tài | Trước triển khai B5/M5 |
 | Nhất quán run/results | Quy trình persist, cleanup/recovery và visibility khi engine hoặc ghi anomalies thất bại; không completed giả, không lộ kết quả partial như run thành công | Khiêm + Khải + Cường | Trước persistence B5 |
 | Bbox analysis | DetectionRequest chỉ sensorIds/from/to; FE đề xuất resolve đủ sensors qua paging, nhưng tập rỗng/giới hạn payload chưa chốt. Anomalies không có sensorId/bbox | Tài + Khiêm | Trước FE M5/B5; B4 cung cấp paging đúng |
 | Wizard reload | ValidationReport không có mapping đã lưu/metadata file; phải thống nhất mức phục hồi, xử lý mất key và kết quả request chưa xác định, không thêm GET dataset detail | Tài + Khiêm | Trước nghiệm thu B3/FE M3 |
@@ -375,14 +379,14 @@ Người dùng đã xác nhận **giữ mở** các lựa chọn dưới đây. 
 **Các khác biệt đã có nguồn phân xử, không cần sáng tạo quyết định mới:**
 
 - URL cũ trong SDD/DB không sinh alias; OpenAPI hiện hành dùng `/api/v1/...`.
-- Số operations FE M0/M1 là lịch sử trước Register: hiện 24 tổng, 19 online/health và 5 hoãn. Register đã thuộc SRS/OpenAPI/FE M2, phải có trong B2.
+- Số operations FE M0/M1 là lịch sử trước Register: sau D008 có 25 tổng, 20 online/health và 5 hoãn. Register đã thuộc SRS/OpenAPI/FE M2, phải có trong B2.
 - Các đoạn Page Outline/User Flow nói số trạm import hoặc phép đo trong anomaly detail là nhu cầu UI; schema hiện không trả số trạm import hay reading value trong Anomaly. Không thêm fields; nếu cần đáp ứng thêm phải review contract riêng.
-- Metadata deep-link FE đã chọn hiển thị datasetId khi thiếu; không yêu cầu Backend tự thêm dataset detail. History analysis không có run detail API.
+- Metadata deep-link FE đã chọn hiển thị datasetId khi thiếu; không yêu cầu Backend tự thêm dataset detail. D008 bổ sung GET analysis run detail; không bổ sung GET dataset detail.
 - Thiết kế DTO cho phép lựa chọn lưu/resolve location; physical design cụ thể đang đề xuất snapshot ở Reading/Anomaly. Dùng thiết kế vật lý làm cơ sở review, không diễn giải tùy chọn DTO thành thay đổi DB đã duyệt.
 
 ## 7. Tiêu chí “đã hoàn tất Backend P0 online”
 
-- [ ] 19 operations online/health có implementation đúng OpenAPI, test thành công/lỗi tương ứng và trạng thái bàn giao rõ; không dùng endpoint mới/alias để bù thiếu contract.
+- [ ] 20 operations online/health có implementation đúng OpenAPI, test thành công/lỗi tương ứng và trạng thái bàn giao rõ; không dùng endpoint mới/alias để bù thiếu contract.
 - [ ] Register/Login/me và Admin thật: password hashing, username uniqueness cạnh tranh, Server RBAC, chính sách quyền hiện tại và bảo vệ last active admin được kiểm chứng.
 - [ ] CSV/JSON qua validation/mapping/import thật; BR-08 giữ first valid row, counts đúng, retry/restart không tạo bản trùng; mọi đường query/analysis không công bố partial dataset.
 - [ ] Sensors/readings/history/anomalies đúng dataset/scope, UTC/location/ID và cursor/limit/sort; có tests biên và explain trên dữ liệu đại diện.

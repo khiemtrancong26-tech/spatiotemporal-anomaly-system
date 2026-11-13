@@ -1,10 +1,10 @@
 openapi: 3.0.3
 info:
   title: Spatiotemporal PM2.5 Anomaly API
-  version: 0.2.0-draft
+  version: 0.3.0-draft
   description: API contract draft based on SRS v0.5; API standardization review (2026-11-12).
     Resource-oriented /api/v1; bounded sort, keyset cursor, POST idempotency, endpoint-specific status codes.
-    OPEN-02/03/04/05/06/07 & NEW-01/02/03/04 remain unresolved. No endpoint is assumed implemented.
+    Analysis async approved 2026-11-13 (D008); execution technology and operating limits remain open. OPEN-02/03/04/05/07 and unrelated NEW items remain unresolved. No endpoint is assumed implemented.
 servers:
 - url: /
   description: Same-origin Nginx HTTPS :443; paths include /api/v1
@@ -621,7 +621,7 @@ paths:
       description: 'Profile synchronous draft: 200 khi imported hoàn tất, trả Dataset hiện tại. Cùng key retry
         không chạy lại; dataset importing => 409 cho request khác; imported => không import lại. Một file thất
         bại cần cleanup và thao tác retry có chủ đích/key mới. Path /imports thể hiện yêu cầu nhập dữ liệu; chưa có Import
-        resource ID độc lập. OPEN-06 chưa quyết định async.'
+        resource ID độc lập. Import giữ đồng bộ; quyết định Analysis async không áp dụng cho Import.'
       x-roles:
       - analyst
       - admin
@@ -1123,9 +1123,13 @@ paths:
       - Analysis
       summary: Tạo và chạy AnalysisRun phía Server
       operationId: post_api_v1_analysis_runs
-      description: 'Profile synchronous bounded work (OPEN-06): 201 khi AnalysisRun/anomalies persisted. Retry
-        cùng key trả lại same run, không chạy detector lại. OPEN-06 có thể đổi thành 202 + polling sau benchmark;
-        chưa khóa job queue. ML inference only Server.'
+      description: >-
+        Async cho cả statistical và ml (D008). 202 chỉ sau khi run và công việc được tiếp nhận bền vững,
+        trả snapshot queued trong data, không anomalies. Cùng user/operation/key/payload replay cùng
+        202/body và cùng run ID, không enqueue lại; GET detail lấy trạng thái mới nhất.
+        409 chỉ khi tiếp nhận cùng key chưa hoàn tất, không phải vì job đang running;
+        key khác payload trả 422. Retention/recovery khi key hết hạn phải chốt trước triển khai.
+        Lỗi HTTP trước tiếp nhận khác với run failed sau tiếp nhận. ML inference chỉ phía Server.
       x-roles:
       - analyst
       - admin
@@ -1144,8 +1148,8 @@ paths:
             schema:
               $ref: '#/components/schemas/DetectionRequest'
       responses:
-        '201':
-          description: Created
+        '202':
+          description: Accepted durably; not completed
           content:
             application/json:
               schema:
@@ -1303,11 +1307,86 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /api/v1/analysis-runs/{id}:
+    get:
+      tags:
+      - Analysis
+      summary: Đọc trạng thái và metadata AnalysisRun
+      description: Trả trạng thái mới nhất của run thuộc quyền truy cập hiện tại; dùng để polling và phục hồi. 404 không suy ra job bị hủy.
+      operationId: get_api_v1_analysis_runs_id
+      x-roles:
+      - analyst
+      - admin
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          minLength: 1
+        description: ID opaque; API không yêu cầu Client giải mã ObjectId.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisCreateResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge cho API được bảo vệ.
+              schema:
+                type: string
+              example: Bearer realm="pm25-api"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Allow:
+              description: Danh sách HTTP methods được hỗ trợ tại path.
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /api/v1/anomalies:
     get:
       tags:
       - Anomalies
       summary: Truy vấn anomalies
+      description: >-
+        Chỉ công bố anomalies của run completed. Với analysisRunId cụ thể chưa completed trả 409;
+        list không chỉ định run bỏ qua kết quả chưa công bố. Completed với zero anomalies trả page rỗng.
       operationId: get_api_v1_anomalies
       x-roles:
       - analyst
@@ -1397,6 +1476,12 @@ paths:
           type: string
         description: Opaque; gắn với bộ lọc và sort; đổi filter/sort phải bỏ cursor và bắt đầu trang đầu.
       responses:
+        '409':
+          description: AnalysisRun chưa completed; kết quả chưa sẵn sàng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '200':
           description: OK
           content:
@@ -1455,6 +1540,7 @@ paths:
       tags:
       - Anomalies
       summary: Chi tiết anomaly
+      description: Chỉ đọc anomaly đã công bố của run completed; kết quả partial/chưa công bố trả 404.
       operationId: get_api_v1_anomalies_id
       x-roles:
       - analyst
@@ -2396,6 +2482,11 @@ components:
       - value
       - unit
     AnalysisRun:
+      description: >-
+        queued -> running -> completed hoặc failed; queued có thể failed trước khi chạy. Terminal không tự quay lại running.
+        completed chỉ sau khi toàn bộ kết quả đã lưu và đọc được; failed không công bố partial.
+        scope là snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại.
+        completedAt có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng khi trạng thái khác.
       type: object
       properties:
         id:
@@ -2416,9 +2507,14 @@ components:
         config:
           type: object
           additionalProperties: true
+        scope:
+          $ref: '#/components/schemas/AnalysisScope'
+        error:
+          $ref: '#/components/schemas/AnalysisFailure'
         status:
           type: string
           enum:
+          - queued
           - running
           - completed
           - failed
@@ -2443,6 +2539,26 @@ components:
       - config
       - status
       - createdAt
+      - scope
+      allOf:
+      - oneOf:
+        - properties:
+            status:
+              enum: [queued, running]
+          not:
+            anyOf:
+            - required: [completedAt]
+            - required: [error]
+        - properties:
+            status:
+              enum: [completed]
+          required: [completedAt]
+          not:
+            required: [error]
+        - properties:
+            status:
+              enum: [failed]
+          required: [completedAt, error]
     Anomaly:
       type: object
       properties:
@@ -2717,6 +2833,37 @@ components:
       - invalidRows
       - mappingSuggestions
       - issues
+    AnalysisFailure:
+      type: object
+      description: Lỗi job an toàn để hiển thị; không chứa stack trace/model path/secrets. Danh mục code theo detector contract cần chốt.
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        message:
+          type: string
+          minLength: 1
+    AnalysisScope:
+      description: Phạm vi tiếp nhận; thiếu scope tương đương object rỗng (toàn dataset). sensorIds rỗng và biên from/to cần chốt trước triển khai, không tự suy ra.
+      type: object
+      additionalProperties: false
+      properties:
+        sensorIds:
+          type: array
+          items:
+            type: string
+            description: Opaque ID string; do not assume MongoDB _id format
+            minLength: 1
+        from:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
+        to:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 with Z; payload normalized by server
     DetectionRequest:
       type: object
       properties:
@@ -2735,23 +2882,7 @@ components:
           type: object
           additionalProperties: true
         scope:
-          type: object
-          properties:
-            sensorIds:
-              type: array
-              items:
-                type: string
-                description: Opaque ID string; do not assume MongoDB _id format
-                minLength: 1
-            from:
-              type: string
-              format: date-time
-              description: UTC ISO 8601 with Z; payload normalized by server
-            to:
-              type: string
-              format: date-time
-              description: UTC ISO 8601 with Z; payload normalized by server
-          additionalProperties: false
+          $ref: '#/components/schemas/AnalysisScope'
       additionalProperties: false
       required:
       - datasetId
@@ -2951,17 +3082,12 @@ components:
       - conflicts
     AnalysisCreateResponse:
       type: object
+      description: Envelope một run; POST trả snapshot tiếp nhận, GET detail trả trạng thái hiện tại. Không chứa anomalies.
       properties:
         data:
           $ref: '#/components/schemas/AnalysisRun'
-        anomalies:
-          type: array
-          items:
-            $ref: '#/components/schemas/Anomaly'
       additionalProperties: false
-      required:
-      - data
-      - anomalies
+      required: [data]
     UserResponse:
       type: object
       properties:
