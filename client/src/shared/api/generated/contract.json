@@ -1,0 +1,2226 @@
+{
+  "components": {
+    "schemas": {
+      "AdminUserCreateRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "analyst",
+              "admin"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "username",
+          "password",
+          "role"
+        ]
+      },
+      "AdminUserUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "isActive": {
+            "type": "boolean"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "analyst",
+              "admin"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "minProperties": 1
+      },
+      "AnalysisCreateResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AnalysisRun"
+          },
+          "anomalies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Anomaly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "anomalies"
+        ]
+      },
+      "AnalysisRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "datasetId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "statistical",
+              "ml"
+            ]
+          },
+          "method": {
+            "type": "string"
+          },
+          "config": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC ISO 8601 with Z; payload normalized by server"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC ISO 8601 with Z; payload normalized by server"
+          },
+          "engineVersion": {
+            "type": "string"
+          },
+          "modelVersion": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "datasetId",
+          "family",
+          "method",
+          "config",
+          "status",
+          "createdAt"
+        ]
+      },
+      "AnalysisRunPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalysisRun"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "page"
+        ]
+      },
+      "Anomaly": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "datasetId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "sensorId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "readingId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "analysisRunId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC ISO 8601 with Z; payload normalized by server"
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Point"
+                ]
+              },
+              "coordinates": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "number"
+                },
+                "description": "[longitude, latitude], WGS84"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "coordinates"
+            ]
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "statistical",
+              "ml"
+            ]
+          },
+          "method": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "description": "Finite detector-specific score, not air-quality probability"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "confirmed",
+              "false_positive"
+            ]
+          },
+          "note": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC ISO 8601 with Z; payload normalized by server"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "datasetId",
+          "sensorId",
+          "readingId",
+          "analysisRunId",
+          "ts",
+          "location",
+          "family",
+          "method",
+          "score",
+          "severity",
+          "status",
+          "note",
+          "version",
+          "updatedAt"
+        ]
+      },
+      "AnomalyPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Anomaly"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "page"
+        ]
+      },
+      "Dataset": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "sourceFilename": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "uploaded",
+              "awaiting_mapping",
+              "importing",
+              "imported",
+              "failed"
+            ]
+          },
+          "createdBy": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC ISO 8601 with Z; payload normalized by server"
+          },
+          "importSummary": {
+            "$ref": "#/components/schemas/ImportSummary"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "sourceFilename",
+          "status",
+          "createdBy",
+          "createdAt"
+        ]
+      },
+      "DatasetPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Dataset"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "page"
+        ]
+      },
+      "DetectionRequest": {
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "statistical",
+              "ml"
+            ]
+          },
+          "method": {
+            "type": "string"
+          },
+          "config": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "scope": {
+            "type": "object",
+            "properties": {
+              "sensorIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "description": "Opaque ID string; do not assume MongoDB _id format",
+                  "minLength": 1
+                }
+              },
+              "from": {
+                "type": "string",
+                "format": "date-time",
+                "description": "UTC ISO 8601 with Z; payload normalized by server"
+              },
+              "to": {
+                "type": "string",
+                "format": "date-time",
+                "description": "UTC ISO 8601 with Z; payload normalized by server"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "datasetId",
+          "family",
+          "method",
+          "config"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "error"
+        ]
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "timestamp"
+        ]
+      },
+      "ImportIssue": {
+        "type": "object",
+        "properties": {
+          "rowNumber": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "DUPLICATE_SAME_VALUE",
+              "DUPLICATE_VALUE_CONFLICT",
+              "INVALID_ROW"
+            ]
+          },
+          "field": {
+            "type": "string"
+          },
+          "keptRowNumber": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "rowNumber",
+          "reason"
+        ]
+      },
+      "ImportSummary": {
+        "type": "object",
+        "properties": {
+          "totalRows": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "importedRows": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "duplicateRows": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "conflictingRows": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "invalidRows": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportIssue"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "totalRows",
+          "importedRows",
+          "duplicateRows",
+          "conflictingRows",
+          "invalidRows",
+          "issues"
+        ]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "username",
+          "password"
+        ]
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "tokenType": {
+            "type": "string",
+            "enum": [
+              "Bearer"
+            ]
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserPublic"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "accessToken",
+          "tokenType",
+          "user"
+        ]
+      },
+      "MappingRequest": {
+        "type": "object",
+        "properties": {
+          "fieldMap": {
+            "type": "object",
+            "properties": {
+              "sensorId": {
+                "type": "string"
+              },
+              "latitude": {
+                "type": "string"
+              },
+              "longitude": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "unit": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "region": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "sensorId",
+              "latitude",
+              "longitude",
+              "timestamp",
+              "value"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "ug/m3"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "fieldMap",
+          "unit"
+        ]
+      },
+      "PageInfo": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "limit",
+          "nextCursor"
+        ]
+      },
+      "Reading": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "datasetId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "sensorId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC ISO 8601 with Z; payload normalized by server"
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Point"
+                ]
+              },
+              "coordinates": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "number"
+                },
+                "description": "[longitude, latitude], WGS84"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "coordinates"
+            ]
+          },
+          "value": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Finite number; NaN/Infinity forbidden"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "ug/m3"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "datasetId",
+          "sensorId",
+          "ts",
+          "location",
+          "value",
+          "unit"
+        ]
+      },
+      "ReadingPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reading"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "page"
+        ]
+      },
+      "ReviewChanges": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "confirmed",
+              "false_positive"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "minProperties": 1
+      },
+      "ReviewPatchRequest": {
+        "type": "object",
+        "properties": {
+          "baseVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "changes": {
+            "$ref": "#/components/schemas/ReviewChanges"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "baseVersion",
+          "changes"
+        ]
+      },
+      "Sensor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "datasetId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "externalId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Point"
+                ]
+              },
+              "coordinates": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "number"
+                },
+                "description": "[longitude, latitude], WGS84"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "coordinates"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "pm25"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "ug/m3"
+            ]
+          },
+          "region": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "datasetId",
+          "externalId",
+          "name",
+          "location",
+          "type",
+          "unit"
+        ]
+      },
+      "SensorPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Sensor"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "page"
+        ]
+      },
+      "SingleAnomaly": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Anomaly"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "data"
+        ]
+      },
+      "SingleDataset": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Dataset"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "data"
+        ]
+      },
+      "UserPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserPublic"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "page"
+        ]
+      },
+      "UserPublic": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "username": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "analyst",
+              "admin"
+            ]
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "username",
+          "role",
+          "isActive"
+        ]
+      },
+      "UserResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UserPublic"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "data"
+        ]
+      },
+      "ValidationReport": {
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "uploaded",
+              "awaiting_mapping",
+              "importing",
+              "imported",
+              "failed"
+            ]
+          },
+          "sourceColumns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "totalRows": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "validRows": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "invalidRows": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mappingSuggestions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportIssue"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "datasetId",
+          "status",
+          "sourceColumns",
+          "totalRows",
+          "validRows",
+          "invalidRows",
+          "mappingSuggestions",
+          "issues"
+        ]
+      }
+    }
+  },
+  "operations": {
+    "get_api_v1_health": {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "authenticated": false,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": null,
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/HealthResponse"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "503": {
+          "$ref": "#/components/schemas/HealthResponse"
+        }
+      }
+    },
+    "post_api_v1_auth_tokens": {
+      "method": "POST",
+      "path": "/api/v1/auth/tokens",
+      "authenticated": false,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": {
+        "contentType": "application/json",
+        "schema": {
+          "$ref": "#/components/schemas/LoginRequest"
+        }
+      },
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/LoginResponse"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "429": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "get_api_v1_users_me": {
+      "method": "GET",
+      "path": "/api/v1/users/me",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": null,
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/UserResponse"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "get_api_v1_datasets": {
+      "method": "GET",
+      "path": "/api/v1/datasets",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {
+            "sort": {
+              "type": "string",
+              "enum": [
+                "createdAt:asc",
+                "createdAt:desc"
+              ],
+              "default": "createdAt:desc"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            },
+            "cursor": {
+              "type": "string"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": null,
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/DatasetPage"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "post_api_v1_datasets": {
+      "method": "POST",
+      "path": "/api/v1/datasets",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {
+            "Idempotency-Key": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "Idempotency-Key"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "body": {
+        "contentType": "multipart/form-data",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string",
+              "format": "binary"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "file"
+          ]
+        }
+      },
+      "responses": {
+        "201": {
+          "$ref": "#/components/schemas/SingleDataset"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "409": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "413": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "415": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "503": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "get_api_v1_datasets_by_id_validation": {
+      "method": "GET",
+      "path": "/api/v1/datasets/{id}/validation",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": null,
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/ValidationReport"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "404": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "put_api_v1_datasets_by_id_mapping": {
+      "method": "PUT",
+      "path": "/api/v1/datasets/{id}/mapping",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": {
+        "contentType": "application/json",
+        "schema": {
+          "$ref": "#/components/schemas/MappingRequest"
+        }
+      },
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/SingleDataset"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "404": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "409": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "post_api_v1_datasets_by_id_imports": {
+      "method": "POST",
+      "path": "/api/v1/datasets/{id}/imports",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {
+            "Idempotency-Key": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "Idempotency-Key"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "body": null,
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/SingleDataset"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "404": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "409": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "503": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "get_api_v1_sensors": {
+      "method": "GET",
+      "path": "/api/v1/sensors",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {
+            "datasetId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bbox": {
+              "type": "string",
+              "example": "106.60,10.70,106.80,10.90"
+            },
+            "sort": {
+              "type": "string",
+              "enum": [
+                "externalId:asc",
+                "externalId:desc"
+              ],
+              "default": "externalId:asc"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            },
+            "cursor": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "datasetId"
+          ],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": null,
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/SensorPage"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "get_api_v1_readings": {
+      "method": "GET",
+      "path": "/api/v1/readings",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {
+            "datasetId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sensorId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bbox": {
+              "type": "string",
+              "example": "106.60,10.70,106.80,10.90"
+            },
+            "from": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "to": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "sort": {
+              "type": "string",
+              "enum": [
+                "ts:asc",
+                "ts:desc"
+              ],
+              "default": "ts:asc"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            },
+            "cursor": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "datasetId"
+          ],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": null,
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/ReadingPage"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "post_api_v1_analysis_runs": {
+      "method": "POST",
+      "path": "/api/v1/analysis-runs",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {
+            "Idempotency-Key": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "Idempotency-Key"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "body": {
+        "contentType": "application/json",
+        "schema": {
+          "$ref": "#/components/schemas/DetectionRequest"
+        }
+      },
+      "responses": {
+        "201": {
+          "$ref": "#/components/schemas/AnalysisCreateResponse"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "404": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "409": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "503": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "get_api_v1_analysis_runs": {
+      "method": "GET",
+      "path": "/api/v1/analysis-runs",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {
+            "datasetId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sort": {
+              "type": "string",
+              "enum": [
+                "createdAt:asc",
+                "createdAt:desc"
+              ],
+              "default": "createdAt:desc"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            },
+            "cursor": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "datasetId"
+          ],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": null,
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/AnalysisRunPage"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "get_api_v1_anomalies": {
+      "method": "GET",
+      "path": "/api/v1/anomalies",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {
+            "datasetId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "analysisRunId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "open",
+                "confirmed",
+                "false_positive"
+              ]
+            },
+            "severity": {
+              "type": "string",
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            "family": {
+              "type": "string",
+              "enum": [
+                "statistical",
+                "ml"
+              ]
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "from": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "to": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "sort": {
+              "type": "string",
+              "enum": [
+                "ts:asc",
+                "ts:desc"
+              ],
+              "default": "ts:asc"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            },
+            "cursor": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "datasetId"
+          ],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": null,
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/AnomalyPage"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "get_api_v1_anomalies_id": {
+      "method": "GET",
+      "path": "/api/v1/anomalies/{id}",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": null,
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/SingleAnomaly"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "404": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "patch_api_v1_anomalies_id": {
+      "method": "PATCH",
+      "path": "/api/v1/anomalies/{id}",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": {
+        "contentType": "application/json",
+        "schema": {
+          "$ref": "#/components/schemas/ReviewPatchRequest"
+        }
+      },
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/SingleAnomaly"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "404": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "409": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "get_api_v1_admin_users": {
+      "method": "GET",
+      "path": "/api/v1/admin/users",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {
+            "sort": {
+              "type": "string",
+              "enum": [
+                "username:asc",
+                "username:desc"
+              ],
+              "default": "username:asc"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            },
+            "cursor": {
+              "type": "string"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": null,
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/UserPage"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "post_api_v1_admin_users": {
+      "method": "POST",
+      "path": "/api/v1/admin/users",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {
+            "Idempotency-Key": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "Idempotency-Key"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "body": {
+        "contentType": "application/json",
+        "schema": {
+          "$ref": "#/components/schemas/AdminUserCreateRequest"
+        }
+      },
+      "responses": {
+        "201": {
+          "$ref": "#/components/schemas/UserResponse"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "409": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "patch_api_v1_admin_users_id": {
+      "method": "PATCH",
+      "path": "/api/v1/admin/users/{id}",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": {
+        "contentType": "application/json",
+        "schema": {
+          "$ref": "#/components/schemas/AdminUserUpdateRequest"
+        }
+      },
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/UserResponse"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "404": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "409": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    }
+  }
+}

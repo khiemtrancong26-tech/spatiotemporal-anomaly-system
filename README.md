@@ -32,7 +32,11 @@ Xem `docs/ownership.md` để biết phân công.
 
 ## Trạng thái
 
-Đang hoàn thiện Monorepo Scaffold.
-Chưa có ứng dụng có thể chạy.
+Frontend M1 đã chạy được: từ root dùng `npm ci`, sau đó `npm run dev:mock`
+để xem giao diện nền với dữ liệu mô phỏng tại `http://127.0.0.1:5173`.
+`npm run dev` dùng transport API online; Backend trong checkout chưa được khởi tạo.
+Các chức năng nghiệp vụ frontend sẽ triển khai từ M2, chưa phải MVP hoàn chỉnh.
 
-Hướng dẫn cài đặt và chạy sẽ được cập nhật sau.
+Xem [client/README.md](client/README.md) để cấu hình, build và kiểm thử;
+[kế hoạch frontend](docs/frontend-online-plan.md) và
+[bằng chứng M1](docs/frontend/m1-verification.md) để theo dõi phạm vi đã hoàn thành.

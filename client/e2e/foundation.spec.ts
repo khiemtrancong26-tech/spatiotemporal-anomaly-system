@@ -1,0 +1,49 @@
+import { test, expect } from '@playwright/test';
+async function login(page: import('@playwright/test').Page, username = 'analyst01') {
+  await page.getByLabel('Tên đăng nhập', { exact: true }).fill(username);
+  await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password');
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+}
+test('login, session restoration, workspace filters, logout and admin guard', async ({ page }) => {
+  await page.goto('/datasets');
+  await expect(page.getByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
+  await page.getByLabel('Tên đăng nhập', { exact: true }).fill('wrong');
+  await page.getByLabel('Mật khẩu', { exact: true }).fill('wrong');
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('không đúng');
+  await login(page);
+  await expect(page.getByRole('link', { name: 'Mở dữ liệu' })).toBeVisible();
+  await page.getByLabel('Sắp xếp').selectOption('createdAt:asc');
+  await expect(page.getByRole('link', { name: 'Mở dữ liệu' })).toBeVisible();
+  await page.getByRole('link', { name: 'Mở dữ liệu' }).click();
+  await expect(page.getByRole('heading', { name: 'PM2.5 Sample Dataset' })).toBeVisible();
+  await page.getByLabel('Trạm (Sensor ID)').fill('sensor-001');
+  await page.getByRole('button', { name: 'Áp dụng bộ lọc' }).click();
+  await page.getByRole('button', { name: 'Analysis', exact: true }).click();
+  await expect(page.getByTestId('applied-filter')).toContainText('sensor-001');
+  await page.getByRole('button', { name: 'Visualization', exact: true }).click();
+  await expect(page.getByLabel('Trạm (Sensor ID)')).toHaveValue('sensor-001');
+  await page.reload();
+  await expect(page.getByText('Chưa có metadata dataset.', { exact: false })).toBeVisible();
+  await page.goto('/admin/users');
+  await expect(page.getByRole('heading', { name: 'Không có quyền truy cập' })).toBeVisible();
+  await page.getByRole('button', { name: 'Đăng xuất' }).click();
+  await expect(page.getByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem('pm25.auth.mock'))).toBeNull();
+  await login(page, 'admin01');
+  await expect(page.getByRole('heading', { name: 'Quản lý tài khoản', exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Quản lý tài khoản', exact: true })).toBeVisible();
+  await page.goto('/datasets');
+  await expect(page.getByRole('link', { name: 'Mở dữ liệu' })).toBeVisible();
+  await page.screenshot({ path: 'test-results/m2-desktop.png', fullPage: true });
+});
+test('mobile layout and deep link survive login without inventing metadata', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/workspace/unknown-dataset');
+  await login(page);
+  await expect(page.getByText('Dataset ID: unknown-dataset', { exact: true })).toBeVisible();
+  await expect(page.getByText('Chưa có metadata dataset.', { exact: false })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: 'test-results/m2-mobile.png', fullPage: true });
+});
