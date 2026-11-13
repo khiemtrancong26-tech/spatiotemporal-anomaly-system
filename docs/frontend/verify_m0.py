@@ -74,7 +74,7 @@ for case in fixture['cases']:
     else:
         assert 'body' not in request, f"Unexpected body: {case['id']}"
 assert covered == expected, f'Missing success fixtures: {expected - covered}'
-assert len(expected) == 18, f'Contract changed: {len(expected)} online operations; review M0 matrix'
+assert len(expected) == 19, f'Contract changed: {len(expected)} online operations; review M0 matrix'
 
 dto = json.loads((DOCS / 'fixtures/contract-example.json').read_text(encoding='utf-8'))
 count = 0

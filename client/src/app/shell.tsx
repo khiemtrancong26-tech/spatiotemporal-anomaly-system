@@ -2,11 +2,10 @@ import { useStore } from 'zustand';
 import { AuthGate } from '../features/auth/pages';
 import { Link, Outlet } from '@tanstack/react-router';
 import { Badge } from '../shared/ui/primitives';
-import { usePreviewRole, useServices } from './services';
+import { useServices } from './services';
 
 export function AppShell() {
-  const { config, mock, preview, session } = useServices();
-  const previewRole = usePreviewRole();
+  const { config, mock, session } = useServices();
   const auth = useStore(session.store);
   const role = auth.user?.role;
   return <div className="app-shell">
@@ -23,8 +22,8 @@ export function AppShell() {
       <div className="sidebar-footer"><span className="dot" /> Frontend P0 · Online</div>
     </aside>
     <div className="main-shell">
-      <header className="topbar"><span className="breadcrumb">Không gian làm việc <span>/</span> <strong>PM2.5 Explorer</strong></span><div className="topbar-actions"><Badge>M2 · Workspace</Badge>{auth.user ? <><span>{auth.user.username} · {auth.user.role}</span><button className="text-link" onClick={session.logout}>Đăng xuất</button></> : <Link to="/login" search={{ redirect: undefined }} className="text-link">Đăng nhập</Link>}</div></header>
-      {mock && <div className="mock-banner"><div><strong>DỮ LIỆU MÔ PHỎNG</strong><span>Chỉ để phát triển giao diện. Không phải kết quả phân tích thực.</span></div><label>Vai trò xem thử <select disabled={auth.status === 'authenticated'} value={previewRole} onChange={(event) => { const next = event.target.value === 'admin' ? 'admin' : 'analyst'; mock.role = next; preview.setState({ role: next }); }}><option value="analyst">Analyst</option><option value="admin">Admin</option></select></label></div>}
+      <header className="topbar"><span className="breadcrumb">Không gian làm việc <span>/</span> <strong>PM2.5 Explorer</strong></span><div className="topbar-actions"><Badge>M2 · Workspace</Badge>{auth.user ? <><span>{auth.user.username} · {auth.user.role}</span><button className="button button--secondary logout-button" onClick={session.logout}>Đăng xuất</button></> : <Link to="/login" search={{ redirect: undefined }} className="text-link">Đăng nhập</Link>}</div></header>
+      {mock && <div className="mock-banner"><div><strong>DỮ LIỆU MÔ PHỎNG</strong><span>Chỉ để phát triển giao diện. Không phải kết quả phân tích thực.</span></div></div>}
       <main id="main-content" tabIndex={-1}><AuthGate><Outlet /></AuthGate></main>
       <footer className="page-footer"><span>PM2.5 Explorer · {config.mode === 'mock' ? 'Bản phát triển với dữ liệu mô phỏng' : 'Kết nối API online'}</span><span>Thời gian hiển thị: UTC+07:00</span></footer>
     </div>

@@ -5,18 +5,19 @@
 
 ## Quy tắc chung
 
-1. Nginx HTTPS `:443`, REST paths bắt đầu `/api/v1`. `analyst`/`admin` dùng JWT Bearer; public `/api/v1/health`, `/api/v1/auth/tokens`; `admin` là quản trị ứng dụng, không phải quyền hạ tầng.
+1. Nginx HTTPS `:443`, REST paths bắt đầu `/api/v1`. `analyst`/`admin` dùng JWT Bearer; public `/api/v1/health`, `/api/v1/auth/tokens`, `/api/v1/auth/register`; `admin` là quản trị ứng dụng, không phải quyền hạ tầng.
 2. JSON `camelCase`; ID public `string` opaque; GeoJSON Point `[longitude,latitude]`; UTC ISO `Z`; PM2.5 chuẩn `ug/m3` (hiển thị `µg/m³`). DTO không lộ MongoDB `_id`/passwordHash.
 3. List `{data:[...],page:{limit,nextCursor}}`, một đối tượng `{data:{...}}`; health, login, analysis và sync batch giữ đúng envelopes riêng trong OpenAPI.
 4. HTTP lỗi `{error:{code:string,message:string,details?:{...}}}`; không gửi stack trace hoặc thông tin nhạy cảm. 401 Bearer API kèm `WWW-Authenticate`; 405 kèm `Allow`.
 5. `PATCH` hợp lệ cho cập nhật một phần. `PUT /datasets/{id}/mapping` là thay toàn bộ mapping, lặp cùng nội dung không tạo nghiệp vụ mới.
 
-## Danh sách 23 operations (19 resource paths)
+## Danh sách 24 operations (20 resource paths)
 
 | HTTP | Resource path (sau `/api/v1`) | Ý nghĩa |
 |---|---|---|
 | GET | `/health` | Readiness |
 | POST | `/auth/tokens` | Login |
+| POST | `/auth/register` | Tự đăng ký bằng username/password; Server gán analyst; 201 không token, FE về Login |
 | GET | `/users/me` | Current user |
 | GET / POST | `/datasets` | List imported / upload-create |
 | GET | `/datasets/{id}/validation` | Import validation report |
@@ -36,6 +37,8 @@
 | PATCH | `/admin/users/{id}` | Update role/active status |
 
 **Lưu ý:** Các tài liệu cũ có thể còn dùng đường dẫn `/api/...` không phiên bản. Khi triển khai HTTP, ưu tiên URL `/api/v1/...` định nghĩa trong `openapi.yaml`; không tự tạo alias cho các URL cũ.
+
+**Register:** `RegisterRequest` chỉ nhận username (tối thiểu 1 ký tự) và password (tối thiểu 8 ký tự), cùng quy tắc validation/username duy nhất và password hashing của luồng tạo User. Client không được gửi role/isActive; trường ngoài schema trả 422. Server gán `role=analyst`, `isActive=true`; trả `201 UserResponse` không password/hash/token. Username trùng trả `409` theo error envelope hiện có, kể cả cạnh tranh với luồng Admin tạo tài khoản. FE chuyển về Login; không auto-login.
 
 `POST /reading-batches` chỉ là hợp đồng **nội bộ**: không công khai qua Nginx và không cho JWT analyst/admin thông thường gọi trực tiếp. Metadata `x-internal` không tự thực thi phân quyền.
 
@@ -60,7 +63,7 @@ Ví dụ: `GET /api/v1/readings?datasetId=abc&sort=ts:desc&limit=100`.
 
 - **Bắt buộc header** `Idempotency-Key: <UUID>` cho 4 POST: `/datasets`, `/datasets/{id}/imports`, `/analysis-runs`, `/admin/users`. Retry cùng thao tác giữ nguyên key; thao tác mới sinh key mới.
 - Key được xét trong phạm vi người dùng. Cùng key và cùng nội dung request đã hoàn tất -> trả lại **cùng HTTP status/body**, không xử lý lại; request cùng key đang chạy -> `409`; cùng key nhưng payload khác -> `422`; thiếu/không hợp lệ -> `400`. Thời hạn lưu kết quả retry chưa được khóa, không tự động retry vô hạn.
-- POST `/auth/tokens` không bắt buộc header này. Batch offline **không dùng header trên**, mà dùng `clientMutationId` theo từng mutation.
+- POST `/auth/tokens` và `/auth/register` không bắt buộc header này. Register không có cơ chế retry idempotent mới; gửi lại sau khi đã tạo có thể trả 409. Batch offline **không dùng header trên**, mà dùng `clientMutationId` theo từng mutation.
 - Đây là **ngữ nghĩa hợp đồng HTTP**, không yêu cầu thêm collection, index, Redis hay tài liệu triển khai nào trong lần sửa API. Backend phải hiện thực và kiểm thử cơ chế chống trùng trước khi triển khai thực tế.
 
 ## HTTP Status Codes

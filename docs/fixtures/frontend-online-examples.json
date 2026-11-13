@@ -872,6 +872,62 @@
           "nextCursor": null
         }
       }
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "request": {
+        "body": {
+          "username": "newanalyst",
+          "password": "demo-password"
+        }
+      },
+      "id": "register",
+      "status": 201,
+      "response": {
+        "data": {
+          "id": "user-register",
+          "username": "newanalyst",
+          "role": "analyst",
+          "isActive": true
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "request": {
+        "body": {
+          "username": "newanalyst",
+          "password": "demo-password"
+        }
+      },
+      "id": "register-409",
+      "status": 409,
+      "response": {
+        "error": {
+          "code": "USERNAME_CONFLICT",
+          "message": "Username exists"
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "request": {
+        "body": {
+          "username": "newanalyst",
+          "password": "demo-password"
+        }
+      },
+      "id": "register-422",
+      "status": 422,
+      "response": {
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "Invalid input"
+        }
+      }
     }
   ],
   "behaviorScenarios": [

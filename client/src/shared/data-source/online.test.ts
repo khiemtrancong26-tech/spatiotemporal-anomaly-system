@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { createMockTransport, type MockControls } from '../../mocks/transport';
 import { createOnlineDataSource } from './online';
 import examples from '../../../../docs/fixtures/frontend-online-examples.json';
@@ -8,6 +8,18 @@ const controls: MockControls = { role: 'admin', delayMs: 0, scenario: 'success' 
 const makeApi = (settings = controls) => createOnlineDataSource({ baseUrl: 'http://mock.local/api/v1', getAccessToken: () => 'mock-token', fetch: createMockTransport(settings) });
 const key = { idempotencyKey: 'c3b1d629-5581-4c19-835f-66a96238b724' };
 const body = (id: string) => (examples.cases.find((item) => item.id === id)!.request as { body: unknown }).body;
+
+it('register sends only credentials without auth headers and rejects an admin response', async () => {
+  const registered = { id: 'new-user', username: 'newanalyst', role: 'analyst', isActive: true };
+  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValueOnce(new Response(JSON.stringify({ data: registered }), { status: 201 })).mockResolvedValueOnce(new Response(JSON.stringify({ data: { ...registered, role: 'admin' } }), { status: 201 }));
+  const api = createOnlineDataSource({ baseUrl: 'http://test.local/api/v1', getAccessToken: () => 'existing-token', fetch });
+  await expect(api.auth.register({ username: 'newanalyst', password: 'demo-password' })).resolves.toEqual(registered);
+  expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ username: 'newanalyst', password: 'demo-password' });
+  expect(new Headers(fetch.mock.calls[0][1]?.headers).has('Authorization')).toBe(false);
+  await expect(api.auth.register({ username: 'newanalyst', password: 'demo-password', role: 'admin' } as never)).rejects.toBeInstanceOf(TypeError);
+  expect(fetch).toHaveBeenCalledTimes(1);
+  await expect(api.auth.register({ username: 'newanalyst', password: 'demo-password' })).rejects.toMatchObject({ kind: 'invalid-response' });
+});
 
 it('routes every adapter method through the mock HTTP transport with the right envelope', async () => {
   const api = makeApi();

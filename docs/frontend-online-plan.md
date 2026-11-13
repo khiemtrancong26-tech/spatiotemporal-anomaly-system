@@ -1,6 +1,6 @@
 # Kế hoạch hoàn thiện Frontend P0 online — PM2.5
 
-Ngày lập: 13/11/2026. Trạng thái: **M1 đã triển khai và kiểm tra; M0 còn xác nhận interface với Duy; chưa triển khai nghiệp vụ M2–M8**.
+Ngày lập: 13/11/2026. Trạng thái: **M2 frontend (bao gồm Register) đã triển khai/kiểm tra bằng mock và HTTP intercept; tích hợp Backend thật còn chờ; M0 còn xác nhận interface với Duy**.
 
 ## 1. Mục tiêu và cơ sở lập kế hoạch
 
@@ -24,6 +24,7 @@ Phạm vi đã được người dùng xác nhận: **P0 online + lớp gọi AP
 | Khu vực | Kết quả cần có |
 |---|---|
 | P01 — Login | Đăng nhập, kiểm tra phiên online, route guard, phân quyền giao diện, xử lý 401/403, đăng xuất phía client |
+| P01a — Register | Một form username/password cho khách; POST register; xử lý trùng username; thành công về Login, không tự đăng nhập |
 | P02 — Datasets | Danh sách imported, sort/cursor, chọn dataset, điều hướng vào workspace/import |
 | P03 — Import Wizard | Upload CSV/JSON → validation report → xác nhận mapping → import → kết quả |
 | P04 — Workspace | Bộ lọc chung, tra cứu readings/sensors, Mapbox 3D, Space–Time Cube, chọn điểm và panel chi tiết |
@@ -40,7 +41,7 @@ Phạm vi đã được người dùng xác nhận: **P0 online + lớp gọi AP
 - Khôi phục phiên làm việc offline, lưu bền vững camera/dataset/filter, thống kê cục bộ qua Browser Web Worker.
 - P1 aggregates/LOD; P2 thuật toán nâng cao và so sánh thuật toán.
 - Backend, database, thuật toán detector, training/inference engine và hạ tầng triển khai.
-- Dashboard KPI mới, đăng ký công khai, quên mật khẩu, endpoint mới chưa có contract.
+- Dashboard KPI mới, email verification, quên mật khẩu, auto-login sau đăng ký, endpoint mới chưa có contract.
 
 Xử lý request thất bại do mất mạng và conflict `409` khi PATCH online **vẫn thuộc phạm vi**. Đây là hành vi cần thiết của frontend online. Không báo lưu thành công khi Server chưa xác nhận, không tự tạo hàng đợi gửi lại khi có mạng.
 
@@ -78,7 +79,7 @@ Luồng dữ liệu: **page/hook → interface dữ liệu → online adapter �
 - Cache RAM phục vụ phiên đang mở được phép; không coi đó là khả năng offline hay bảo đảm lưu bền vững.
 - Khi nối module của Duy, thay adapter tại điểm khởi tạo hoặc ghép adapter online vào `dataSource` chung; không sửa lại từng renderer. Chữ ký interface cần được Tài/Duy thống nhất, không coi bản đề xuất là hợp đồng đã được cả nhóm duyệt.
 
-Route đề xuất cho triển khai: `/login`, `/datasets`, `/datasets/import`, `/workspace/$datasetId`, `/admin/users`. Visualization/Analysis/Anomalies nằm trong cùng workspace, giữ chung ngữ cảnh. Chưa cần thêm trang anomalies toàn hệ thống.
+Route đề xuất cho triển khai: `/login`, `/register`, `/datasets`, `/datasets/import`, `/workspace/$datasetId`, `/admin/users`. Visualization/Analysis/Anomalies nằm trong cùng workspace, giữ chung ngữ cảnh. Chưa cần thêm trang anomalies toàn hệ thống.
 
 ## 4. Các mốc triển khai và tiêu chí hoàn thành
 
@@ -114,16 +115,19 @@ Các checkbox là việc cần thực hiện, chưa đánh dấu hoàn thành ch
 
 ### M2 — Auth, Datasets và bộ khung Workspace
 
-**Đang thực hiện:** đã có `client/src/features/workspace/state.ts` và `filters.ts`: state theo phiên/dataset, giữ filter khi đổi tab, xóa selection khi đổi filter, chuyển thời gian UTC+07 sang UTC và kiểm tra bbox. Bốn kiểm thử riêng đã đạt; chưa nối vào UI. Đang chờ người dùng chọn chính sách giữ phiên sau reload (R02) và hành vi deep-link thiếu metadata (R03); chưa đánh dấu các đầu việc M2 hoàn tất.
+**Quyết định đã được người dùng xác nhận:** giữ token trong sessionStorage, kiểm tra `/users/me` khi reload; deep-link thiếu metadata vẫn mở workspace bằng datasetId và thông báo rõ. Register đã được cho phép triển khai sau lượt chỉnh tài liệu: 19 operations online hiện được sinh/kiểm tra theo OpenAPI. M0/M1 giữ báo cáo lịch sử trước bổ sung.
 
-- [ ] Login với `POST /auth/tokens`, current user qua `GET /users/me` khi cần; khóa submit trong lúc gửi, thông báo sai thông tin rõ ràng.
-- [ ] Route guard, menu theo role, xử lý token hết hạn/401 và cấm quyền/403. Chốt cơ chế giữ token của phiên online trước khi triển khai; không tự thêm refresh-token flow.
-- [ ] Đăng xuất xóa token và dữ liệu nhạy cảm của phiên client; không gọi endpoint logout chưa tồn tại.
-- [ ] Datasets chỉ hiển thị dữ liệu imported, metadata API có trả, sort và tải trang tiếp theo; đủ loading/empty/error.
-- [ ] Dựng workspace với dataset hiện tại, bộ lọc trạm/bbox/from-to, tabs và panel selection.
-- [ ] Thống nhất cách xử lý URL mở thẳng/reload khi chưa có metadata. Không mặc định dataset không tồn tại chỉ vì không thấy ở trang danh sách đầu tiên.
+**Bằng chứng frontend:** [M2 verification](frontend/m2-verification.md). Checkbox dưới đây xác nhận implementation/kiểm thử phía FE; chưa thay cho nghiệm thu API và quy tắc nghiệp vụ trên Backend thật.
 
-**Nghiệm thu:** đăng nhập hai role, chọn dataset, mở workspace, chuyển tab không mất filter; không lộ dữ liệu phiên trước sau logout. Deep-link có hành vi rõ, không crash hay giả định metadata.
+- [x] Bổ sung Register công khai và liên kết từ Login: form chỉ username/password, cùng validation tạo tài khoản; gọi `POST /auth/register`, khóa submit khi gửi, hiển thị 409/422/lỗi mạng. Thành công 201 xóa password khỏi state rồi chuyển `/login` với thông báo đăng ký thành công; không lưu token hoặc tự gọi login. Không có chọn role.
+- [x] Login với `POST /auth/tokens`, current user qua `GET /users/me` khi cần; khóa submit trong lúc gửi, thông báo sai thông tin rõ ràng.
+- [x] Route guard, menu theo role, xử lý token hết hạn/401 và cấm quyền/403. Chốt cơ chế giữ token của phiên online trước khi triển khai; không tự thêm refresh-token flow.
+- [x] Đăng xuất xóa token và dữ liệu nhạy cảm của phiên client; không gọi endpoint logout chưa tồn tại.
+- [x] Datasets chỉ hiển thị dữ liệu imported, metadata API có trả, sort và tải trang tiếp theo; đủ loading/empty/error.
+- [x] Dựng workspace với dataset hiện tại, bộ lọc trạm/bbox/from-to, tabs và panel selection.
+- [x] Thống nhất cách xử lý URL mở thẳng/reload khi chưa có metadata. Không mặc định dataset không tồn tại chỉ vì không thấy ở trang danh sách đầu tiên.
+
+**Nghiệm thu:** Register thành công tạo analyst và chuyển Login; username trùng báo lỗi, gửi role bị Server từ chối; không tự đăng nhập. Đăng nhập hai role, chọn dataset, mở workspace, chuyển tab không mất filter; không lộ dữ liệu phiên trước sau logout. Deep-link có hành vi rõ, không crash hay giả định metadata.
 
 ### M3 — Import Wizard hoàn chỉnh
 
@@ -219,13 +223,13 @@ Chưa ấn định ngày hoàn thành vì chưa có năng lực triển khai/ng�
 | Vấn đề | Cách xử lý trong kế hoạch | Phối hợp | Hạn cần chốt |
 |---|---|---|---|
 | Interface `dataSource` chưa khóa | FE có online adapter riêng sau interface; thống nhất chữ ký và điểm ghép, không xây offline | Tài + Duy | M0/M1 |
-| Chưa có GET dataset theo ID | Workspace có thể đọc dữ liệu bằng datasetId hiện có; metadata cần phương án tra cứu qua list có phân trang hoặc thay đổi contract được nhóm duyệt. Không scan toàn bộ danh sách ngầm, không suy ra 404 từ trang đầu | Tài + Khiêm | M2 |
+| Chưa có GET dataset theo ID | Đã chọn mở workspace bằng datasetId và thông báo thiếu metadata; metadata từ dataset người dùng chọn giữ trong RAM. Không scan toàn bộ danh sách, không suy ra 404 từ trang đầu; đọc dữ liệu nối ở M4 | Tài + Khiêm | M2 |
 | Reload wizard giữa chừng | Chốt thông tin có thể phục hồi bằng validation API và ID, phần nào yêu cầu bắt đầu lại; tránh upload/import lặp do không biết trạng thái | Tài + Khiêm | M3 |
 | Timezone nguồn/đơn vị/giới hạn file | Giữ khả năng contract hiện có; chốt OPEN-02/05 và cách báo lỗi. Không thêm trường timezone vào request khi schema chưa nhận | Tài + Khiêm | M3 |
 | Method/config/model/severity | Khải/Khiêm cung cấp danh sách method và schema config/default hợp lệ. FE chỉ hiển thị severity Server trả, không tự đặt ngưỡng nghiệp vụ | Tài + Khải + Khiêm | M5 |
 | Bbox không thuộc DetectionRequest.scope | Đề xuất resolve đầy đủ sensor IDs trong bbox qua phân trang trước khi gửi, có xác nhận phạm vi; nếu quá lớn hoặc chưa có quy tắc giới hạn, yêu cầu chọn trạm rõ hoặc báo chưa hỗ trợ. Nhóm phải thống nhất cách xử lý tập trạm rỗng và giới hạn payload; không dùng trang sensors đầu tiên làm toàn bộ vùng | Tài + Khiêm | M5 |
 | Import/analysis đồng bộ hay async | Theo draft đồng bộ để phát triển. Nếu Backend chuyển async, cập nhật contract và kế hoạch trước khi làm progress/polling | Tài + Khiêm | M3/M5 |
-| Token, 401 và quyền tài khoản hiện tại | Chốt cách giữ token online, kiểm tra current user và đăng nhập lại; không bổ sung refresh API hoặc offline auth | Tài + Khiêm | M2/M7 |
+| Token, 401 và quyền tài khoản hiện tại | Đã chọn sessionStorage + `/users/me` khi reload; 401 xóa phiên, 403 giữ phiên và báo lỗi; không refresh API/offline auth | Tài + Khiêm | M2/M7 |
 | Mapbox token và môi trường demo | Cấp public token/origin hợp lệ và kiểm tra tải nền; môi trường không có token vẫn chạy được các màn khác và Cube | Tài + Cường | M4 |
 | API thật và dữ liệu đánh giá | Chốt endpoint ready, tài khoản analyst/admin, dataset lỗi/hợp lệ, run thống kê/ML và môi trường tích hợp | Tài + Khiêm + Khải + Cường | Theo feature, xong trước M8 |
 | Anomalies không nhận sensorId/bbox, DTO không có giá trị reading | Tab Anomalies ghi scope riêng; không giả lọc toàn bộ vùng từ một trang; reading chưa tải thì báo rõ. Chi tiết C07/C08 và R09 trong M0 | Tài + Khiêm | M4/M6 |

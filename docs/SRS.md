@@ -28,7 +28,7 @@ Phát hiện bất thường là **kết quả nghi vấn từ thuật toán**, 
 
 ### 1.2. Phạm vi MVP
 
-**Trong phạm vi (P0):** Đăng nhập/phân quyền cơ bản; upload/validation/mapping/normalization/import; tra cứu dữ liệu; thống kê; ML inference online; hai chế độ trực quan 3D; quản lý anomaly; **tự động lưu dữ liệu đã tải và ứng dụng để sử dụng khi mất mạng đột ngột**; tùy chọn tải trước dữ liệu; tự sync thay đổi.
+**Trong phạm vi (P0):** Tự đăng ký tài khoản analyst, đăng nhập/phân quyền cơ bản; upload/validation/mapping/normalization/import; tra cứu dữ liệu; thống kê; ML inference online; hai chế độ trực quan 3D; quản lý anomaly; **tự động lưu dữ liệu đã tải và ứng dụng để sử dụng khi mất mạng đột ngột**; tùy chọn tải trước dữ liệu; tự sync thay đổi.
 
 **Ưu tiên sau P0 (P1):** Tổng hợp dữ liệu theo bucket/vùng và mức độ chi tiết (LOD) nhằm cải thiện khả năng tương tác với dữ liệu lớn.
 
@@ -45,7 +45,7 @@ Phát hiện bất thường là **kết quả nghi vấn từ thuật toán**, 
 
 `admin` là **Application Admin**, quản trị tài khoản và chức năng quản trị ứng dụng. Quản trị máy chủ, hệ điều hành, Nginx và Docker do DevOps đảm trách bên ngoài hệ thống role JWT.
 
-Người dùng chưa đăng nhập chỉ được truy cập những tài nguyên công khai được công bố (ví dụ chức năng đăng nhập/kiểm tra sức khỏe hệ thống). Quyền thao tác phải được kiểm tra tại Backend; việc ẩn nút trên UI không được xem là bảo vệ đủ.
+Người dùng chưa đăng nhập chỉ được truy cập những tài nguyên công khai được công bố (ví dụ chức năng đăng ký/đăng nhập/kiểm tra sức khỏe hệ thống). Quyền thao tác phải được kiểm tra tại Backend; việc ẩn nút trên UI không được xem là bảo vệ đủ.
 
 ### 1.4. Giả định và giới hạn
 
@@ -65,6 +65,7 @@ Người dùng chưa đăng nhập chỉ được truy cập những tài nguyê
 | ID | Yêu cầu hệ thống | Actor | Ưu tiên | Kết quả cần quan sát |
 |---|---|---|---|---|
 | **FR-01** | Đăng nhập và áp dụng quyền theo role | Analyst, Admin | P0 | Đăng nhập hợp lệ; thao tác trái quyền bị từ chối |
+| **FR-01a** | Tự đăng ký bằng username/password | Người chưa đăng nhập | P0 | Server gán analyst; từ chối username trùng và role do client gửi; thành công về Login, không tự đăng nhập |
 | **FR-02** | Tiếp nhận file CSV/JSON và tạo phiên nhập dataset | Analyst, Admin | P0 | Có dataset/phiên nhập và thông tin file |
 | **FR-03** | Kiểm tra dữ liệu thô, cung cấp báo cáo lỗi/mapping gợi ý | Analyst, Admin | P0 | Biết dòng, trường, loại lỗi; thấy gợi ý tên cột |
 | **FR-04** | Yêu cầu người dùng xác nhận mapping, đơn vị và thông tin thời gian | Analyst, Admin | P0 | Mapping được xác nhận trước khi nhập |
@@ -89,6 +90,12 @@ Trong MVP chỉ có hai role đăng nhập là `analyst` và `admin`. Bảng xá
 **Luồng chính:** Người dùng cung cấp thông tin đăng nhập → hệ thống xác thực → xác định role → cho phép truy cập chức năng tương ứng.  
 **Kết quả:** Phiên đăng nhập hợp lệ và quyền được áp dụng ở Server.  
 **Ngoại lệ:** Sai thông tin đăng nhập hoặc thiếu quyền → từ chối thao tác với phản hồi phù hợp.
+
+#### UC-01a — Tự đăng ký
+
+**Điều kiện trước:** Người dùng chưa đăng nhập, Backend hoạt động.
+**Luồng chính:** Nhập username/password → kiểm tra theo quy tắc tạo tài khoản hiện có → Backend lưu User bằng cơ chế password hashing hiện có và luôn gán `role = analyst` → chuyển về Login.
+**Ngoại lệ:** Username trùng → thông báo để chọn tên khác; dữ liệu sai hoặc client gửi role → từ chối. Không trả token, không tự đăng nhập; không thêm email verification hoặc khôi phục mật khẩu.
 
 #### UC-02 — Upload, kiểm tra, mapping và nhập dataset
 
@@ -199,7 +206,7 @@ Trong MVP chỉ có hai role đăng nhập là `analyst` và `admin`. Bảng xá
 | **BR-11** | ML sử dụng model đã train trước, chỉ chạy inference khi online; không train lại trong luồng upload thông thường. |
 | **BR-12** | Phân tích thống kê phải xử lý trường hợp ít dữ liệu, phương sai bằng 0 hoặc đầu vào không hợp lệ; không coi `NaN` là một anomaly hợp lệ. |
 | **BR-13** | Trạng thái đánh giá anomaly chỉ gồm `open`, `confirmed`, `false_positive`; trạng thái review tách biệt với score và method của detector. |
-| **BR-14** | Cả `analyst` và `admin` được xem, phân tích, upload và đánh giá anomaly; chỉ `admin` được thực hiện các thao tác quản trị tài khoản. Backend kiểm tra quyền. |
+| **BR-14** | Cả `analyst` và `admin` được xem, phân tích, upload và đánh giá anomaly; chỉ `admin` được thực hiện các thao tác quản trị tài khoản. Tự đăng ký chỉ tạo tài khoản analyst của người đăng ký, không cấp quyền quản trị. Backend kiểm tra quyền. |
 | **BR-15** | Chỉnh sửa anomaly có phiên bản; khi Client gửi trên phiên bản cũ, Server phải phát hiện và phản hồi xung đột, không ghi đè im lặng. |
 | **BR-16** | Mỗi mutation offline có mã định danh duy nhất; gửi lại cùng mutation không được áp dụng tác động nhiều lần. |
 | **BR-17** | Khi đồng bộ, Server là nguồn dữ liệu có thẩm quyền; kết quả xung đột phải được thông báo cho Client. |

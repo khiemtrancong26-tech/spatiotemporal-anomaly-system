@@ -32,11 +32,11 @@ Xem `docs/ownership.md` để biết phân công.
 
 ## Trạng thái
 
-Frontend M1 đã chạy được: từ root dùng `npm ci`, sau đó `npm run dev:mock`
+Frontend M2 (gồm Register) đã chạy được: từ root dùng `npm ci`, sau đó `npm run dev:mock`
 để xem giao diện nền với dữ liệu mô phỏng tại `http://127.0.0.1:5173`.
 `npm run dev` dùng transport API online; Backend trong checkout chưa được khởi tạo.
-Các chức năng nghiệp vụ frontend sẽ triển khai từ M2, chưa phải MVP hoàn chỉnh.
+Đã có Register/Login, phiên online, Datasets và khung Workspace; M3–M7 và tích hợp Backend thật còn tiếp tục.
 
 Xem [client/README.md](client/README.md) để cấu hình, build và kiểm thử;
 [kế hoạch frontend](docs/frontend-online-plan.md) và
-[bằng chứng M1](docs/frontend/m1-verification.md) để theo dõi phạm vi đã hoàn thành.
+[bằng chứng M2](docs/frontend/m2-verification.md) để theo dõi phạm vi đã hoàn thành.

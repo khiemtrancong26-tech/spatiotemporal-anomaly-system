@@ -21,10 +21,10 @@ export function createSession(storage: Pick<Storage, 'getItem' | 'setItem' | 're
         store.setState({ status: 'authenticated', user });
       } catch (error) { if (current === generation) store.setState({ status: 'error', error }); }
     },
-    async login(api: OnlineDataSource, username: string, password: string) {
+    async login(api: OnlineDataSource, username: string, password: string, signal?: AbortSignal) {
       const current = ++generation;
-      const result = await api.auth.login({ username, password });
-      if (current !== generation) return;
+      const result = await api.auth.login({ username, password }, { signal });
+      if (current !== generation || signal?.aborted) return;
       if (!result.user.isActive) throw new Error('Tài khoản đã bị vô hiệu hóa.');
       try { storage.setItem(key, result.accessToken); } catch { throw new Error('Trình duyệt không cho lưu phiên trong tab. Hãy cho phép sessionStorage rồi thử lại.'); }
       token = result.accessToken;

@@ -23,6 +23,9 @@ test('login, session restoration, workspace filters, logout and admin guard', as
   await expect(page.getByTestId('applied-filter')).toContainText('sensor-001');
   await page.getByRole('button', { name: 'Visualization', exact: true }).click();
   await expect(page.getByLabel('Trạm (Sensor ID)')).toHaveValue('sensor-001');
+  await page.getByRole('link', { name: 'Datasets', exact: true }).click();
+  await page.getByRole('link', { name: 'Mở dữ liệu' }).click();
+  await expect(page.getByLabel('Trạm (Sensor ID)')).toHaveValue('sensor-001');
   await page.reload();
   await expect(page.getByText('Chưa có metadata dataset.', { exact: false })).toBeVisible();
   await page.goto('/admin/users');
@@ -46,4 +49,26 @@ test('mobile layout and deep link survive login without inventing metadata', asy
   await expect(page.getByText('Chưa có metadata dataset.', { exact: false })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: 'test-results/m2-mobile.png', fullPage: true });
+});
+
+test('register handles duplicate usernames, returns to login and never auto-authenticates', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByRole('link', { name: 'Chưa có tài khoản? Đăng ký' }).click();
+  await expect(page.getByRole('heading', { name: 'Đăng ký tài khoản' })).toBeVisible();
+  await page.getByLabel('Tên đăng nhập', { exact: true }).fill('analyst01');
+  await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password');
+  await page.getByRole('button', { name: 'Đăng ký', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('đã tồn tại');
+  await page.getByLabel('Tên đăng nhập', { exact: true }).fill('new-user');
+  await page.getByLabel('Mật khẩu', { exact: true }).fill('new-password');
+  await page.getByRole('button', { name: 'Đăng ký', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('Đăng ký thành công');
+  expect(await page.evaluate(() => sessionStorage.getItem('pm25.auth.mock'))).toBeNull();
+  await expect(page.getByLabel('Mật khẩu', { exact: true })).toHaveValue('');
+  await page.getByLabel('Tên đăng nhập', { exact: true }).fill('new-user');
+  await page.getByLabel('Mật khẩu', { exact: true }).fill('new-password');
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Dữ liệu của bạn' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Quản lý tài khoản' })).toHaveCount(0);
 });

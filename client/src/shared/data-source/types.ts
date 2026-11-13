@@ -18,6 +18,7 @@ export type DataSourceError =
 export interface OnlineDataSource {
   health(options?: RequestOptions): Promise<Wire.HealthResponse>;
   auth: {
+    register(input: Wire.RegisterRequest, options?: RequestOptions): Promise<Wire.UserPublic>;
     login(input: Wire.LoginRequest, options?: RequestOptions): Promise<Wire.LoginResponse>;
     me(options?: RequestOptions): Promise<Wire.UserPublic>;
   };

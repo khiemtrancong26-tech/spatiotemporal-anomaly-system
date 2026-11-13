@@ -129,6 +129,79 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /api/v1/auth/register:
+    post:
+      tags:
+      - Auth
+      summary: Tự đăng ký tài khoản analyst
+      operationId: post_api_v1_auth_register
+      description: >-
+        Public; chỉ nhận username/password. Tái sử dụng User, validation, password hashing
+        và quy tắc username duy nhất của luồng tạo tài khoản. Server luôn gán role=analyst,
+        isActive=true; không nhận role/isActive từ client (422). Username trùng trả 409,
+        kể cả request đồng thời với tạo user qua Admin. Thành công không trả token/password/hash;
+        FE chuyển về Login, không auto-login. Không yêu cầu Idempotency-Key;
+        gửi lại sau khi đã tạo có thể trả 409.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Created analyst; FE chuyển về Login
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/UserResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        role:
+                          type: string
+                          enum: [analyst]
+                        isActive:
+                          type: boolean
+                          enum: [true]
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Username đã tồn tại theo quy tắc username duy nhất hiện có
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation failed; bao gồm trường role/isActive hoặc trường ngoài schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          description: Method Not Allowed
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /api/v1/users/me:
     get:
       tags:
@@ -2519,6 +2592,19 @@ components:
       additionalProperties: false
       required:
       - data
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 8
+      additionalProperties: false
+      required:
+      - username
+      - password
     LoginRequest:
       type: object
       properties:

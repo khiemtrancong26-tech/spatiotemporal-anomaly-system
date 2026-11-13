@@ -32,7 +32,7 @@ Màu severity là nhãn detector, không AQI hay mức nguy hiểm sức khỏe.
             +--------------------------------+
 ```
 
-Form max-width 400px; label luôn hiện, Enter submit, pending khóa submit, lỗi thông tin đăng nhập không chỉ tô màu. Thành công vào Datasets hoặc route nội bộ đã yêu cầu nếu hợp lệ; không nhận redirect URL ngoài ứng dụng. Không có đăng ký/quên mật khẩu.
+Form max-width 400px; label luôn hiện, Enter submit, pending khóa submit, lỗi thông tin đăng nhập không chỉ tô màu. Thành công vào Datasets hoặc route nội bộ đã yêu cầu nếu hợp lệ; không nhận redirect URL ngoài ứng dụng. Có liên kết đến `/register`: một form username/password, không chọn role; lỗi trùng username/validation được hiển thị, thành công chuyển về Login, không auto-login. Không có quên mật khẩu.
 
 ## 3. P02 — Datasets
 

@@ -733,6 +733,24 @@
           "page"
         ]
       },
+      "RegisterRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "username",
+          "password"
+        ]
+      },
       "ReviewChanges": {
         "type": "object",
         "properties": {
@@ -1091,6 +1109,83 @@
           "$ref": "#/components/schemas/Error"
         },
         "429": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "post_api_v1_auth_register": {
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "authenticated": false,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": {
+        "contentType": "application/json",
+        "schema": {
+          "$ref": "#/components/schemas/RegisterRequest"
+        }
+      },
+      "responses": {
+        "201": {
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/UserResponse"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "analyst"
+                      ]
+                    },
+                    "isActive": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "409": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
           "$ref": "#/components/schemas/Error"
         },
         "500": {

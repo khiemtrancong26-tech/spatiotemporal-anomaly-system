@@ -39,6 +39,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tự đăng ký tài khoản analyst
+         * @description Public; chỉ nhận username/password. Tái sử dụng User, validation, password hashing và quy tắc username duy nhất của luồng tạo tài khoản. Server luôn gán role=analyst, isActive=true; không nhận role/isActive từ client (422). Username trùng trả 409, kể cả request đồng thời với tạo user qua Admin. Thành công không trả token/password/hash; FE chuyển về Login, không auto-login. Không yêu cầu Idempotency-Key; gửi lại sau khi đã tạo có thể trả 409.
+         */
+        post: operations["post_api_v1_auth_register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me": {
         parameters: {
             query?: never;
@@ -561,6 +581,10 @@ export interface components {
         SingleAnomaly: {
             data: components["schemas"]["Anomaly"];
         };
+        RegisterRequest: {
+            username: string;
+            password: string;
+        };
         LoginRequest: {
             username: string;
             password: string;
@@ -854,6 +878,83 @@ export interface operations {
                 headers: {
                     /** @description Đưa ra khi rate-limit được triển khai. */
                     "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    post_api_v1_auth_register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Created analyst; FE chuyển về Login */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"] & {
+                        data?: {
+                            /** @enum {string} */
+                            role?: "analyst";
+                            /** @enum {boolean} */
+                            isActive?: true;
+                        };
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Method Not Allowed */
+            405: {
+                headers: {
+                    Allow?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Username đã tồn tại theo quy tắc username duy nhất hiện có */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Validation failed; bao gồm trường role/isActive hoặc trường ngoài schema */
+            422: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content: {

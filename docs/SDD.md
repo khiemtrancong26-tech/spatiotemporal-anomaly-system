@@ -205,7 +205,8 @@ project-root/                           # Monorepo đã dựng
 **Nguồn máy đọc:** [`api/openapi.yaml`](api/openapi.yaml); cách dùng, trạng thái và các ngoại lệ: [`api/README.md`](api/README.md).
 
 - Backend và Client trao đổi qua `/api/...`, bearer JWT, JSON camelCase, ID opaque, GeoJSON `[lon,lat]`, UTC `Z`.
-- `POST /api/auth/login`, `GET /api/health` public; các API nghiệp vụ chỉ `analyst/admin`; `/api/admin/users` chỉ admin. Không còn viewer.
+- `POST /api/v1/auth/tokens`, `POST /api/v1/auth/register`, `GET /api/v1/health` public; các API nghiệp vụ chỉ `analyst/admin`; `/api/v1/admin/users` chỉ admin. Không còn viewer.
+- Register bổ sung một handler trong module Auth và một trang `/register`: chỉ nhận username/password, tái sử dụng User, validation, password hashing và quy tắc username duy nhất của luồng tạo tài khoản; Server cố định role analyst, từ chối role do client gửi. Trùng username trả 409; thành công 201 trả UserPublic trong `{data}`, không token, FE chuyển về Login. Không đổi JWT/RBAC, MongoDB hay luồng Admin.
 - Các nhóm chức năng: Auth, Import/Dataset, Sensor/Reading Query, Analysis/Anomaly, Export/Sync, Admin. Phân trang bounded với opaque cursor.
 - BR-08 báo duplicate/conflict và giữ first valid row; BR-15 dùng baseVersion; BR-16 dùng clientMutationId và idempotent receipt.
 - `GET /api/export` trả dữ liệu theo trang/phạm vi cho Duy cache, không có bảo đảm toàn dataset được tải chỉ bởi một trang.

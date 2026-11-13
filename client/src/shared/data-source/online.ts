@@ -13,6 +13,7 @@ export function createOnlineDataSource(options: OnlineAdapterOptions): OnlineDat
   return {
     health: (opts) => request<W.HealthResponse>('get_api_v1_health', opts),
     auth: {
+      register: async (body, opts) => (await request<W.UserResponse>('post_api_v1_auth_register', { ...opts, body })).data,
       login: (body, opts) => request<W.LoginResponse>('post_api_v1_auth_tokens', { ...opts, body }),
       me: async (opts) => (await request<W.UserResponse>('get_api_v1_users_me', opts)).data,
     },

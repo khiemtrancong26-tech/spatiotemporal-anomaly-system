@@ -8,7 +8,11 @@ export function WorkspacePage({ datasetId }: { datasetId: string }) {
   const { workspace, datasets } = useServices();
   const state = useStore(workspace);
   useEffect(() => { workspace.getState().openDataset(datasetId); }, [workspace, datasetId]);
-  const [draft, setDraft] = useState({ sensorId: '', bbox: '', from: '', to: '' });
+  const [draft, setDraft] = useState(() => {
+    const filters = workspace.getState().datasetId === datasetId ? workspace.getState().filters : {};
+    const local = (utc?: string) => utc ? new Date(Date.parse(utc) + 7 * 3600_000).toISOString().slice(0, 19) : '';
+    return { sensorId: filters.sensorId ?? '', bbox: filters.bbox?.join(',') ?? '', from: local(filters.from), to: local(filters.to) };
+  });
   const [error, setError] = useState('');
   const dataset = datasets.get(datasetId);
   function apply(event: FormEvent) {

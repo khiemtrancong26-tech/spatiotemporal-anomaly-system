@@ -16,9 +16,10 @@ Tài liệu phân tích yêu cầu, thiết kế và phối hợp phát triển 
 | **API Contract** | [api/README.md](api/README.md) · [openapi.yaml](api/openapi.yaml) | Endpoint, request/response, lỗi, JWT, phân trang, import và offline-sync | **v0.1 draft**, OpenAPI 3.0.3; chưa xác nhận API chạy thật |
 | **MongoDB Physical Design** | [mongodb-physical-design.md](mongodb-physical-design.md) | Collections, cấu trúc document, indexes, import và transaction đồng bộ | **v0.3 draft**; index chưa được benchmark |
 | **Module Ownership** | [ownership.md](ownership.md) | Phân công trách nhiệm và quy tắc phối hợp của 5 thành viên | Đã có |
-| **Frontend P0 online — Kế hoạch** | [frontend-online-plan.md](frontend-online-plan.md) | Lộ trình hoàn thiện UI/3D và tích hợp API online; loại trừ PWA, Offline/Sync, P1/P2 | M1 đã triển khai/kiểm tra; M0 còn xác nhận interface với Duy |
+| **Frontend P0 online — Kế hoạch** | [frontend-online-plan.md](frontend-online-plan.md) | Lộ trình hoàn thiện UI/3D và tích hợp API online; loại trừ PWA, Offline/Sync, P1/P2 | M2 frontend đã triển khai/kiểm tra; M0 còn xác nhận interface với Duy |
 | **Frontend M0 — Đầu vào triển khai** | [frontend/m0-readiness.md](frontend/m0-readiness.md) · [UI spec](frontend/ui-spec.md) | Audit contract, ma trận API, interface online, fixtures và bố cục | Bản đầu để bắt đầu M1; chưa có runtime |
 | **Frontend M1 — Kết quả** | [frontend/m1-verification.md](frontend/m1-verification.md) | Scaffold, online adapter, mock transport, kiểm thử và giới hạn tích hợp | 46 tests + 3 Chromium tests đạt |
+| **Frontend M2 — Kết quả** | [frontend/m2-verification.md](frontend/m2-verification.md) | Register/Login, session, guard, Datasets và workspace shell | Kiểm thử FE; Backend thật còn chờ |
 | **Technical Decisions** | [decisions.md](decisions.md) | Các quyết định đã chốt, lựa chọn đang mở và lý do thay đổi | Đã có; cần cập nhật khi quyết định mới được duyệt |
 
 

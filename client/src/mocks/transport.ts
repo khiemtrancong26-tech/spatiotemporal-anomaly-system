@@ -29,6 +29,9 @@ function delay(ms: number, signal?: AbortSignal | null): Promise<void> {
 
 /** Fixture transport only: no service worker, network fallback, storage or background sync. */
 export function createMockTransport(controls: MockControls): typeof globalThis.fetch {
+  // Demo accounts only. New mock accounts live in RAM until reload.
+  const accounts = new Map<string, { username: string; digest: string }>();
+  async function digest(password: string) { return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password)))).join(','); }
   return async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
     const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
@@ -38,8 +41,11 @@ export function createMockTransport(controls: MockControls): typeof globalThis.f
     if (controls.scenario === 'server-error') return error(503, 'MOCK_UNAVAILABLE');
     const candidate = successCases.find((item) => item.method === method && matches(item.path, url.pathname));
     if (!candidate) return error(404, 'MOCK_ROUTE_NOT_FOUND');
-    if (url.pathname.startsWith('/api/v1/admin/') && !(new Headers(init?.headers).get('Authorization')?.includes('mock-admin01') || controls.role === 'admin')) return error(403, 'FORBIDDEN');
-    if (url.pathname !== '/api/v1/health' && url.pathname !== '/api/v1/auth/tokens' && !new Headers(init?.headers).get('Authorization')) return error(401, 'UNAUTHORIZED');
+    const bearer = new Headers(init?.headers).get('Authorization') ?? '';
+    const mockToken = bearer.replace(/^Bearer /, '');
+    const sessionRole = mockToken === 'mock-admin01' ? 'admin' : mockToken === 'mock-analyst01' || mockToken.startsWith('mock-registered:') ? 'analyst' : controls.role;
+    if (url.pathname.startsWith('/api/v1/admin/') && sessionRole !== 'admin') return error(403, 'FORBIDDEN');
+    if (!['/api/v1/health', '/api/v1/auth/tokens', '/api/v1/auth/register'].includes(url.pathname) && !bearer) return error(401, 'UNAUTHORIZED');
     const overrideId = controls.overrides?.[candidate.id];
     const selected: Fixture = overrideId ? fixtures.cases.find((item) => item.id === overrideId) ?? candidate : candidate;
     if (selected !== candidate) return json(selected.response, selected.status);
@@ -48,12 +54,26 @@ export function createMockTransport(controls: MockControls): typeof globalThis.f
     const id = candidate.path.includes('{id}') ? decodeURIComponent(url.pathname.split('/')[candidate.path.split('/').indexOf('{id}')]) : undefined;
     const pathParams = candidate.request as { pathParams?: { id: string } };
     if (id && id !== pathParams.pathParams?.id) return error(404, 'NOT_FOUND');
-    const bearer = new Headers(init?.headers).get('Authorization') ?? '';
-    const sessionRole = bearer.includes('mock-admin01') ? 'admin' : bearer.includes('mock-analyst01') ? 'analyst' : controls.role;
-    if (candidate.id === 'me') payload.data = { ...(payload.data as object), role: sessionRole, username: bearer.includes('mock-admin01') ? 'admin01' : 'analyst01' };
+    if (candidate.id === 'me') payload.data = { ...(payload.data as object), role: sessionRole, username: mockToken.startsWith('mock-registered:') ? decodeURIComponent(mockToken.slice('mock-registered:'.length)) : sessionRole === 'admin' ? 'admin01' : 'analyst01' };
+    if (candidate.id === 'register') {
+      const credentials = JSON.parse(String(init?.body));
+      if (Object.keys(credentials).some((key) => !['username', 'password'].includes(key)) || typeof credentials.username !== 'string' || !credentials.username.trim() || typeof credentials.password !== 'string' || credentials.password.length < 8) return error(422, 'VALIDATION_ERROR');
+      const username = credentials.username.trim();
+      const normalized = username.toLowerCase();
+      if (['analyst01', 'admin01', 'demo'].includes(normalized) || accounts.has(normalized)) return error(409, 'USERNAME_CONFLICT');
+      const passwordDigest = await digest(credentials.password);
+      if (accounts.has(normalized)) return error(409, 'USERNAME_CONFLICT');
+      accounts.set(normalized, { username, digest: passwordDigest });
+      return json({ data: { id: `mock-user-${encodeURIComponent(username)}`, username, role: 'analyst', isActive: true } }, 201);
+    }
     if (candidate.id === 'login') {
       const credentials = JSON.parse(String(init?.body));
-      if (credentials.username !== 'demo') {
+      const account = accounts.get(String(credentials.username).trim().toLowerCase());
+      if (account) {
+        if (account.digest !== await digest(credentials.password)) return error(401, 'INVALID_CREDENTIALS');
+        payload.user = { ...(payload.user as object), username: account.username, role: 'analyst' };
+        payload.accessToken = `mock-registered:${encodeURIComponent(account.username)}`;
+      } else if (credentials.username !== 'demo') {
         if (!['analyst01', 'admin01'].includes(credentials.username) || credentials.password !== 'demo-password') return error(401, 'INVALID_CREDENTIALS');
         const role = credentials.username === 'admin01' ? 'admin' : 'analyst';
         payload.user = { ...(payload.user as object), username: credentials.username, role };

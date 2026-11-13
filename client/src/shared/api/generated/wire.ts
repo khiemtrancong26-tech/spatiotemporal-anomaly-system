@@ -20,6 +20,7 @@ export type MappingRequest = components['schemas']['MappingRequest'];
 export type PageInfo = components['schemas']['PageInfo'];
 export type Reading = components['schemas']['Reading'];
 export type ReadingPage = components['schemas']['ReadingPage'];
+export type RegisterRequest = components['schemas']['RegisterRequest'];
 export type ReviewChanges = components['schemas']['ReviewChanges'];
 export type ReviewPatchRequest = components['schemas']['ReviewPatchRequest'];
 export type Sensor = components['schemas']['Sensor'];
