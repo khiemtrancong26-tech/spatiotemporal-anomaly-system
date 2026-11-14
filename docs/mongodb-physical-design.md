@@ -2,7 +2,7 @@
 
 **Nguồn yêu cầu:** SRS v0.4 (PM2.5, BR-08 phương án B, analyst/admin, BR-15..22) và Shared Data Contract v0.1.  
 **Trạng thái:** Thiết kế vật lý **đề xuất cho MVP**, cần Khiêm review trước khi triển khai database chính thức. `indexes.js` là script tạo index gợi ý, **không phải migration đã chạy**.  
-**DB:** `spatiotemporal_anomaly` (tên đề xuất), MongoDB. **7 collections lõi:** `users`, `datasets`, `sensors`, `readings`, `analysisRuns`, `anomalies`, `processedMutations`.
+**DB:** `spatiotemporal_anomaly` (tên đề xuất), MongoDB. **7 collections lõi ban đầu:** `users`, `datasets`, `sensors`, `readings`, `analysisRuns`, `anomalies`, `processedMutations`. D012/D015 bổ sung `idempotencyReceipts` và `analysisQueueState`; online hiện dùng8 collections, chưa khởi tạo processedMutations/Sync.
 
 ## Bổ sung Query B4 — D013, 14/11/2026
 
@@ -83,8 +83,21 @@ Phần này cập nhật các đề xuất import/receipt cũ bên dưới theo 
   config:{threshold:3},scope:{},status:'completed',createdAt:ISODate('2026-11-11T02:00:00Z'),
   completedAt:ISODate('2026-11-11T02:00:03Z'),engineVersion:'0.1.0' }
 ```
-- Lưu config, scope tiếp nhận, method/version; ML model/feature còn OPEN-03. Analysis dùng `queued/running/completed/failed` theo D008. Metadata lỗi terminal theo Shared Contract. Chưa chốt cơ chế queue/receipt/recovery vật lý, không tự thêm collection/index/Redis.
-- Chỉ công bố anomalies của run completed sau persist đầy đủ; failed không lộ partial. Cách staging/cleanup, claim/lease/recovery và atomicity tiếp nhận + receipt cần thiết kế trước B5; không suy ra transaction khổng lồ hoặc exactly-once execution.
+- D015/B5: config và scope là snapshot JSON (sensorIds public strings, from/to chuẩn UTC ms); ID liên kết dataset/createdBy dùng ObjectId, createdAt/completedAt/leaseUntil dùng BSON Date. HTTP DTO whitelist bỏ fields worker. Baseline PM2.5/model/version được chốt tại D015; chất lượng do Khải tiếp tục review.
+- Run queued chính là job bền vững. Fields nội bộ: `policyId`, `modelHash` cho ML, `createdBy`, `attempt:0`, `writeFence:0`, `leaseUntil:Date(0)`; khi claim đặt `owner` UUID, tăng attempt và gia hạn bằng clock DB. Atomic claim xét queued/running hết lease; terminal không được claim lại. Index bổ sung `{status:1,leaseUntil:1,createdAt:1}` tên `ix_runs_claim`.
+- Mỗi batch persist/cleanup có transaction nhỏ cùng conditional write lên run theo owner/attempt/status/lease; stale owner không ghi được. Heartbeat riêng; attempt mới cleanup partial theo batch trước recompute. Chỉ completed sau persist đủ; terminal + giải phóng slot cùng transaction. Không transaction toàn scope, không exactly-once execution.
+- `idempotencyReceipts` kind=analysis lưu snapshot202; transaction tiếp nhận ghi receipt + run + admission counter. Replay24h rồi409, không TTL. Sweeper upload/import B3 không xử lý receipt Analysis. Chi tiết [D015](decisions.md#d015--hướng-worker-b5-15112026).
+
+### `analysisQueueState` — nội bộ online B5/D015
+
+```js
+{ _id:'online', active:0 }
+```
+
+- Counter của số run queued/running, không phải HTTP DTO/catalog/job endpoint. `_id` index mặc định đủ cho singleton; không thêm secondary index.
+- Transaction nhận run: conditional `active < maxPending`, tăng1; transaction chuyển terminal dưới fence giảm1. Tất cả process chia sẻ counter, nên không dùng count-then-insert không bảo vệ cạnh tranh.
+- Khởi tạo0 chỉ khi chưa tồn tại trên DB bắt đầu B5; không reset lúc restart. Không xóa/reset thủ công khi có run chưa terminal. Nếu restore/migration nhập dữ liệu cũ, Cường cần dừng intake/worker và đối soát counter với run active trước mở lại; không tự sửa dữ liệu người dùng.
+- Online hiện có8 collections: users/datasets/sensors/readings/analysisRuns/anomalies/idempotencyReceipts/analysisQueueState; processedMutations vẫn hoãn với Sync.
 
 ### `anomalies`
 ```js
@@ -97,7 +110,7 @@ Phần này cập nhật các đề xuất import/receipt cũ bên dưới theo 
 ```
 - Unique `(analysisRunId,readingId)` ngăn tạo 2 anomaly cho cùng reading trong **một lần chạy**; vẫn cho một reading xuất hiện ở các lần chạy khác nhau.
 - `score` và `severity` không đổi khi analyst sửa review; `status/note/version/updatedAt` có thể đổi.
-- `severity` vẫn chờ OPEN-04 (score → severity). Đừng dùng ví dụ `score 3.8/high` làm ngưỡng chuẩn.
+- D015/B5 tạm severity=low cho mọi anomaly; chưa có ngưỡng medium/high được kiểm chứng. Ví dụ `score 3.8/high` phía trên là lịch sử thiết kế, không phải rule của baseline. Khởi tạo review open/note rỗng/version1/updatedAt, snapshot location từ Reading.
 
 ### `processedMutations`
 ```js

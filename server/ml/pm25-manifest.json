@@ -1,0 +1,49 @@
+{
+  "id": "pm25-iforest-uci381-v1",
+  "purpose": "PM25-value-only-baseline-not-quality-validated",
+  "filename": "isolation_forest.joblib",
+  "sha256": "554e03b3c2ba9f37c58ba9bae98ff020898738283883b430c40cd19c4f31329b",
+  "bytes": 343467,
+  "features": [
+    "value"
+  ],
+  "unit": "ug/m3",
+  "pythonVersion": "3.11.9",
+  "sklearnVersion": "1.9.1",
+  "runtime": {
+    "scikit-learn": "1.9.1",
+    "numpy": "2.4.6",
+    "scipy": "1.17.1",
+    "joblib": "1.6.0",
+    "threadpoolctl": "3.8.0"
+  },
+  "source": {
+    "url": "https://archive.ics.uci.edu/static/public/381/beijing%2Bpm2%2B5%2Bdata.zip",
+    "archiveSha256": "40cdd29c24918e855133dce280ff59779bb0b5852898e05bafcf422a4cc0a175",
+    "csvSha256": "4127f868775e31b3956522adc0ec75af8937dde6a3896e8beed3a376c6d27f1c",
+    "citation": "Chen, S. (2015). Beijing PM2.5. UCI. DOI 10.24432/C5JS49",
+    "license": "CC BY 4.0"
+  },
+  "training": {
+    "parameters": {
+      "n_estimators": 100,
+      "max_samples": 256,
+      "contamination": "auto",
+      "max_features": 1.0,
+      "bootstrap": false,
+      "n_jobs": 1,
+      "random_state": 42,
+      "warm_start": false
+    },
+    "reference": "2010-2012 non-missing PM2.5; original row order",
+    "samples": 24418,
+    "missingRowsOmitted": 2067,
+    "imputation": false
+  },
+  "holdout": {
+    "reference": "2013-2014 non-missing PM2.5; never fitted",
+    "samples": 17339,
+    "flagged": 3293,
+    "quality": "No anomaly labels: flagged count is not accuracy/precision/recall"
+  }
+}

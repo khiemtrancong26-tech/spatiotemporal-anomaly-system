@@ -17,12 +17,13 @@
 | D012 | Import B3, giới hạn đầu vào, durable idempotency và recovery | Chủ dự án xác nhận trong chat B3; không thay OpenAPI |
 | D013 | Query B4: parent/sensor 422, thời gian đóng và bbox tọa độ đóng | Chủ dự án xác nhận ba đề xuất B4; không đổi OpenAPI |
 | D014 | Tích hợp thư viện trước B5, policy thử nghiệm tường minh và artifact demo có provenance | Chủ dự án yêu cầu dùng thư viện, chưa triển khai B5 |
+| D015 | B5 dùng MongoDB-backed worker trên Replica Set hiện có; chưa thêm Redis/BullMQ | Chủ dự án chọn hướng thực thi khi yêu cầu B5 ngày 15/11/2026 |
 
 ## Quyết định chưa hoàn tất
 
 - **Driver đã chốt tại D010**, không còn là quyết định mở.
-- Isolation Forest đã được chọn trong D009; **model artifact, method/config API, features, version và ngưỡng đánh giá** còn mở.
-- Redis + BullMQ là **phương án đề xuất** cho hàng đợi Analysis B5, **chưa chọn làm kiến trúc chính thức**; queue topology, recovery, concurrency, retention/admission còn mở.
+- D015 đã chốt baseline B5: statistical policies, ML method/config/model một feature PM2.5, severity tạm low và MongoDB-backed worker. Khải còn đánh giá chất lượng/chuyển miền, severity nâng cao và model thay thế; không coi baseline là model đã đạt metric chất lượng.
+- Chưa bổ sung Redis/BullMQ. Cường còn kiểm chứng trên môi trường triển khai, tải nhiều người dùng và tổng RAM/CPU gồm MongoDB/Python trước khi tăng cấu hình.
 - Import B3 đã chốt tại D012; performance thực tế và proxy/volume triển khai vẫn do Cường phối hợp đo. B5 còn cần quyết định riêng về Analysis; không thêm Kafka/Spark khi chưa có nhu cầu rõ ràng.
 
 ## Mẫu ghi quyết định mới
@@ -35,6 +36,21 @@
 - Lý do:
 - Ảnh hưởng:
 - Người thống nhất:
+
+## D015 — Hướng worker B5 (15/11/2026)
+
+- Chủ dự án yêu cầu thực hiện B5 và ưu tiên MongoDB-backed worker, tận dụng MongoDB Replica Set hiện có; chưa bổ sung Redis hoặc BullMQ.
+- Hướng thiết kế: run queued là công việc bền vững trong MongoDB, tiếp nhận run và response receipt nguyên tử bằng transaction nhỏ; worker quét/claim run trong MongoDB. Không có bước dispatch sang hệ queue ngoài MongoDB. Đây là thiết kế cần triển khai và thử fault injection, chưa phải bằng chứng code đã chạy.
+- **Chủ dự án đã trả lời đồng ý cả ba nhóm trong chat B5:** statistical baseline và severity tạm low; tạo PM2.5 model offline; scope và thông số vận hành khởi đầu. Các quyết định dưới đây thay thế trạng thái còn mở tương ứng ở D008/D009/D014. Không suy ra sign-off chất lượng/triển khai riêng của Khải/Tài/Cường.
+- Statistical: grouping từng sensor, ts/id; Z-score toàn scope/population std/min2/threshold3/score abs(z); IQR toàn scope/min4/multiplier1.5/score là khoảng vượt fence ug/m3. Moving Average bắt buộc windowSize>=2, đúng số mẫu trước hiện tại, threshold3/population std, warmup omit. Thiếu mẫu bất kỳ nhóm hoặc std cửa sổ bằng 0 nhưng giá trị hiện tại khác mean → failed/INSUFFICIENT_DATA; dữ liệu hằng → completed không anomaly. Không thêm mặc định config khi request thiếu config được duyệt.
+- Mọi anomaly B5 dùng severity **low tạm thời**, status=open, note='', version=1. Severity không phải mức nguy hại sức khỏe và chưa có ngưỡng medium/high đã kiểm chứng.
+- ML: `family=ml`, `method=isolation_forest`, `config={}`, feature duy nhất `value` ug/m3; predict=-1 là anomaly, score=-decision_function. Chủ dự án giao agent tự chọn dữ liệu PM2.5 công khai và tạo baseline bằng CLI offline. Đã chọn UCI381, train 2010–2012, bỏ NA, giữ riêng 2013–2014; sklearn1.9.1, 100 cây/max_samples256/contamination=auto/random_state42/n_jobs1. Model/version/hash/runtime đầy đủ trong [manifest](../server/ml/pm25-manifest.json). Không train trong HTTP/worker, không dùng demo x0/x1 làm PM2.5 model, không tuyên bố accuracy khi chưa có nhãn đánh giá.
+- Scope: [from,to] đóng, UTC Z tối đa 3 số phần lẻ; thiếu scope lưu {}, thiếu sensorIds là tất cả, [] →422; tối đa10.000 IDs, kiểm tra tất cả thuộc dataset. Không nhận bbox; FE tiếp tục chặn bbox khi chưa có conversion policy đầy đủ.
+- Khởi đầu có env: 1 job/process; lease30s/heartbeat10s/poll1s; tối đa3 attempts thực thi sau crash, lần claim tiếp theo chốt failed nếu đã hết attempts; timeout120s/attempt; scope tối đa50.000 readings, vượt thì failed rõ nguyên nhân, không truncate thành công; queue chung tối đa100 queued/running, đầy503 trước tiếp nhận. Statistical worker thread, ML subprocess. Phải đo trước tăng concurrency; nhiều process có tổng concurrency cộng dồn.
+- Idempotency: collection idempotencyReceipts dùng chung namespace user+key với B3, kind=analysis, replay24h rồi409 giữ receipt, không TTL. Transaction nhỏ chốt receipt202 + run queued + counter admission nguyên tử. Không dùng claim receipt B3 trước transaction; không có receipt Analysis processing bị bỏ dở giữa hai commit. Replay 202 snapshot queued bất kể run hiện tại terminal; lỗi trước tiếp nhận không tiêu key.
+- Worker: run là durable job; DB clock cho lease, atomic claim owner/attempt, heartbeat, quét lại sau restart. Mỗi batch ghi/dọn anomaly và transition terminal cùng transaction với conditional write lên run (fence). Attempt mới dọn partial trước chạy lại, unique(run,reading) chống hiệu ứng trùng; không hứa exactly-once execution. Counter `analysisQueueState` tăng khi nhận, giảm đúng một lần khi terminal trong transaction; không reset counter lúc khởi động.
+- Dataset thiếu khi POST →404, chưa imported/sensor sai →422; GET detail chỉ khả dụng cho dataset imported, ngược lại404; history cho dataset không khả dụng trả200/trang rỗng, không thêm422 ngoài contract history. Cùng quyền analyst/admin đọc dữ liệu imported như B4. Model/runtime không sẵn sàng trước tiếp nhận →503, mất/hỏng sau tiếp nhận →failed an toàn; không chuyển HTTP202 thành lỗi HTTP của job đã nhận.
+- Readiness và thiết kế: [B5 readiness](backend/b5-readiness.md). Bằng chứng thực thi, real/mock và giới hạn: [B5 verification](backend/b5-verification.md).
 
 ## D014 — Tích hợp thư viện trước B5 (15/11/2026)
 

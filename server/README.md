@@ -6,7 +6,13 @@
 
 Có internal adapters tại `src/engines`: gọi statistical engine của shared-core và Python/scikit-learn load/predict artifact đã có; xác minh references/score rồi tạo candidates trong bộ nhớ. [Báo cáo và lệnh setup](../docs/backend/detector-integration-verification.md), [artifact/runtime](ml/README.md). CLI `npm run verify:detectors` chạy profile có nhãn thử nghiệm và ghi kết quả kiểm chứng; không ghi run/anomaly hoặc tạo API.
 
-**B5 vẫn chưa triển khai**. API count vẫn 11/20; chưa có Analysis routes/job/queue hoặc production policy/features/severity. Model được chọn chỉ là demo hai features x0/x1, không tự coi PM2.5 feature extraction đã xong. B1–B4 không tự khởi động Python hoặc tải model; Python/artifact chỉ cần cho bộ kiểm thử engines integration và CLI trước B5.
+Phần trên là bằng chứng D014 trước B5, giữ riêng với baseline mới. Model demo x0/x1 vẫn chỉ dành cho các tests/CLI legacy, không dùng cho API PM2.5.
+
+## B5 — Analysis async trên MongoDB — 15/11/2026
+
+Đã có3 operations Analysis, tổng14/20 online: POST `/api/v1/analysis-runs` trả202 snapshot queued, GET detail và GET history. Statistical zscore/iqr/moving_avg dùng simple-statistics thật trong worker thread; ML `isolation_forest`/config`{}` dùng baseline một feature PM2.5 `value` qua Python/scikit-learn1.9.1. MongoDB-backed worker có admission counter, lease/heartbeat/attempt fencing và crash recovery; không thêm Redis/BullMQ. Model train bằng CLI offline, không train/download khi khởi động, nhận request hoặc chạy job.
+
+Chủ dự án duyệt baseline/severity tạm low tại [D015](../docs/decisions.md#d015--hướng-worker-b5-15112026). [B5 verification/runbook](../docs/backend/b5-verification.md) mô tả setup Python/model, env, fault tests và giới hạn. Thiếu model không chặn startup/statistical nhưng POST ML trả503. B6/anomaly HTTP và Admin B7 chưa có; FE ML vẫn khóa, cần Tài tích hợp method/config mới. Không tuyên bố model đạt chất lượng domain hoặc SLA triển khai.
 
 ## Chạy từ thư mục gốc
 
@@ -30,7 +36,7 @@ npm start --workspace @pm25/server
 Invoke-RestMethod http://127.0.0.1:3001/api/v1/health
 ```
 
-Dev/start/indexes đọc `.env` ở root nếu tồn tại; biến môi trường đã set giữ ưu tiên của Node. `buildApp()` không đọc file env hoặc tự listen, không tự tạo/xóa index. `main.ts` quản lý listen và đóng HTTP/MongoDB khi nhận SIGINT/SIGTERM.
+Dev/start/indexes đọc `.env` ở root nếu tồn tại; biến môi trường đã set giữ ưu tiên của Node. `buildApp()` không đọc file env hoặc tự listen. Repository chuẩn bị index bắt buộc của nghiệp vụ; worker B5 khởi động khi app ready, claim qua MongoDB. `main.ts` quản lý listen và đóng worker/HTTP/MongoDB khi nhận SIGINT/SIGTERM.
 
 | Biến | Mặc định / ý nghĩa |
 |---|---|
@@ -168,6 +174,6 @@ npm run check
 
 `mongodb-memory-server` quản lý binary/process và thư mục test; driver gửi lệnh tới MongoDB thật. Lần đầu cài/chạy cần tải binary từ MongoDB. Lỗi tải/khởi động làm integration thất bại, không bỏ qua/chuyển mock. Test không dùng `MONGODB_URI` của người dùng hoặc sửa DB có sẵn; mongod tạm đóng sau suite.
 
-Coverage tính `src/**` trừ entrypoint `main.ts`; scripts CLI không nằm trong coverage. Báo cáo tại `server/coverage/` (gitignored). Unit service dùng test doubles có nhãn; integration B2 dùng scrypt/JWT/DB thật. Browser suite tự khởi tạo DB tạm, Backend và Vite online trên port tạm rồi dọn process, không đụng DB người dùng. Nếu Chromium chưa có, chạy `npx playwright install chromium` trong thư mục server. E2E thật bao phủ M2–M4; B5 Analysis trở đi còn chờ. Mapbox token/tiles thật vẫn chưa nghiệm thu. Test doubles/fault hooks chỉ dùng trong tests, main không bật; B3 E2E dùng file/API/DB thật, không intercept. Đã đo Query seed 100k/500k ở B4; chưa nghiệm thu load/stress, TLS hoặc SLA/peak memory trên triển khai thật.
+Coverage tính `src/**` trừ `main.ts`; scripts/Python không nằm trong coverage V8, worker thread có execution evidence riêng. Unit orchestration dùng test doubles có nhãn; integration dùng engine/scrypt/JWT/DB thật. Browser suite tự tạo DB tạm, Backend và Vite online, không đụng DB người dùng. Nếu Chromium chưa có, chạy `npx playwright install chromium` trong server. E2E thật bao phủ M2–M5 statistical/poll/history/reload; B6/B7 còn chờ. Mapbox token/tiles chưa nghiệm thu. Fault hooks chỉ qua DI tests, main không bật; không intercept HTTP để báo thành công. Query100k/500k và Analysis30k/500k đã có số đo; chưa nghiệm thu stress/TLS/SLA hoặc tổng memory gồm Python/MongoDB trên triển khai thật.
 
-Tham chiếu triển khai: [Fastify validation](https://fastify.dev/docs/latest/Reference/Validation-and-Serialization/), [Fastify routing lookup](https://fastify.dev/docs/latest/Reference/Server/#findroute), [Official Driver timeout](https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/csot/). Driver 7.9 dùng timeout theo giai đoạn; `timeoutMS` deprecated không được dùng làm bảo đảm timeout.
+Tham chiếu triển khai: [Fastify validation](https://fastify.dev/docs/latest/Reference/Validation-and-Serialization/), [Fastify routing lookup](https://fastify.dev/docs/latest/Reference/Server/#findroute), [Official Driver timeout](https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/csot/). Connection dùng timeout theo giai đoạn. B5 dùng thêm budget15s cho `session.withTransaction` theo API Driver7.9 đang kiểm chứng; không suy ra HTTP abort hủy ngay commit DB đang bay. Xem B5 runbook về deadline/commit không xác định.

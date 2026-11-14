@@ -1,4 +1,24 @@
-# Isolation Forest — integration before B5
+# Isolation Forest — B5 và phép thử D014
+
+## Baseline PM2.5 của B5 (D015)
+
+B5 dùng `pm25-iforest-uci381-v1`, một feature `value` ug/m3, scikit-learn1.9.1; không dùng model x0/x1 bên dưới. Model được tạo bằng CLI **offline** trên dữ liệu PM2.5 UCI381 do chủ dự án cho phép tự chọn. [Manifest](pm25-manifest.json) ghi provenance/hash/parameters/reference/runtime; [B5 runbook](../../docs/backend/b5-verification.md) ghi API, worker và giới hạn chất lượng.
+
+Setup từ root repo, Python3.11 (đã kiểm chứng3.11.9), môi trường riêng:
+
+```powershell
+py -3.11 -m venv .local/detector-venv
+.local/detector-venv/Scripts/python.exe -m pip install -r server/ml/requirements-pm25.txt
+.local/detector-venv/Scripts/python.exe server/ml/train_pm25_baseline.py --output-dir .local/models/pm25-iforest-v1 --manifest server/ml/pm25-manifest.json
+```
+
+CLI pin hash ZIP/CSV, kiểm tra runtime, không ghi đè artifact/manifest khác; lần đầu cần network để lấy dữ liệu, sau đó dùng cache đã kiểm tra hash. Artifact được giữ tại `.local/models/pm25-iforest-v1/isolation_forest.joblib` (gitignored), đã tạo trong workspace này. Khi triển khai, copy **artifact đã tin cậy, đúng hash** ra persistent volume và set `ANALYSIS_ARTIFACT`; venv qua `ANALYSIS_PYTHON` absolute path. Package `server/ml` cùng build `server/dist`, vì inference script và manifest là runtime assets; không chỉ copy dist. Linux venv dùng `bin/python`, đặt env tương ứng.
+
+Backend không gọi CLI training/download. Thiếu/hỏng model/runtime: trước tiếp nhận ML→503, sau tiếp nhận→run failed; không fallback hoặc train lại. Inference kiểm tra hash manifest khớp hash/model ID pin của build rồi kiểm tra verified artifact bytes trước joblib.load. Không nhận model/path/feature config từ HTTP.
+
+Inference cố định `method=isolation_forest`, `config={}`, flag theo predict=-1, score=-decision_function, severity low tạm. Một feature không mô hình hóa quan hệ không gian/thời gian; không có anomaly labels để suy ra accuracy/precision/recall. Khải còn đánh giá domain/chuyển miền. Các tham số train do CLI ghi rõ, không phải config có thể sửa qua API.
+
+## Demo D014 trước B5 — giữ riêng cho regression tests
 
 Owner thuật toán/model: Khải; Backend adapter: Khiêm; môi trường/CI: Cường. [D014](../../docs/decisions.md#d014--tích-hợp-thư-viện-trước-b5-15112026) chỉ chốt tích hợp thư viện và phép thử, chưa chốt model/feature/runtime production hoặc triển khai B5.
 

@@ -7,9 +7,11 @@ export interface IsolationPoint { readingId: string; prediction: 1 | -1; decisio
 export interface ScoreProjection { id: string; score: (point: Readonly<IsolationPoint>) => number }
 export interface IsolationOptions extends Omit<PythonRunnerOptions, 'args'> {
   artifactPath: string; manifestPath: string; modelId: string; sklearnVersion: string; features: readonly string[];
+  artifactSha256?: string;
 }
 export function createIsolationForestAdapter(options: IsolationOptions) {
-  const run = createPythonRunner({ ...options, args: ['--manifest', options.manifestPath, '--artifact', options.artifactPath] });
+  const run = createPythonRunner({ ...options, args: ['--manifest', options.manifestPath, '--artifact', options.artifactPath,
+    ...(options.artifactSha256 ? ['--expected-sha256', options.artifactSha256, '--expected-model-id', options.modelId] : [])] });
   return async (readings: readonly Reading[], rows: readonly FeatureRow[], projection: ScoreProjection, signal?: AbortSignal) => {
     const input = validateReadings(readings), ids = new Set<string>();
     if (!rows.length || !projection.id || rows.length !== input.size) throw new EngineError('ENGINE_INPUT_INVALID', 'Explicit complete features and score projection are required.');

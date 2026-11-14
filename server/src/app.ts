@@ -13,18 +13,26 @@ import { datasetRoutes } from './modules/datasets/index.js';
 import { queryRoutes } from './modules/query/index.js';
 import { HttpError } from './shared/http/errors.js';
 import type { ImportTestHooks } from './modules/datasets/import.types.js';
+import { analysisRoutes } from './modules/analysis/index.js';
+import type { AnalysisEngine, AnalysisTestHooks } from './modules/analysis/analysis.types.js';
 
 interface AppOptions {
   config?: ServerConfig;
   logger?: FastifyServerOptions['logger'];
   verifyAccessToken?: VerifyAccessToken;
   importTestHooks?: ImportTestHooks;
+  analysisTestHooks?: AnalysisTestHooks;
+  analysisTestEngine?: AnalysisEngine;
+  analysisWorkerEnabled?: boolean;
 }
 
 export function buildApp(options: AppOptions = {}) {
   const config = options.config ?? loadConfig();
   const app = Fastify({
     exposeHeadRoutes: false,
+    // OpenAPI lifecycle branches inherit type:object from the parent schema.
+    // AJV strictTypes warns on these valid branches during response compilation.
+    serializerOpts: { ajv: { strictTypes: false } },
     schemaController: { compilersFactory: { buildValidator: buildHttpValidator } },
     logger: options.logger === false ? false : {
       level: config.logLevel,
@@ -59,5 +67,10 @@ export function buildApp(options: AppOptions = {}) {
   app.register(datasetRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret, imports: config.imports,
     ...(options.importTestHooks ? { importTestHooks: options.importTestHooks } : {}) });
   app.register(queryRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret });
+  app.register(analysisRoutes, { prefix: '/api/v1', config: config.analysis, cursorSecret: config.cursorSecret,
+    ...(options.analysisTestHooks ? { testHooks: options.analysisTestHooks } : {}),
+    ...(options.analysisTestEngine ? { testEngine: options.analysisTestEngine } : {}),
+    ...(options.analysisWorkerEnabled !== undefined ? { workerEnabled: options.analysisWorkerEnabled } : {}),
+  });
   return app;
 }

@@ -14,7 +14,10 @@ export const onlineIndexes: Record<string, IndexDescription[]> = {
     { key: { datasetId: 1, ts: 1, _id: 1 }, name: 'ix_readings_dataset_ts_id' },
     { key: { datasetId: 1, location: '2dsphere' }, name: 'ix_readings_dataset_geo' },
   ],
-  analysisRuns: [{ key: { datasetId: 1, createdAt: -1, _id: -1 }, name: 'ix_runs_dataset_created' }],
+  analysisRuns: [
+    { key: { datasetId: 1, createdAt: -1, _id: -1 }, name: 'ix_runs_dataset_created' },
+    { key: { status: 1, leaseUntil: 1, createdAt: 1 }, name: 'ix_runs_claim' },
+  ],
   anomalies: [
     { key: { analysisRunId: 1, readingId: 1 }, unique: true, name: 'uq_anomalies_run_reading' },
     { key: { datasetId: 1, ts: 1, _id: 1 }, name: 'ix_anomalies_dataset_ts_id' },

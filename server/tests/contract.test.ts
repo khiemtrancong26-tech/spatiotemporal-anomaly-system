@@ -9,6 +9,7 @@ import { userPublicSchema, userResponseSchema } from '../src/modules/users/users
 import { loginRequestSchema, loginResponseSchema, registerRequestSchema } from '../src/modules/auth/auth.schema.js';
 import { datasetPageSchema, datasetSchema, importSummarySchema, mappingRequestSchema, singleDatasetSchema, validationReportSchema } from '../src/modules/datasets/datasets.schema.js';
 import { sensorSchema, readingSchema, sensorPageSchema, readingPageSchema, sensorsQuerySchema, readingsQuerySchema } from '../src/modules/query/query.schema.js';
+import { detectionRequestSchema, analysisRunSchema, analysisResponseSchema, analysisPageSchema, historyQuerySchema } from '../src/modules/analysis/analysis.schema.js';
 
 describe('foundation contract drift checks', () => {
   it('keeps B2 request/response schemas aligned without tightening open DTO constraints', async () => {
@@ -25,8 +26,9 @@ describe('foundation contract drift checks', () => {
       Dataset: datasetSchema, DatasetPage: datasetPageSchema, ImportSummary: importSummarySchema,
       MappingRequest: mappingRequestSchema, SingleDataset: singleDatasetSchema, ValidationReport: validationReportSchema,
       Sensor: sensorSchema, Reading: readingSchema, SensorPage: sensorPageSchema, ReadingPage: readingPageSchema,
+      DetectionRequest: detectionRequestSchema, AnalysisRun: analysisRunSchema, AnalysisCreateResponse: analysisResponseSchema, AnalysisRunPage: analysisPageSchema,
     })) expect(expand(schema)).toEqual(expand(spec.components.schemas[name]));
-    for (const [path, schema] of [['/api/v1/sensors', sensorsQuerySchema], ['/api/v1/readings', readingsQuerySchema]] as const) {
+    for (const [path, schema] of [['/api/v1/sensors', sensorsQuerySchema], ['/api/v1/readings', readingsQuerySchema], ['/api/v1/analysis-runs', historyQuerySchema]] as const) {
       const parameters = spec.paths[path].get.parameters as { name: string; required: boolean; schema: unknown }[];
       expect(schema.required).toEqual(parameters.filter(parameter => parameter.required).map(parameter => parameter.name));
       expect(expand(schema.properties)).toEqual(expand(Object.fromEntries(parameters.map(parameter => [parameter.name, parameter.schema]))));
@@ -58,6 +60,6 @@ describe('foundation contract drift checks', () => {
     }
     expect(names).not.toContain('ix_anomalies_sync_updated');
     expect(names).not.toContain('uq_mutations_client_id');
-    expect(names).toHaveLength(13);
+    expect(names).toHaveLength(14);
   });
 });

@@ -157,7 +157,8 @@ describe('B4 Query HTTP on actual B3 imports and MongoDB replica set', () => {
     for (const time of ['2026-11-14T07:00:00+07:00', '2026-11-14T00:00:00.1234Z']) expect((await f.get('readings', { datasetId, from: time })).statusCode).toBe(422);
     expect((await f.get('readings', { datasetId, from: '2026-11-15T00:00:00Z', to: '2026-11-14T00:00:00Z' })).statusCode).toBe(422);
     expect((await f.app.inject({ url: `/api/v1/readings?datasetId=${datasetId}&datasetId=other`, headers: f.headers })).statusCode).toBe(400);
-    for (const kind of ['reading-aggregates', 'reading-batches', 'exports', 'review-changes', 'anomalies', 'analysis-runs']) expect((await f.get(kind)).statusCode).toBe(404);
+    for (const kind of ['reading-aggregates', 'reading-batches', 'exports', 'review-changes', 'anomalies']) expect((await f.get(kind)).statusCode).toBe(404);
+    expect((await f.get('analysis-runs', { datasetId })).statusCode).toBe(200); // Implemented in B5.
   });
   it('does not claim snapshot pagination when readings change between pages', async () => {
     const f = await fixture(), datasetId = await f.ready();

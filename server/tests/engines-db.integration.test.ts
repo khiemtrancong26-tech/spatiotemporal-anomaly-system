@@ -27,7 +27,7 @@ afterAll(async () => {
   if (!directory.startsWith(resolve(tmpdir()) + sep) || !directory.includes('pm25-engine-db-')) throw new Error('Unsafe cleanup');
   await rm(directory, { recursive: true, force: true });
 });
-it('feeds actual imported/query DTOs into all library adapters and creates linked in-memory candidates without B5 persistence/routes', async () => {
+it('feeds actual imported/query DTOs directly into all library adapters without persisting adapter candidates', async () => {
   const userId = new ObjectId();
   await app.mongo.db.collection('users').insertOne({ _id: userId, username: 'Engine integration fixture', role: 'analyst', isActive: true });
   const headers = { authorization: `Bearer ${await createTokens(loadTestConfig().jwtSecret).issue(userId.toHexString())}` };
@@ -59,5 +59,5 @@ it('feeds actual imported/query DTOs into all library adapters and creates linke
   expect(ml.candidates[0]).toMatchObject({ datasetId, sensorId: last.sensorId, ts: last.ts, value: 100 });
   expect(await app.mongo.db.collection('analysisRuns').countDocuments({})).toBe(0);
   expect(await app.mongo.db.collection('anomalies').countDocuments({})).toBe(0);
-  for (const method of ['GET', 'POST'] as const) expect((await app.inject({ method, url: '/api/v1/analysis-runs', headers })).statusCode).toBe(404);
+  expect((await app.inject({ url: `/api/v1/analysis-runs?datasetId=${datasetId}`, headers })).json().data).toEqual([]);
 }, 60000);

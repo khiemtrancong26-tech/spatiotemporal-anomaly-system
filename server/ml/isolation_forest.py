@@ -13,8 +13,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--artifact", required=True)
+    parser.add_argument("--expected-sha256")
+    parser.add_argument("--expected-model-id")
     args = parser.parse_args()
     manifest = json.loads(Path(args.manifest).read_text())
+    if (args.expected_sha256 and manifest["sha256"] != args.expected_sha256) or (args.expected_model_id and manifest["id"] != args.expected_model_id):
+        raise ValueError("MODEL_INTEGRITY_ERROR")
     if version("scikit-learn") != manifest["sklearnVersion"]:
         raise ValueError("MODEL_RUNTIME_MISMATCH")
     for dependency, expected in manifest["runtime"].items():
