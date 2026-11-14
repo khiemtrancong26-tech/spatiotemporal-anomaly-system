@@ -164,15 +164,15 @@ Các checkbox là việc cần thực hiện, chưa đánh dấu hoàn thành ch
 
 ### M5 — Analysis online bất đồng bộ và lịch sử
 
-Theo D008: cả statistical và ml dùng async; API Contract v0.3.0-draft. Đã triển khai FE lifecycle/history/results và form thống kê cố định. Isolation Forest khóa riêng ML chờ contract API theo xác nhận 14/11; chưa nghiệm thu Backend thật.
+Theo D008: cả statistical và ml dùng async; API Contract v0.3.0-draft. Đã triển khai FE lifecycle/history/results và form thống kê cố định. Isolation Forest đã bật theo D015 (15/11): `family=ml`, `method=isolation_forest`, `config={}`; FE chưa nghiệm thu kết nối ML với Backend thật.
 
-- [x] Form cố định theo người dùng chốt: zscore/threshold=3, iqr/multiplier=1.5; Isolation Forest khóa riêng ML vì chưa có method/config API. Điều kiện dữ liệu/mã lỗi do Server kiểm tra; không thêm severity thresholds.
+- [x] Form cố định theo người dùng chốt: zscore/threshold=3, iqr/multiplier=1.5; Isolation Forest gửi ml/isolation_forest với config rỗng theo D015, không gửi tham số train/model version. Điều kiện dữ liệu/mã lỗi do Server kiểm tra; không thêm severity thresholds.
 - [x] Xác nhận snapshot dataset/scope.sensorIds/from/to trước gửi; bbox cần resolve đủ trạm và chốt tập rỗng/giới hạn. Không lấy 2.000 readings đang render hoặc trang sensors đầu làm toàn bộ input.
 - [x] POST `/analysis-runs` với UUID key và payload bất biến cho một ý định; `202 {data: AnalysisRun}` chỉ là tiếp nhận. Không đọc anomalies từ response POST. Key/snapshot chờ tiếp nhận giữ tối thiểu trong sessionStorage theo phiên; không outbox, không tự resend khi mạng phục hồi.
 - [x] Hiển thị queued/running/completed/failed riêng với trạng thái kết nối theo dõi. Mất mạng/timeout không đổi run thành failed; không phần trăm/ETA giả. HTTP lỗi trước tiếp nhận khác job error sau tiếp nhận.
 - [x] Poll `GET /analysis-runs/{id}` có một request đang bay, backoff/jitter, chống response cũ, dừng ở terminal/logout/rời màn. Quay lại đọc trạng thái mới; Đã chốt poll 3 giây khi tab hiện, backoff tối đa 30 giây có jitter; ẩn tab tạm dừng, hiện lại đọc ngay. Hủy chờ không hủy job Server.
 - [x] Giữ run ID trong URL/ngữ cảnh điều hướng; reload đọc lại Server, history theo dataset là đường chọn lại run khi không còn ngữ cảnh tab. Không lấy bộ lọc hiện tại làm scope run cũ. Không scan history để thay GET detail.
-- [x] POST mất response: báo chưa xác định, API thật khóa retry khi chưa chốt retention; demo cho retry cùng key/payload trong 15 phút; không tạo key mới. Đã có ID thì GET để tiếp tục theo dõi. Hết key/snapshot/retention phải đối soát, không tự tạo run thay thế. Chạy lại sau failed là ý định mới do người dùng xác nhận, không tự rerun.
+- [x] POST mất response: báo chưa xác định; FE hiện vẫn khóa retry API thật, nối replay 24h của D015 cần kiểm chứng riêng; demo cho retry cùng key/payload trong 15 phút; không tạo key mới. Đã có ID thì GET để tiếp tục theo dõi. Hết key/snapshot/retention phải đối soát, không tự tạo run thay thế. Chạy lại sau failed là ý định mới do người dùng xác nhận, không tự rerun.
 - [x] Chỉ sau completed tải `GET /anomalies` theo datasetId/analysisRunId, phân trang và nối tab/lớp 3D. GET lỗi không đồng nghĩa zero anomalies. Không công bố partial/failed như kết quả hoàn chỉnh.
 - [x] History hiển thị mọi status, scope, config/method và version nếu có; run failed có lỗi an toàn. Phân biệt thiếu dữ liệu/config lỗi/model chưa sẵn sàng theo contract detector, không tự gán thành completed rỗng.
 - [x] Tra cứu/filter/renderer vẫn tương tác được trong lúc job chạy; đổi bộ lọc không thay scope run đã gửi. Đổi dataset/run hủy theo dõi cũ và không trộn kết quả.

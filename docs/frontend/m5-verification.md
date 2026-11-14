@@ -10,7 +10,7 @@ Ngày 14/11/2026. Phạm vi frontend online + shared contract; không triển kh
 
 ## M5 đã triển khai theo xác nhận của người dùng
 
-- Presets thật: statistical/zscore `{threshold:3}`, statistical/iqr `{multiplier:1.5}`. Không chỉnh tham số. Isolation Forest hiển thị nhưng khóa gửi riêng ML do chưa có method/config API. Server kiểm tra điều kiện dữ liệu và trả lỗi; FE không tự đặt số mẫu/variance/severity.
+- Presets thật: statistical/zscore `{threshold:3}`, statistical/iqr `{multiplier:1.5}`. Không chỉnh tham số. Isolation Forest đã bật ngày 15/11 theo D015: ml/isolation_forest `config={}`; thay thế khóa ML của D009. Server kiểm tra điều kiện dữ liệu và trả lỗi; FE không tự đặt số mẫu/variance/severity.
 - Snapshot dataset/trạm/from/to bất biến khi submit, key UUID và snapshot giữ trong sessionStorage theo mode/user/dataset. Bbox chặn gửi theo lựa chọn đã chốt. Không dùng tập readings đang render làm input. Logout/401 xóa ngữ cảnh cùng phiên.
 - Online POST mới được gửi, nhưng nếu mất phản hồi thì khóa retry vì retention thật chưa chốt; không tự đổi key. Mock hỗ trợ retry cùng key/payload trong 15 phút. Nhận ID thì theo dõi bằng GET; tạo lần chạy mới là hành động chủ động có xác nhận.
 - Run ID trong URL `?runId=...`; restore/login/reload đọc lại run. History sort/cursor, nút làm mới và giới hạn phiên 2.000 runs. Poll 3 giây khi hiện, lỗi backoff có jitter tối đa 30 giây, tab ẩn tạm dừng; không overlap, bỏ response trễ và dừng khi terminal/logout/rời màn. 401/403/404 ngừng poll tự động, có đọc lại chủ động. Timeout request 20 giây không hủy job Server.
@@ -28,4 +28,12 @@ Ngày 14/11/2026. Phạm vi frontend online + shared contract; không triển kh
 
 ## Giới hạn nghiệm thu
 
-E2E online dùng HTTP interception, demo dùng mock, không có Backend thật. Chưa chứng minh worker/queue, persistence/restart/idempotency retention, detector execution hoặc concurrency. ML chờ method/config API/model version; điều kiện dữ liệu và mã lỗi cụ thể chưa chốt. Không đánh dấu nghiệm thu ML/Backend thật xong. Build vẫn có cảnh báo Three.js chunk lớn như M4; không che cảnh báo bằng đổi ngưỡng.
+E2E online dùng HTTP interception, demo dùng mock, không có Backend thật. Chưa chứng minh worker/queue, persistence/restart/idempotency retention, detector execution hoặc concurrency. D015 đã chốt/triển khai baseline Backend; FE hiển thị modelVersion và lỗi do Server trả, không tự chọn model hoặc điều kiện dữ liệu. Không đánh dấu nghiệm thu ML/Backend thật xong. Build vẫn có cảnh báo Three.js chunk lớn như M4; không che cảnh báo bằng đổi ngưỡng.
+
+
+## Cập nhật Isolation Forest — 15/11/2026
+
+- Mở lựa chọn ML và xác nhận/gửi analysis với `family=ml`, `method=isolation_forest`, `config={}`. Không thêm tham số train hoặc model version vào request. Hiển thị giới hạn baseline value-only và severity low tạm thời theo D015.
+- Dùng chung scope snapshot, idempotency key, history, polling, reload và results gate của M5. Model version lấy từ response; failed hiển thị mã lỗi Server. Bbox vẫn chặn gửi. Đợt này chỉ bật detector; FE tiếp tục khóa retry online unknown, chưa nối cửa sổ replay 24h đã chốt ở D015.
+- Kiểm chứng FE hiện tại: typecheck/lint, 76 tests và production build đạt. E2E mới kiểm tra payload/key ML, bắt buộc xác nhận, queued/running, reload không POST lại, modelVersion, completed mới đọc kết quả và failed/MODEL_UNAVAILABLE không đọc kết quả. HTTP interception không thay thế kiểm thử FE kết nối Backend thật hoặc đánh giá chất lượng model.
+- Kết quả E2E cuối: **20/20 đạt** (regression M2–M7 và 2 ca ML mới), chạy `npm run test:e2e` với `VITE_MAPBOX_TOKEN` rỗng trong environment của tiến trình test để kiểm tra fallback thiếu token. Lượt dùng token local trước đó đạt 19/20, chỉ ca M4 giả định thiếu token thất bại; không sửa cấu hình token local.

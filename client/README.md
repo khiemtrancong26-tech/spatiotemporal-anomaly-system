@@ -101,7 +101,7 @@ Xem [M4 verification](../docs/frontend/m4-verification.md). Workspace tải read
 
 ## D008 / M5 đã migrate (14/11/2026)
 
-Generated types/schema, adapter create/get/list, mock và shared-core đã cập nhật D008. Xem [M5 verification](../docs/frontend/m5-verification.md). Form thật gửi zscore `{threshold:3}` hoặc iqr `{multiplier:1.5}`; ML Isolation Forest khóa chờ method/config API. History và run deep-link dùng `?runId=...`, poll có backoff/visibility, kết quả chỉ tải sau completed. Bbox chặn gửi; retry unknown POST thật khóa vì retention chưa chốt. Mock mô phỏng lifecycle/replay trong RAM, không engine/database; reload mất run demo mới, fixture lịch sử vẫn có. Backend thật/ML chưa nghiệm thu.
+Generated types/schema, adapter create/get/list, mock và shared-core đã cập nhật D008. Xem [M5 verification](../docs/frontend/m5-verification.md). Form thật gửi zscore `{threshold:3}` hoặc iqr `{multiplier:1.5}`; ML Isolation Forest đã bật theo D015: `family=ml`, `method=isolation_forest`, `config={}`, model do Server quản lý. History và run deep-link dùng `?runId=...`, poll có backoff/visibility, kết quả chỉ tải sau completed. Bbox chặn gửi; FE vẫn khóa retry unknown POST thật trong đợt bật ML này; nối replay 24h của D015 cần kiểm chứng riêng. Mock mô phỏng lifecycle/replay trong RAM, không engine/database; reload mất run demo mới, fixture lịch sử vẫn có. Backend thật/ML chưa nghiệm thu.
 
 ## M6
 

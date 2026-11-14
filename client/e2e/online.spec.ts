@@ -241,7 +241,8 @@ test('M5 restores run, distinguishes tracking failure and loads results only aft
   await page.goto('/workspace/dataset-001?runId=run-001');
   await expect(page.getByTestId('run-status')).toContainText('queued'); expect(resultCalls).toBe(0);
   await page.getByLabel('Phương pháp', { exact: true }).selectOption('ml');
-  await expect(page.getByRole('button', { name: 'Gửi analysis', exact: true })).toBeDisabled();
+  await expect(page.getByRole('checkbox')).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Gửi analysis', exact: true })).toBeDisabled(); // Needs explicit confirmation for ML too.
   await page.getByLabel('Phương pháp', { exact: true }).selectOption('zscore');
   status = 'running'; await page.getByRole('button', { name: 'Đọc lại run' }).click(); await expect(page.getByTestId('run-status')).toContainText('running');
   disconnected = true; await page.getByRole('button', { name: 'Đọc lại run' }).click(); await expect(page.getByRole('alert')).toContainText('Chưa cập nhật'); await expect(page.getByTestId('run-status')).toContainText('running');
@@ -427,3 +428,58 @@ test('M7 online keeps rejected PATCH draft and logs out a disabled current admin
   await expect(page.getByRole('heading', { name: 'Đăng nhập', exact: true })).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem('pm25.auth.online'))).toBeNull();
 });
+
+for (const terminal of ['completed', 'failed'] as const) {
+  test(`M5 Isolation Forest submits approved contract and restores ${terminal} run`, async ({ page }) => {
+    const sent: { key?: string; body: Record<string, unknown> }[] = [];
+    let status: 'queued' | 'running' | 'completed' | 'failed' = 'queued';
+    let results = 0;
+    const body = { datasetId: 'dataset-001', family: 'ml', method: 'isolation_forest', config: {}, scope: {} };
+    const run = () => ({ ...(fixture('analysis-detail') as { data: Record<string, unknown> }).data, ...body,
+      id: 'ml-run', status, modelVersion: 'server-model-v1',
+      completedAt: status === 'completed' || status === 'failed' ? '2026-11-15T00:00:00.000Z' : undefined,
+      error: status === 'failed' ? { code: 'MODEL_UNAVAILABLE', message: 'Model is unavailable' } : undefined });
+    await page.route('http://localhost:3001/api/v1/**', async route => {
+      const request = route.request(), path = new URL(request.url()).pathname;
+      if (path.endsWith('/analysis-runs') && request.method() === 'POST') {
+        sent.push({ key: request.headers()['idempotency-key'], body: request.postDataJSON() });
+        return route.fulfill({ status: 202, json: { data: run() } });
+      }
+      if (path.endsWith('/analysis-runs/ml-run')) return route.fulfill({ json: { data: run() } });
+      if (path.endsWith('/anomalies')) {
+        results++;
+        expect(status).toBe('completed');
+        expect(new URL(request.url()).searchParams.get('analysisRunId')).toBe('ml-run');
+        return route.fulfill({ json: { data: [], page: { limit: 100, nextCursor: null } } });
+      }
+      const id = path.endsWith('/auth/tokens') ? 'login' : path.endsWith('/users/me') ? 'me' : path.endsWith('/analysis-runs') ? 'analysis-list' : path.endsWith('/sensors') ? 'sensors' : 'readings';
+      return route.fulfill({ json: fixture(id) });
+    });
+    await page.goto('/workspace/dataset-001');
+    await page.getByLabel('Tên đăng nhập', { exact: true }).fill('analyst01');
+    await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password');
+    await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+    await page.getByRole('button', { name: 'Analysis', exact: true }).click();
+    await page.getByLabel('Phương pháp', { exact: true }).selectOption('ml');
+    await expect(page.getByText('Method/config: isolation_forest {}')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Gửi analysis', exact: true })).toBeDisabled();
+    await page.getByRole('checkbox').check();
+    await page.getByRole('button', { name: 'Gửi analysis', exact: true }).click();
+    await expect(page.getByTestId('run-status')).toContainText('queued');
+    expect(sent).toHaveLength(1); expect(sent[0].body).toEqual(body); expect(sent[0].key).toMatch(/^[0-9a-f-]{36}$/i);
+    await expect(page.getByLabel('Phương pháp', { exact: true })).toBeDisabled();
+    expect(results).toBe(0);
+    status = 'running';
+    await page.getByRole('button', { name: 'Đọc lại run' }).click();
+    await expect(page.getByTestId('run-status')).toContainText('running');
+    await page.reload();
+    await expect(page.getByTestId('run-status')).toContainText('running');
+    await expect(page.getByText('Engine:', { exact: false })).toContainText('server-model-v1');
+    expect(sent).toHaveLength(1); expect(results).toBe(0);
+    status = terminal;
+    await page.getByRole('button', { name: 'Đọc lại run' }).click();
+    await expect(page.getByTestId('run-status')).toContainText(terminal);
+    if (terminal === 'completed') await expect(page.getByText('Run hoàn tất, không phát hiện anomaly.')).toBeVisible();
+    else { await expect(page.getByRole('alert')).toContainText('MODEL_UNAVAILABLE'); expect(results).toBe(0); }
+  });
+}

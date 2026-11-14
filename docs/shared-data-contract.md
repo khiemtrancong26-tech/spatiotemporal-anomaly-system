@@ -139,4 +139,4 @@ S01,10.7769,106.7009,2026-11-11T08:00:00+07:00,25.5,ug/m3
 
 > **Quan trọng:** Bước 2 **chốt dữ liệu cốt lõi**, nhưng chưa chốt REST paths, mã HTTP, JSON envelope, field phân trang hay cấu trúc MongoDB tối ưu. Các nội dung đó thuộc Bước 3 API Contract / phần physical database tiếp theo.
 
-**D009 (14/11/2026):** FE M5 dùng zscore `{threshold:3}` và iqr `{multiplier:1.5}` cố định. Isolation Forest đã chọn thuật toán nhưng method/config API/model version chưa chốt nên khóa gửi riêng ML. Shared Zod có scope/lifecycle D008; engine chưa triển khai, điều kiện dữ liệu/mã lỗi do Backend kiểm tra theo contract cần chốt.
+**D009 → D015 (15/11/2026):** FE M5 dùng zscore `{threshold:3}`, iqr `{multiplier:1.5}` cố định và đã bật `family=ml`, `method=isolation_forest`, `config={}`. D015 thay thế quyết định khóa ML trước đây: model PM2.5 dùng feature `value` ug/m3 do Server quản lý; modelVersion chỉ hiển thị khi Server trả. Shared Zod giữ scope/lifecycle D008; policy/điều kiện dữ liệu và lỗi do Backend kiểm tra. Xem [D015](decisions.md) và [B5 verification](backend/b5-verification.md).
