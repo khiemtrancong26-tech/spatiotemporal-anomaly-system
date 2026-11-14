@@ -44,7 +44,7 @@
 ### 1.4. ML inference và phân biệt Worker
 
 - **Đã chốt:** ML inference dùng model đã huấn luyện trước và **chạy phía Server**; không chạy trên trình duyệt mỗi người dùng. **Browser Web Worker** (Duy/Khải) chỉ xử lý thống kê offline.
-- **Đã chốt hướng OPEN-06 — D008 (13/11/2026):** Analysis online dùng job `queued/running/completed/failed` cho cả statistical/ml, tiếp nhận và thực thi tách rời. Worker/cơ chế nền thuộc Server, giới hạn concurrency; công nghệ queue và process/thread topology, recovery/retention và mức tải còn cần owner chốt. Không mặc định Redis/BullMQ/Kafka/Spark.
+- **Đã chốt hướng OPEN-06 — D008 (13/11/2026):** Analysis online dùng job `queued/running/completed/failed` cho cả statistical/ml, tiếp nhận và thực thi tách rời. Worker/cơ chế nền thuộc Server, giới hạn concurrency; công nghệ queue và process/thread topology, recovery/retention và mức tải còn cần owner chốt. **Redis + BullMQ là ứng viên đánh giá ở B5, chưa chốt công nghệ.** Không mặc định Kafka/Spark.
 - Worker vẫn dùng CPU/RAM Server; async không phải bằng chứng giảm tài nguyên hoặc hệ thống cũ quá tải. `POST /api/v1/analysis-runs` trả 202 tiếp nhận, không anomalies; GET detail/history dùng cùng DTO. Completed chỉ sau persist đầy đủ. Chi tiết [D008](decisions.md#d008--analysis-online-bất-đồng-bộ). Upload/Import giữ đồng bộ.
 
 ## 2. Module Boundary & Responsibility
@@ -75,7 +75,7 @@
 | Client UI / 3D | `dataSource` của Duy, UI state, shared public types; **Mapbox GL JS gọi Mapbox-hosted APIs trực tiếp bằng public token** | MongoDB trực tiếp; gọi `/api` tùy tiện trong renderer; xử lý outbox/sync trong component bản đồ; lưu secret Mapbox token |
 | Client Offline / Data Source | API qua Nginx, IndexedDB/Dexie, Cache Storage, Worker, public schemas | Logic và state nội bộ riêng của Mapbox/Cube; gọi ML inference khi offline |
 | Client Web Worker | Statistical detectors, kiểu dữ liệu thuộc `shared-core` | Fastify, MongoDB, DOM/window, model ML trên Server |
-| Backend Fastify | MongoDB driver/ODM (còn mở lựa chọn), `shared-core`, server ML adapter, HTTP APIs; module route/service/repository theo public interface | Import module/DOM/Worker của Browser; feature tự truy cập repository nội bộ của feature khác; phụ thuộc ngược service vào route |
+| Backend Fastify | MongoDB Official Node.js Driver (`mongodb`, đã chốt tại D010), `shared-core`, server ML adapter, HTTP APIs; module route/service/repository theo public interface | Import module/DOM/Worker của Browser; feature tự truy cập repository nội bộ của feature khác; phụ thuộc ngược service vào route |
 | `shared-core` | TypeScript thuần, Zod và tiện ích không phụ thuộc runtime | Fastify, MongoDB, `window`, `document`, Service Worker, Node-only API |
 | Infra | Build/start/health của Client và Server, file cấu hình | Truy cập nghiệp vụ thông qua role Server Administrator giả định trong JWT |
 
@@ -204,14 +204,14 @@ project-root/                           # Monorepo đã dựng
 
 **Nguồn máy đọc:** [`api/openapi.yaml`](api/openapi.yaml); cách dùng, trạng thái và các ngoại lệ: [`api/README.md`](api/README.md).
 
-- Backend và Client trao đổi qua `/api/...`, bearer JWT, JSON camelCase, ID opaque, GeoJSON `[lon,lat]`, UTC `Z`.
+- Backend và Client trao đổi qua **`/api/v1/...`** theo OpenAPI hiện hành, bearer JWT, JSON camelCase, ID opaque, GeoJSON `[lon,lat]`, UTC `Z`. Các URL `/api/...` trong bản mô tả lịch sử không phải alias được triển khai.
 - `POST /api/v1/auth/tokens`, `POST /api/v1/auth/register`, `GET /api/v1/health` public; các API nghiệp vụ chỉ `analyst/admin`; `/api/v1/admin/users` chỉ admin. Không còn viewer.
 - Register bổ sung một handler trong module Auth và một trang `/register`: chỉ nhận username/password, tái sử dụng User, validation, password hashing và quy tắc username duy nhất của luồng tạo tài khoản; Server cố định role analyst, từ chối role do client gửi. Trùng username trả 409; thành công 201 trả UserPublic trong `{data}`, không token, FE chuyển về Login. Không đổi JWT/RBAC, MongoDB hay luồng Admin.
 - Các nhóm chức năng: Auth, Import/Dataset, Sensor/Reading Query, Analysis/Anomaly, Export/Sync, Admin. Phân trang bounded với opaque cursor.
 - BR-08 báo duplicate/conflict và giữ first valid row; BR-15 dùng baseVersion; BR-16 dùng clientMutationId và idempotent receipt.
-- `GET /api/export` trả dữ liệu theo trang/phạm vi cho Duy cache, không có bảo đảm toàn dataset được tải chỉ bởi một trang.
+- `GET /api/v1/exports` là contract offline prefetch **hoãn ngoài P0 online**; không có bảo đảm toàn dataset được tải chỉ bởi một trang; cần phối hợp Duy trước khi triển khai.
 - Analysis async: `POST /api/v1/analysis-runs` → 202; `GET /api/v1/analysis-runs/{id}` → 200; GET history và anomalies phân trang giữ lại. Không có cancel/retry-job endpoint hoặc progress %; retry tiếp nhận giữ key/payload. API Contract v0.3.0-draft chưa phải implementation.
-- `POST /api/readings/bulk` đánh dấu `x-internal`; UI không trực tiếp gọi. `GET /api/readings/aggregate` P1.
+- `POST /api/v1/reading-batches` đánh dấu `x-internal` và **hoãn HTTP handler P0**; Import gọi Service/Repository nội bộ, không qua HTTP. `GET /api/v1/reading-aggregates` P1, cũng hoãn.
 
 **Quyền sở hữu:** Khiêm viết Backend/OpenAPI; Tài dùng API list/analysis/review; Duy dùng export/sync; Khải kiểm tra tương ứng `shared-core` và methods.
 
@@ -220,7 +220,7 @@ project-root/                           # Monorepo đã dựng
 **Tài liệu:** [`mongodb-physical-design.md`](mongodb-physical-design.md).  
 **Index script đề xuất:** [`../infra/mongo/indexes.js`](../infra/mongo/indexes.js).
 
-- 7 collections: `users`, `datasets`, `sensors`, `readings`, `analysisRuns`, `anomalies`, `processedMutations`.
+- 7 collections: `users`, `datasets`, `sensors`, `readings`, `analysisRuns`, `anomalies`, `processedMutations` (**processedMutations** thuộc sync tương lai, không tự dùng làm receipt của POST online). **B0 chốt Official MongoDB Driver (`mongodb`), không Mongoose**; chỉ Repository/Mongo plugin truy cập BSON.
 - ObjectId ở persistence, string opaque ở API; BSON Date trong DB → ISO Z ở API; GeoJSON `[lon,lat]`. Sensor/Reading/Anomaly tách riêng.
 - Unique `(datasetId,externalId)` cho Sensor; `(datasetId,sensorId,ts)` cho Reading; `(analysisRunId,readingId)` cho Anomaly; `clientMutationId` cho sync receipt.
 - `datasets.status` là **visibility gate** khi import theo batch; không dùng một transaction khổng lồ cho 500k readings.
@@ -234,7 +234,21 @@ project-root/                           # Monorepo đã dựng
 2. Khiêm ↔ Duy: Export page boundaries, cache coverage, sync conflict/receipt/checkpoint.
 3. Khiêm ↔ Khải: Analysis output, severity, ML feature contract, schema enum.
 4. Khiêm ↔ Cường: MongoDB replica-set/transactions, HTTPS routing, DB index script, CI integration tests.
-5. OPEN-02/03/04/05/06/07 và NEW-01/02/03/04 vẫn **chưa chốt**; cập nhật SRS/SDD/Contract cùng lúc khi quyết định.
+5. **Phân biệt phần đã chốt và phần còn mở:** D008 đã chốt Analysis async và Run lifecycle; D009 đã chốt thuật toán Isolation Forest, presets thống kê và polling FE; D010 đã chốt MongoDB Official Driver. OPEN-02/05/07, model artifact/features/method-config ML và severity (phần còn lại OPEN-03/04), execution/recovery/retention/concurrency (phần còn lại OPEN-06), Dataset lifecycle/recovery và NEW-01/03/04 vẫn cần quyết định theo Backend Plan. Cập nhật các tài liệu liên quan khi quyết định được duyệt.
+
+### 11.2. Phụ lục B0 — Chuẩn bị Backend B1–B5 (14/11/2026)
+
+**Phạm vi:** Quyết định và yêu cầu triển khai, **chưa phải runtime/benchmark đã nghiệm thu**. Nguồn quyết định [D010](decisions.md#d010--mongodb-official-driver-và-ranh-giới-triển-khai-b0), trạng thái và test gate tại [Backend Plan](backend-online-plan.md). Giữ OpenAPI v0.3.0-draft hiện có (25 operations; 20 online/health). Không tạo route mới, không sửa HTTP method/DTO trong phụ lục này.
+
+**Persistence/validation B1.** Fastify + TypeScript theo Module → Route/Validation/Service/Repository; dùng Official MongoDB Driver tại MongoDB plugin/Repository, map `_id`/BSON Date/GeoJSON thành DTO public. Chọn HTTP validation theo OpenAPI (JSON Schema/Ajv là đề xuất triển khai; mapping `400/422` và C02–C04 phải test/review), giữ Zod tại `shared-core` cho shared DTO/domain/detector; không thay một bộ schema cho bộ khác. Health duy nhất `GET /api/v1/health`: 200/503 với `HealthResponse` đúng hợp đồng; DB readiness phải test bằng MongoDB thật trước nghiệm thu B1.
+
+**Luồng Import B3 — HTTP đồng bộ, I/O bất đồng bộ.** `POST /api/v1/datasets/{id}/imports` chỉ trả `200 SingleDataset` sau khi việc import hoàn tất; không dùng 202/job contract cho Import. File CSV/JSON được đọc theo Node.js Stream (backpressure), parse → validate → normalize UTC/GeoJSON → dedup đúng **thứ tự dòng hợp lệ đầu tiên thắng** (BR-08), rồi MongoDB `bulkWrite()` theo batch và concurrency giới hạn. Không dùng unordered upsert cạnh tranh để quyết định winner; không ôm cả file 100k–500k readings trong RAM hoặc một transaction duy nhất. Dataset giữ `importing`/`failed` không public; chuyển `imported` sau khi hoàn tất persistence/report. Mọi ngưỡng file size/batch size/timeout, nơi lưu file, cleanup/recovery và phản hồi khi mất response phải chốt trước B3, không tự gán số mặc định.
+
+**Tách query hiển thị và Analysis.** FE M4 đọc `GET /api/v1/readings` theo keyset cursor (mặc định 100/trang, UI có ngân sách 2.000 readings/phiên) để phục vụ Mapbox/Space–Time Cube. **Đây không phải dữ liệu đầu vào cho toàn bộ Analysis**. Khi nhận `POST /api/v1/analysis-runs`, Backend phải xác định phạm vi datasetId/sensorIds/from/to được duyệt, truy xuất readings tương ứng trên MongoDB và điều phối statistical/ML engine phía Server. Ví dụ dataset 500.000 readings, phạm vi run 30.000 là **kịch bản**, không phải giới hạn cố định. FE M5 poll run detail, sau khi completed mới tải anomalies theo cursor, đánh dấu readings đang có trên màn hình; không ép FE tải toàn bộ scope.
+
+**Analysis B5 và recovery.** D008 yêu cầu tiếp nhận bền vững **trước** `202 {data: AnalysisRun}`, job nền có giới hạn concurrency và chỉ công bố anomalies khi run `completed` sau khi ghi đầy đủ. Redis + BullMQ là **phương án đang xem xét**, không phải thành phần đã chốt hoặc yêu cầu B1. Phải kiểm thử ít nhất: (1) MongoDB đã ghi queued run nhưng Server chết trước khi enqueue/dispatch → reconciliation/recovery không để run kẹt; (2) Worker chết giữa chừng, job bị delivery lại → idempotent processing, unique `(analysisRunId,readingId)` và run/attempt guard để không trùng/công bố partial. HTTP idempotency replay cùng key vẫn giữ nguyên snapshot tiếp nhận và run ID; worker có thể thực thi lại, **không hứa exactly-once execution**. Claim/lease, idempotency receipt, queue technology, admission limits, model/version và fault handling phải được thiết kế/chốt trước implementation phần phụ thuộc. Phép đo vận hành và kiểm thử sự cố phải đạt trước nghiệm thu B5.
+
+**Phạm vi chưa mở rộng:** Không đưa Kafka/Spark, Redis hoặc queue mới thành phụ thuộc mặc định khi chưa có benchmark. Các phần còn mở đã phân loại tại mục 11.1 và các phụ thuộc offline/sync tiếp tục có owner/mốc theo Backend Plan; phụ lục không tự thay thế SRS, OpenAPI hay thiết kế DB vật lý.
 
 ---
 
@@ -246,3 +260,4 @@ project-root/                           # Monorepo đã dựng
 | v0.2 | 11/11/2026 | Bổ sung Logical Data Model, quy tắc tham chiếu/unique, Shared Data Contract, Zod starter và JSON fixture; API/DB vật lý chưa khóa |
 | v0.3 | 11/11/2026 | Bổ sung OpenAPI v0.1 draft, MongoDB Physical Design, indexes.js và HTTP fixtures; chưa khóa quyết định mở |
 | v0.4 | 12/11/2026 | Chốt Fastify feature-modular layered backend, React feature-modular + TanStack Router, Mapbox trực tiếp từ Client/public token, ưu tiên session restoration/offline outbox; giữ ML job/Server Worker và thông số dataset chưa chốt |
+| v0.4 + B0 addendum | 14/11/2026 | Bổ sung quyết định Official MongoDB Driver D010; tách Import sync, FE cursor vs Analysis scope; ghi failure cases của B5 và ứng viên Redis/BullMQ chưa chốt; chuẩn hóa các URL lịch sử theo OpenAPI v0.3.0-draft. Không thay HTTP contract/diagram |
