@@ -1,6 +1,6 @@
 # Kế hoạch triển khai Backend P0 online — PM2.5
 
-Ngày lập: 13/11/2026. Trạng thái: **Kế hoạch, chưa triển khai code. `server/` chỉ có README; chưa có API Backend thật được kiểm chứng trong checkout này.**
+Ngày lập: 13/11/2026. Cập nhật 14/11/2026: **B1 đã triển khai và kiểm tra với MongoDB thật; GET health đã có, 19 operations nghiệp vụ còn lại chưa triển khai.** Xem [B1 verification](backend/b1-verification.md).
 
 ## 1. Mục tiêu và cơ sở lập kế hoạch
 
@@ -22,14 +22,14 @@ Nguồn đã đọc và đối chiếu:
 
 | Thành phần | Hiện trạng kiểm tra | Hệ quả cho kế hoạch |
 |---|---|---|
-| `server/` | Chỉ có `README.md`, ghi chưa khởi tạo; không có package, source Fastify, route, repository hoặc test Backend | Bắt đầu từ scaffold; toàn bộ 20 operations online/health đều chưa triển khai trong checkout |
-| Root workspace | Đã khai báo `client`, `server`, `shared-core`; scripts root hiện chỉ chạy client | Không xem `npm run check` hiện tại là đã kiểm tra Backend; bổ sung scripts khi triển khai B1 |
+| `server/` | B1 có package/source Fastify, health theo các tầng, MongoDB lifecycle và unit/HTTP/contract/integration tests | Health thật; các API B2–B7 và engine/ML còn chờ |
+| Root workspace | Scripts check/build/typecheck/lint/test đã bao phủ client + server; dev client giữ nguyên, thêm dev:server | Integration MongoDB thật chạy riêng bằng `npm run test:server:integration` hoặc server coverage |
 | `client/` | FE đã hoàn thành đến M7 (xem `frontend/m7-verification.md`), có online adapter, mock và test bằng HTTP interception; **chưa tích hợp Backend thật** | B2 ưu tiên thay mock cho auth/datasets; chưa có bằng chứng tích hợp Backend thật |
 | `shared-core/` | Đã có package Zod và DTO/contract đã migrate D008; **chưa có bằng chứng engine statistical/ML chạy thật phía Server** | Chữ ký/fixture không chứng minh engine chạy; B5 phụ thuộc sản phẩm thật của Khải |
-| `infra/`, `tests/` | README định hướng; có script indexes đề xuất, chưa có bằng chứng môi trường Backend/DB/CI đã chạy | Cường chuẩn bị môi trường song song B1; kiểm chứng index trên DB thật |
+| `infra/`, `tests/` | B1 có harness MongoDB thật tại server/tests, đã áp dụng 11 indexes online trên DB tạm; chưa có Docker/Nginx/TLS/CI triển khai chung | Cường tiếp tục hạ tầng; chưa benchmark dữ liệu lớn hoặc nghiệm thu transactions/sync |
 | Tài liệu | Một số mục lục, đoạn SDD/DB và báo cáo FE M0/M1 giữ version/URL/số operations cũ | Dùng file nguồn hiện tại: 25 operations tổng cộng, 20 thuộc online/health; không tạo alias URL cũ |
 
-Phần “client mới có README” trong mở đầu kế hoạch FE và các dòng M2 ở thời điểm lập plan là mô tả lịch sử; hiện dùng [M7 verification](frontend/m7-verification.md) cùng source FE để xác định tiến độ. Test E2E dùng intercept/mock không phải bằng chứng Backend thật. Bản bổ sung B0 chỉ cập nhật tài liệu, không khẳng định runtime Server đã tồn tại.
+Phần “client mới có README” trong mở đầu kế hoạch FE và các dòng M2 ở thời điểm lập plan là mô tả lịch sử; hiện dùng [M7 verification](frontend/m7-verification.md) cùng source FE để xác định tiến độ. Test E2E dùng intercept/mock không phải bằng chứng Backend thật. B0 chỉ cập nhật tài liệu; runtime/health thật bắt đầu có ở B1, chưa thay thế mock nghiệp vụ FE.
 
 ## 2. Phạm vi và ranh giới
 
@@ -143,18 +143,20 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 **Endpoint:** `GET /api/v1/health` → `200` hoặc `503` đúng `HealthResponse`.
 
-- [ ] Khởi tạo package server/TypeScript, build/start/dev/typecheck/lint/test; bổ sung kiểm tra workspace mà vẫn giữ scripts client hoạt động. Phiên bản dependency được kiểm tra/khóa lúc khởi tạo.
-- [ ] Tách app factory khỏi listen; thiết lập plugins config, MongoDB lifecycle, logging che dữ liệu nhạy cảm, error handling và HTTP serialization.
-- [ ] Tạo cấu trúc feature/public interface, repository theo driver/ODM đã được duyệt; mapping ID/date/location, kiểm tra toàn vẹn cơ bản.
-- [ ] Chuẩn bị validation hooks, JWT/RBAC hooks để B2 nối nghiệp vụ; cơ chế sort/cursor dùng chung và interface idempotency với đặc tả lỗi/replay đã có. Chưa coi idempotency production hoàn tất nếu chưa duyệt persistence/recovery.
-- [ ] Review và áp dụng indexes cần cho online trên DB test; đo query khi có dữ liệu ở B4/B8. Không dùng script có sẵn làm bằng chứng đã tạo index.
-- [ ] Health kiểm tra Backend/MongoDB thật, phân biệt dependency unavailable; graceful shutdown đóng connection. Cường dựng cấu hình local/test và hướng tới Nginx HTTPS `443`, không tạo health endpoint khác.
+- [x] Khởi tạo package server/TypeScript, build/start/dev/typecheck/lint/test; root check bao phủ client + server, dev client giữ nguyên. Dependencies khóa trong package/lockfile.
+- [x] Tách app factory khỏi listen; config/MongoDB lifecycle, log redaction, error envelope và HTTP serialization có kiểm thử.
+- [x] Feature health/public interface theo các tầng; Official Driver ở plugin/repository, mapper whitelist ID/date/location, helper cùng dataset và keyset repository có test.
+- [x] Chuẩn bị HTTP validation, JWT/RBAC hooks với verifier được inject, bounded sort/cursor và interface idempotency/replay. **JWT thật thuộc B2; durable idempotency/retention vẫn chưa triển khai.** C02–C04 nghiệp vụ còn mở.
+- [x] Đã áp dụng/kiểm tra lặp lại 11 indexes online trên MongoDB thật tạm; test unique/geo và keyset. Chưa benchmark B4/B8 hoặc tự tạo index trên DB người dùng.
+- [x] Health `200/503` được kiểm tra với mongod thật, mất DB/phục hồi và đóng topology khi app.close; có main SIGINT/SIGTERM handlers. Môi trường test local đã tái lập; Docker/replica-set/Nginx HTTPS do Cường tiếp tục ở hạ tầng, chưa được nghiệm thu bởi B1.
 
 **Dependency:** B0; driver/ODM và công cụ validation được review; Cường cung cấp DB/environment. Không cần chờ model ML, PWA hoặc sync.
 
 **Kiểm thử:** Vitest cho config/mapper/cursor/error; Fastify inject cho health, envelope và method `405/Allow`; integration với MongoDB thật cho readiness khi DB sống/mất kết nối, indexes và mapping BSON. Test logging không xuất secret. Mock DB chỉ dùng unit test, không thay readiness integration.
 
 **Bàn giao/ nghiệm thu:** build/typecheck/lint/test nền đạt; health phản ánh DB thật; hướng dẫn env/start/test tái lập được. FE M1 có base URL/health thật, các API khác vẫn được ghi chưa triển khai.
+
+**Bằng chứng B1 (14/11/2026):** [báo cáo kiểm chứng](backend/b1-verification.md), [hướng dẫn Server](../server/README.md). Root check đạt (client 76 tests, server unit/HTTP/contract 14 tests); server coverage gồm 4 integration tests với mongod thật, tổng 18 tests. HTTP socket, compiled main và index CLI đã smoke trên DB tạm. Không có handler nghiệp vụ/engine hoặc đồng thuận owner ngoài phạm vi này được suy ra từ kết quả B1.
 
 ### B2 — Auth/Register, User nền và Datasets list
 
@@ -306,11 +308,11 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 ### 5.1. Ma trận 20 operations online/health
 
-Paths dưới đây đều có tiền tố `/api/v1`. **Hiện trạng tất cả: có contract, chưa có Backend implementation trong checkout**. Owner API/persistence là Khiêm; cột cuối là điều kiện/đầu ra FE, không phải thông báo API đã sẵn sàng.
+Paths dưới đây đều có tiền tố `/api/v1`. **Hiện trạng sau B1: GET health đã triển khai/kiểm tra với DB thật; 19 operations còn lại chưa có handler.** Owner API/persistence là Khiêm; cột cuối là điều kiện/đầu ra FE, không tự khẳng định API nghiệp vụ đã sẵn sàng.
 
 | # | Method/path | Mốc BE | FE nhận bàn giao | Điều kiện nhận API thật |
 |---|---|---|---|---|
-| 1 | GET `/health` | B1 | M1/M8 | Readiness với MongoDB thật, gồm degraded |
+| 1 | GET `/health` | B1 — đã có | M1/M8 | Đã kiểm tra DB thật, degraded/recovery; xem B1 verification |
 | 2 | POST `/auth/register` | B2 | M2 | Unique, hash, analyst/active, 201 không token |
 | 3 | POST `/auth/tokens` | B2 | M2 | JWT thật, tài khoản thử hai role |
 | 4 | GET `/users/me` | B2 | M2 | Reload xác minh user/quyền hiện tại |
@@ -372,7 +374,7 @@ Chưa ấn định ngày/số ngày cho milestone: chưa có năng lực triển
 | Mục | Cần làm rõ / quy tắc giữ nguyên | Người phối hợp | Hạn / phần bị chặn |
 |---|---|---|---|
 | Driver/ODM (D010) | **ĐÃ CHỐT** MongoDB Official Node.js Driver (`mongodb`), không dùng Mongoose; Repository che BSON/query khỏi Route/Service | Khiêm (chốt); Cường phối hợp DB test | Không còn blocker lựa chọn driver cho B1; DB integration phải test thật |
-| HTTP/shared validators | C02–C04: minLength, miền tọa độ và timestamp precision chưa tương đương; shared không có đủ HTTP schemas. Chốt mapping validation/status từng operation, không đổi contract ngầm | Khiêm + Khải + Tài | B0/B1, trước validator feature tương ứng |
+| HTTP/shared validators | B1 dùng JSON Schema/Ajv cho HTTP, strict extra fields, test `400/422` theo config từng route; health/error schema khớp OpenAPI. C02–C04 DTO nghiệp vụ vẫn chờ review, không đổi shared schema hoặc contract ngầm | Khiêm + Khải + Tài | Trước validator nghiệp vụ B2 trở đi |
 | Auth/User | Cách normalize username/case/whitespace, hash config, JWT lifetime/claims và hiệu lực role/isActive với token cũ; seed admin an toàn. FE sessionStorage đã được chọn, không hỏi lại storage FE | Khiêm + Tài + Cường | Trước B2, tái kiểm tra B7 |
 | Idempotency online | HTTP semantics đã có; nơi lưu receipt, atomicity giữa effect/receipt, scope operation/path, failure/in-flight recovery, thời hạn replay chưa có physical design. Không mặc định Redis/collection mới/TTL hoặc tái dùng offline receipt | Khiêm + Cường; Tài nhận retry window | Trước các POST key ở B3/B5/B7 |
 | OPEN-02 / đơn vị | Timestamp thiếu offset và unit nguồn ngoài ug/m3; MappingRequest chưa có timezone hay hợp đồng quy đổi tổng quát. Không gán UTC/UTC+07 hoặc thêm field tự phát | Khiêm + Tài + Khải | Trước normalization/validator B3 |

@@ -5,10 +5,12 @@
   "scripts": {
     "dev": "npm run dev --workspace @pm25/client",
     "dev:mock": "npm run dev:mock --workspace @pm25/client",
-    "build": "npm run build --workspace @pm25/client",
-    "typecheck": "npm run typecheck --workspace @pm25/client",
-    "lint": "npm run lint --workspace @pm25/client",
-    "test": "npm run test --workspace @pm25/client",
+    "dev:server": "npm run dev --workspace @pm25/server",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:server:integration": "npm run test:integration --workspace @pm25/server",
     "test:e2e": "npm run test:e2e --workspace @pm25/client",
     "check": "npm run typecheck && npm run lint && npm test && npm run build"
   },

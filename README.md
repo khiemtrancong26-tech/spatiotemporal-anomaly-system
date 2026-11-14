@@ -32,11 +32,16 @@ Xem `docs/ownership.md` để biết phân công.
 
 ## Trạng thái
 
-Frontend M2 (gồm Register) đã chạy được: từ root dùng `npm ci`, sau đó `npm run dev:mock`
+Frontend online đã có các màn hình đến M7 theo báo cáo kiểm chứng: từ root dùng `npm ci`, sau đó `npm run dev:mock`
 để xem giao diện nền với dữ liệu mô phỏng tại `http://127.0.0.1:5173`.
-`npm run dev` dùng transport API online; Backend trong checkout chưa được khởi tạo.
-Đã có Register/Login, phiên online, Datasets và khung Workspace; M3–M7 và tích hợp Backend thật còn tiếp tục.
+`npm run dev` dùng transport API online. Backend B1 đã có nền Fastify/MongoDB và health thật;
+chạy bằng `npm run dev:server`, xem [server/README.md](server/README.md).
+Các luồng nghiệp vụ FE đang được kiểm tra bằng mock/HTTP interception; tích hợp Backend thật còn tiếp tục từ B2.
 
 Xem [client/README.md](client/README.md) để cấu hình, build và kiểm thử;
 [kế hoạch frontend](docs/frontend-online-plan.md) và
-[bằng chứng M2](docs/frontend/m2-verification.md) để theo dõi phạm vi đã hoàn thành.
+[bằng chứng M7](docs/frontend/m7-verification.md) để theo dõi phạm vi đã hoàn thành.
+
+Backend B1: xem [kết quả kiểm chứng](docs/backend/b1-verification.md).
+`npm run check` hiện kiểm tra cả client và server; kiểm thử MongoDB thật dùng
+`npm run test:server:integration`. Các API nghiệp vụ B2 trở đi vẫn chưa triển khai.
