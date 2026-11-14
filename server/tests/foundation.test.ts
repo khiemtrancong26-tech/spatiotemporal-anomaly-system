@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ObjectId } from 'mongodb';
-import { loadConfig } from '../src/config.js';
+import { loadConfig as loadConfigRaw } from '../src/config.js';
+import { loadTestConfig as loadConfig } from './helpers.js';
 import { createCursorCodec, listSorts, parsePageQuery, queryFingerprint } from '../src/shared/pagination.js';
 import { requireIdempotencyKey, replayOrThrow } from '../src/shared/idempotency.js';
 import { assertSameDataset, toGeoPoint, toObjectId, toReadingDto, toUtcIso } from '../src/shared/persistence/mapping.js';
@@ -9,6 +10,9 @@ import { createHealthService } from '../src/modules/health/health.service.js';
 describe('runtime configuration', () => {
   it('validates numeric settings and never includes a connection secret in errors', () => {
     expect(loadConfig({}).port).toBe(3001);
+    expect(() => loadConfigRaw({})).toThrow('JWT_SECRET');
+    expect(() => loadConfig({ JWT_SECRET: 'short' })).toThrow('JWT_SECRET');
+    expect(() => loadConfig({ LOGIN_RATE_LIMIT_MAX: '0' })).toThrow('LOGIN_RATE_LIMIT_MAX');
     expect(loadConfig({ PORT: '3100', MONGODB_DATABASE: 'test_b1', LOG_LEVEL: 'silent' })).toMatchObject({ port: 3100, mongodbDatabase: 'test_b1' });
     for (const port of ['0', '65536', '1.5', '3001oops', '']) expect(() => loadConfig({ PORT: port })).toThrow('Invalid PORT');
     expect(() => loadConfig({ MONGODB_URI: 'secret-password' })).toThrow(/^Invalid MONGODB_URI$/);

@@ -12,14 +12,17 @@
     "start": "node --env-file-if-exists=../.env dist/main.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run --exclude tests/mongo.integration.test.ts",
-    "test:integration": "vitest run tests/mongo.integration.test.ts",
+    "test": "vitest run --exclude tests/*.integration.test.ts",
+    "test:integration": "vitest run .integration.test.ts",
     "test:coverage": "vitest run --coverage",
+    "test:e2e:b2": "playwright test --config playwright.config.ts",
     "db:indexes": "tsx --env-file-if-exists=../.env scripts/ensure-indexes.ts",
+    "db:seed": "tsx --env-file-if-exists=../.env scripts/seed-demo.ts",
     "check": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.65.0",
     "@types/node": "26.6.6",
     "@vitest/coverage-v8": "5.1.0",
     "eslint": "10.14.0",
@@ -34,8 +37,10 @@
   "dependencies": {
     "@fastify/ajv-compiler": "4.0.7",
     "@fastify/cors": "11.4.3",
+    "@fastify/rate-limit": "11.2.2",
     "fastify": "5.12.8",
     "fastify-plugin": "6.0.1",
+    "jose": "6.2.17",
     "mongodb": "7.9.0"
   }
 }

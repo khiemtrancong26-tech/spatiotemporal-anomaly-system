@@ -13,6 +13,7 @@
 | D006 | Không triển khai LLM trong MVP | Kiểm soát phạm vi |
 | D007 | npm workspaces | Quản lý Monorepo chung |
 | D010 | MongoDB Official Node.js Driver (`mongodb`), không dùng Mongoose | B0 đã xác nhận; truy vấn/batch qua Repository, không thêm ODM |
+| D011 | User/JWT/scrypt B2 và login rate limiting | Người dùng chốt trong lượt triển khai B2; chi tiết bên dưới |
 
 ## Quyết định chưa hoàn tất
 
@@ -31,6 +32,16 @@
 - Lý do:
 - Ảnh hưởng:
 - Người thống nhất:
+
+## D011 — Quy tắc User và xác thực B2
+
+- Ngày: 14/11/2026. Chủ dự án xác nhận trong chat triển khai B2; chưa suy ra đồng thuận riêng của các owner khác.
+- Username: trim đầu/cuối, giữ cách viết để hiển thị; `usernameNormalized = username.trim().toLowerCase()` để login và enforce unique không phân biệt hoa/thường. Username chỉ whitespace bị từ chối; không tự thêm regex ký tự hoặc giới hạn độ dài ngoài contract.
+- Password: `crypto.scrypt()` bất đồng bộ, N=2^17, r=8, p=1, `maxmem=256*1024*1024`; salt ngẫu nhiên tối thiểu 16 byte/mật khẩu. Không dùng scryptSync trong request. Tối đa 2 tác vụ scrypt đồng thời mỗi process ở cấu hình ban đầu; benchmark trước khi tăng.
+- JWT: HS256, secret ngẫu nhiên tối thiểu 32 byte từ env, hết hạn sau 1 giờ. Mỗi protected request kiểm tra JWT rồi đọc lại User trong DB; role/isActive lấy từ DB. Inactive hoặc không tồn tại trả 401. Không bổ sung refresh/logout endpoint.
+- Login có rate limiting trước bước scrypt. Ngưỡng là cấu hình vận hành có env, cần đo khi triển khai; không thêm Redis/đổi topology chỉ để làm B2.
+- Tài khoản demo analyst/admin tạo bằng CLI với password từ env, không có password mặc định. Dataset seed ghi rõ chưa qua import thật; không thêm API bootstrap.
+- Những quyết định này đóng gate Auth/User của B2; không đóng các lựa chọn import/analysis/idempotency hoặc rule Admin B7 còn mở.
 
 ## D008 — Analysis online bất đồng bộ
 

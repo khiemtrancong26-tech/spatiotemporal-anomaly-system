@@ -4,7 +4,7 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 import { MongoClient, ObjectId } from 'mongodb';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
-import { loadConfig } from '../src/config.js';
+import { loadTestConfig as loadConfig } from './helpers.js';
 import { ensureOnlineIndexes, onlineIndexes } from '../src/shared/persistence/indexes.js';
 import { toReadingDto, type ReadingDocument } from '../src/shared/persistence/mapping.js';
 import { keysetPredicate } from '../src/shared/persistence/keyset.js';

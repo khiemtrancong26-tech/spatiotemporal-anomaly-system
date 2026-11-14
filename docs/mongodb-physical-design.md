@@ -23,7 +23,7 @@
   passwordHash: '<hash>', role: 'analyst', isActive: true,
   createdAt: ISODate('2026-11-11T01:00:00Z') }
 ```
-- Unique `usernameNormalized`; khi login chuẩn hóa username thống nhất. `admin` là Application Admin, không có quyền SSH/Docker.
+- Unique `usernameNormalized`; theo D011/B2: `username.trim().toLowerCase()` cho lookup/unique, username public giữ cách viết sau trim. Register/CLI/future Admin dùng chung User service. `admin` là Application Admin, không có quyền SSH/Docker.
 - Không trả passwordHash trong bất kỳ response.
 
 ### `datasets`

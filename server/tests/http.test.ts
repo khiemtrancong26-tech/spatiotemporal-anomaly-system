@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
-import { loadConfig } from '../src/config.js';
+import { loadTestConfig as loadConfig } from './helpers.js';
 import type { VerifyAccessToken } from '../src/plugins/auth.js';
 
 const apps: FastifyInstance[] = [];
@@ -43,7 +43,7 @@ describe('HTTP foundation using Fastify inject', () => {
     expect(unsupported.headers.allow).toBe('GET');
     expect(unsupported.json().error.code).toBe('METHOD_NOT_ALLOWED');
     expect((await app.inject({ method: 'HEAD', url: '/api/v1/health' })).statusCode).toBe(405);
-    for (const url of ['/health', '/api/v1/datasets', '/api/v1/reading-batches', '/api/v1/exports']) {
+    for (const url of ['/health', '/api/v1/reading-batches', '/api/v1/exports']) {
       expect((await app.inject(url)).statusCode).toBe(404);
     }
   });
@@ -125,11 +125,11 @@ describe('auth/RBAC hooks with an explicit verifier test double', () => {
     expect((await app.inject({ url: '/test-admin', headers: { authorization: 'Bearer analyst-token', 'x-role': 'admin' } })).statusCode).toBe(403);
     expect((await app.inject({ url: '/test-admin', headers: { authorization: 'Bearer admin-token' } })).statusCode).toBe(200);
   });
-  it('does not allow bearer tokens when B2 verification has not been configured', async () => {
+  it('rejects invalid JWTs through the real B2 verifier when no override is supplied', async () => {
     const app = appForTest();
     app.register(async (scope) => {
       scope.get('/test-protected', { preHandler: scope.authenticate }, async () => ({ ok: true }));
     });
-    expect((await app.inject({ url: '/test-protected', headers: { authorization: 'Bearer any-token' } })).statusCode).toBe(503);
+    expect((await app.inject({ url: '/test-protected', headers: { authorization: 'Bearer any-token' } })).statusCode).toBe(401);
   });
 });

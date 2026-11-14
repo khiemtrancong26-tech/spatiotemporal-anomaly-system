@@ -21,8 +21,12 @@ export const httpPlugin = fp(async (app) => {
       const status = error.validationContext === 'body' ? request.routeOptions.config.bodyValidationStatus ?? 400 : 400;
       return reply.code(status).send({ error: { code: 'VALIDATION_ERROR', message: 'Request validation failed.' } });
     }
-    const status = error.statusCode;
+    let status = error.statusCode;
     if (status && status >= 400 && status < 500) {
+      // JSON-only auth operations declare 400 rather than upload-specific 413/415.
+      // Respect that operation's response set without changing the OpenAPI contract.
+      const responses = request.routeOptions.schema?.response as Record<string, unknown> | undefined;
+      if (responses && !(String(status) in responses) && '400' in responses) status = 400;
       const known: Record<number, [string, string]> = {
         400: ['BAD_REQUEST', 'Invalid request syntax.'],
         413: ['CONTENT_TOO_LARGE', 'Request body is too large.'],

@@ -5,8 +5,25 @@ import { parse } from 'yaml';
 import { healthResponseSchema } from '../src/modules/health/health.schema.js';
 import { errorSchema } from '../src/shared/http/errors.js';
 import { onlineIndexes } from '../src/shared/persistence/indexes.js';
+import { userPublicSchema, userResponseSchema } from '../src/modules/users/users.schema.js';
+import { loginRequestSchema, loginResponseSchema, registerRequestSchema } from '../src/modules/auth/auth.schema.js';
+import { datasetPageSchema, datasetSchema, importSummarySchema } from '../src/modules/datasets/datasets.schema.js';
 
 describe('foundation contract drift checks', () => {
+  it('keeps B2 request/response schemas aligned without tightening open DTO constraints', async () => {
+    const spec = parse(await readFile(new URL('../../docs/api/openapi.yaml', import.meta.url), 'utf8'));
+    function expand(value: unknown): unknown {
+      if (Array.isArray(value)) return value.map(expand);
+      if (!value || typeof value !== 'object') return value;
+      const record = value as Record<string, unknown>;
+      if (typeof record.$ref === 'string') return expand(spec.components.schemas[record.$ref.split('/').at(-1)!]);
+      return Object.fromEntries(Object.entries(record).filter(([name]) => name !== 'description').map(([name, item]) => [name, expand(item)]));
+    }
+    for (const [name, schema] of Object.entries({ UserPublic: userPublicSchema, UserResponse: userResponseSchema,
+      RegisterRequest: registerRequestSchema, LoginRequest: loginRequestSchema, LoginResponse: loginResponseSchema,
+      Dataset: datasetSchema, DatasetPage: datasetPageSchema, ImportSummary: importSummarySchema,
+    })) expect(expand(schema)).toEqual(expand(spec.components.schemas[name]));
+  });
   it('keeps health and error schemas exactly aligned with the existing OpenAPI', async () => {
     const spec = parse(await readFile(new URL('../../docs/api/openapi.yaml', import.meta.url), 'utf8'));
     expect(healthResponseSchema).toEqual(spec.components.schemas.HealthResponse);

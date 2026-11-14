@@ -1,6 +1,6 @@
 # Kế hoạch triển khai Backend P0 online — PM2.5
 
-Ngày lập: 13/11/2026. Cập nhật 14/11/2026: **B1 đã triển khai và kiểm tra với MongoDB thật; GET health đã có, 19 operations nghiệp vụ còn lại chưa triển khai.** Xem [B1 verification](backend/b1-verification.md).
+Ngày lập: 13/11/2026. Cập nhật 14/11/2026: **B1/B2 đã triển khai và kiểm tra với MongoDB thật; health + Register/Login/me + datasets list đã có, 15 operations online còn lại chưa triển khai.** Xem [B1 verification](backend/b1-verification.md), [B2 verification](backend/b2-verification.md).
 
 ## 1. Mục tiêu và cơ sở lập kế hoạch
 
@@ -14,7 +14,7 @@ Nguồn đã đọc và đối chiếu:
 - [MongoDB Physical Design](mongodb-physical-design.md), [script index đề xuất](../infra/mongo/indexes.js), [Shared Data Contract](shared-data-contract.md), [Zod schema dự thảo](../shared-core/src/contracts/schemas.ts).
 - [Ownership](ownership.md), [Technical Decisions](decisions.md), README của server/shared-core/infra/tests và cấu hình workspace hiện tại.
 - [Frontend M0 audit](frontend/m0-readiness.md), [M2 verification](frontend/m2-verification.md), adapter online và fixtures hiện có để xác định đúng thời điểm bàn giao.
-- Hai tài liệu người dùng cung cấp: `C:\ổ D\User\PC\Documents\Downloads\Page_Outline_PM25.md` và `C:\ổ D\User\PC\Documents\Downloads\User_Flow_PM25.md`. Đây là tham chiếu trải nghiệm/hành trình; chỉ dẫn và route FE trong tài liệu không tự trở thành yêu cầu thêm API hoặc mở rộng phạm vi.
+
 
 **Xác nhận của người dùng khi lập kế hoạch:** giữ các quyết định kỹ thuật chưa rõ ở trạng thái mở, ghi owner và mốc bắt buộc phải chốt trước triển khai/nghiệm thu phần liên quan; không chọn thay nhóm. Hoãn HTTP handler nội bộ `POST /api/v1/reading-batches`, nhưng vẫn triển khai đầy đủ batch import trong Service/Repository. Không sửa OpenAPI, không triển khai code trong công việc lập kế hoạch này.
 
@@ -22,7 +22,7 @@ Nguồn đã đọc và đối chiếu:
 
 | Thành phần | Hiện trạng kiểm tra | Hệ quả cho kế hoạch |
 |---|---|---|
-| `server/` | B1 có package/source Fastify, health theo các tầng, MongoDB lifecycle và unit/HTTP/contract/integration tests | Health thật; các API B2–B7 và engine/ML còn chờ |
+| `server/` | B1/B2 có Fastify theo các tầng, health, User/Auth, imported-only datasets list, scrypt/JWT và tests DB thật | Luồng FE M2 đã E2E thật; các API B3–B7 và engine/ML còn chờ |
 | Root workspace | Scripts check/build/typecheck/lint/test đã bao phủ client + server; dev client giữ nguyên, thêm dev:server | Integration MongoDB thật chạy riêng bằng `npm run test:server:integration` hoặc server coverage |
 | `client/` | FE đã hoàn thành đến M7 (xem `frontend/m7-verification.md`), có online adapter, mock và test bằng HTTP interception; **chưa tích hợp Backend thật** | B2 ưu tiên thay mock cho auth/datasets; chưa có bằng chứng tích hợp Backend thật |
 | `shared-core/` | Đã có package Zod và DTO/contract đã migrate D008; **chưa có bằng chứng engine statistical/ML chạy thật phía Server** | Chữ ký/fixture không chứng minh engine chạy; B5 phụ thuộc sản phẩm thật của Khải |
@@ -164,18 +164,20 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 **Endpoint:** `POST /auth/register` → `201 UserResponse`; `POST /auth/tokens` → `200 LoginResponse`; `GET /users/me` → `200 UserResponse`; `GET /datasets` → `200 DatasetPage`. Tất cả paths sau `/api/v1`.
 
-- [ ] Xây nghiệp vụ User dùng chung: validation, password hashing an toàn, chuẩn hóa username thống nhất và unique index; dùng lại cho Register và Admin B7. Cụm từ “hashing hiện có” trong tài liệu là yêu cầu tái sử dụng thiết kế, chưa có code hashing trong checkout để gọi sẵn.
-- [ ] Register public chỉ username/password, password tối thiểu 8 ký tự; reject role/isActive/trường ngoài schema bằng `422`; Server gán analyst/active, `409` khi trùng kể cả cạnh tranh. Response không token/hash/password; không auto-login.
-- [ ] Login xác thực tài khoản, trả accessToken/tokenType/user; lỗi không tiết lộ username tồn tại. JWT validation và RBAC ở Server, current user theo chính sách hiệu lực role/isActive đã thống nhất.
-- [ ] Datasets list chỉ imported; sort createdAt asc/desc, mặc định desc, keyset/limit; rỗng vẫn trả envelope có `data: []` và page.
-- [ ] Chuẩn bị tài khoản demo/test bằng quy trình seed/bootstrap có kiểm soát, không thêm endpoint bootstrap admin. Dataset seed ghi rõ chưa đi qua import thật.
-- [ ] Nối với FE sessionStorage + `/users/me` khi reload, `401` kết thúc phiên, `403` báo lỗi quyền; không thêm refresh/logout API. Deep-link dùng datasetId đã được FE chọn, không bổ sung GET dataset detail.
+- [x] Có User service/repository dùng chung, trim + lowercase cho usernameNormalized và unique index trước insert; scrypt async/salt/profile/concurrency theo **D011**. Dùng lại cho CLI/future Admin B7.
+- [x] Register public chỉ username/password, password tối thiểu 8 ký tự; reject role/isActive/trường ngoài schema bằng 422; tạo analyst/active, trùng username 409 kể cả race. 201 không token/hash/password; không auto-login.
+- [x] Login trả accessToken/tokenType/user; lỗi 401 chung cho sai thông tin/unknown/inactive; JWT HS256 hạn 1 giờ, secret env ≥32 byte, role/isActive đọc lại mỗi protected request. Login rate limit trước scrypt, 429/Retry-After; ngưỡng mặc định 10/60 giây/IP có env, không phải kết quả benchmark tải.
+- [x] Datasets list chỉ imported; createdAt hai chiều/default desc, bounded keyset có ID tie-break; cursor ký và ràng buộc sort, empty envelope đúng. Secret ổn định qua restart giữ cursor hợp lệ.
+- [x] Có CLI db:seed với username/password từ env, không password mặc định/HTTP bootstrap; chạy lại không reset user. Dataset `[SEED B2]` ghi rõ metadata thử, chưa qua import thật.
+- [x] E2E browser FE online + API/DB thật: Register → Login → reload/me → datasets/workspace, admin menu và inactive/401 kết thúc phiên. Giữ deep-link metadata fallback hiện có; B3+ chưa có API nên không giả response cho chúng.
 
 **Dependency:** B1; quyết định username normalization, password/JWT config, hiệu lực role/isActive và account bootstrap ở mục 6. Không phụ thuộc B3 hoặc Khải.
 
 **Kiểm thử:** service unit cho validation/mapping user; inject/DB integration cho Register → Login → me; password lưu hash; JWT thiếu/sai/hết hạn và hai role; register gửi role bị từ chối; concurrent username create chỉ tạo một user; không lộ hash trong mọi response. Dataset test mọi trạng thái, sort hai chiều, cùng createdAt nhiều bản ghi, cursor/filter sai và empty page. Tài/Cường chạy FE M2 với Server/MongoDB thật, bỏ HTTP intercept cho suite nghiệm thu.
 
 **Bàn giao/ nghiệm thu:** FE Register/Login/reload/datasets dùng được API thật; dữ liệu vẫn tồn tại sau restart; account/dataset seed có nhãn. B2 chưa chứng minh import hoặc analysis hoạt động. Test cạnh tranh Register với HTTP admin-create được bổ sung ở B7.
+
+**Bằng chứng B2 (14/11/2026):** [báo cáo kiểm chứng](backend/b2-verification.md), [D011](decisions.md#d011--quy-tắc-user-và-xác-thực-b2), [Server README](../server/README.md). Root check: client 76 tests, server 24 unit/HTTP/contract tests; coverage suite 35 tests gồm 11 integration tests MongoDB thật. Browser E2E 1 kịch bản thật, không intercept. Đã kiểm tra app + mongod restart giữ User/hash và token, username race giữa Register và common User service tạo admin; **HTTP Admin B7 chưa triển khai**.
 
 ### B3 — Upload, validation, mapping và batch import
 
@@ -308,15 +310,15 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 ### 5.1. Ma trận 20 operations online/health
 
-Paths dưới đây đều có tiền tố `/api/v1`. **Hiện trạng sau B1: GET health đã triển khai/kiểm tra với DB thật; 19 operations còn lại chưa có handler.** Owner API/persistence là Khiêm; cột cuối là điều kiện/đầu ra FE, không tự khẳng định API nghiệp vụ đã sẵn sàng.
+Paths dưới đây đều có tiền tố `/api/v1`. **Hiện trạng sau B2: health và 4 operations Auth/User/Datasets list đã triển khai với DB thật; 15 operations còn lại chưa có handler.** Owner API/persistence là Khiêm; cột cuối ghi điều kiện/bằng chứng bàn giao.
 
 | # | Method/path | Mốc BE | FE nhận bàn giao | Điều kiện nhận API thật |
 |---|---|---|---|---|
 | 1 | GET `/health` | B1 — đã có | M1/M8 | Đã kiểm tra DB thật, degraded/recovery; xem B1 verification |
-| 2 | POST `/auth/register` | B2 | M2 | Unique, hash, analyst/active, 201 không token |
-| 3 | POST `/auth/tokens` | B2 | M2 | JWT thật, tài khoản thử hai role |
-| 4 | GET `/users/me` | B2 | M2 | Reload xác minh user/quyền hiện tại |
-| 5 | GET `/datasets` | B2 | M2; M3 cập nhật kết quả | Imported only; ban đầu seed, sau B3 import thật |
+| 2 | POST `/auth/register` | B2 — đã có | M2 | Đã test unique/race, scrypt, analyst/active, 201 không token |
+| 3 | POST `/auth/tokens` | B2 — đã có | M2 | JWT thật, hai role, rate limit, 401 chung; E2E thật |
+| 4 | GET `/users/me` | B2 — đã có | M2 | Reload và quyền/isActive hiện tại qua DB đã test |
+| 5 | GET `/datasets` | B2 — đã có | M2; M3 cập nhật kết quả | Imported-only/cursor thật + seed metadata; import thật còn B3 |
 | 6 | POST `/datasets` | B3 | M3 | Multipart, key, file lưu và validation thật |
 | 7 | GET `/datasets/{id}/validation` | B3 | M3 | Report không bọc data, lỗi/counts thực |
 | 8 | PUT `/datasets/{id}/mapping` | B3 | M3 | Replace/idempotent, lifecycle đã chốt |
@@ -375,7 +377,7 @@ Chưa ấn định ngày/số ngày cho milestone: chưa có năng lực triển
 |---|---|---|---|
 | Driver/ODM (D010) | **ĐÃ CHỐT** MongoDB Official Node.js Driver (`mongodb`), không dùng Mongoose; Repository che BSON/query khỏi Route/Service | Khiêm (chốt); Cường phối hợp DB test | Không còn blocker lựa chọn driver cho B1; DB integration phải test thật |
 | HTTP/shared validators | B1 dùng JSON Schema/Ajv cho HTTP, strict extra fields, test `400/422` theo config từng route; health/error schema khớp OpenAPI. C02–C04 DTO nghiệp vụ vẫn chờ review, không đổi shared schema hoặc contract ngầm | Khiêm + Khải + Tài | Trước validator nghiệp vụ B2 trở đi |
-| Auth/User | Cách normalize username/case/whitespace, hash config, JWT lifetime/claims và hiệu lực role/isActive với token cũ; seed admin an toàn. FE sessionStorage đã được chọn, không hỏi lại storage FE | Khiêm + Tài + Cường | Trước B2, tái kiểm tra B7 |
+| Auth/User (D011) | **ĐÃ CHỐT và triển khai B2:** trim/lowercase key, scrypt async N=2^17/r8/p1/maxmem256MiB/salt16B/tối đa2 tác vụ; HS256/1h/secret env, current user qua DB, inactive/không tồn tại 401; seed CLI không password mặc định. Login rate limit có env, cần benchmark trước tăng cấu hình | Khiêm; Tài/Cường nhận API và runbook | B2 đã kiểm chứng; Admin HTTP/last-admin concurrency vẫn B7 |
 | Idempotency online | HTTP semantics đã có; nơi lưu receipt, atomicity giữa effect/receipt, scope operation/path, failure/in-flight recovery, thời hạn replay chưa có physical design. Không mặc định Redis/collection mới/TTL hoặc tái dùng offline receipt | Khiêm + Cường; Tài nhận retry window | Trước các POST key ở B3/B5/B7 |
 | OPEN-02 / đơn vị | Timestamp thiếu offset và unit nguồn ngoài ug/m3; MappingRequest chưa có timezone hay hợp đồng quy đổi tổng quát. Không gán UTC/UTC+07 hoặc thêm field tự phát | Khiêm + Tài + Khải | Trước normalization/validator B3 |
 | OPEN-05 / nguồn file | File/batch/report limits, timeout, lưu/retention file và hành vi thiếu file sau restart; báo cáo preview không có cờ truncation trong schema. Không thêm report-download endpoint hoặc ngưỡng MB tùy tiện | Khiêm + Cường + Tài | Trước upload/import B3; đo lại B8 |

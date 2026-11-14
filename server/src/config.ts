@@ -1,3 +1,5 @@
+import { createHmac } from 'node:crypto';
+
 export interface ServerConfig {
   host: string;
   port: number;
@@ -5,6 +7,10 @@ export interface ServerConfig {
   mongodbDatabase: string | undefined;
   mongodbTimeoutMs: number;
   corsOrigins: string[];
+  jwtSecret: string;
+  cursorSecret: string;
+  loginRateMax: number;
+  loginRateWindowMs: number;
   logLevel: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent';
 }
 
@@ -34,6 +40,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     try { parsed = new URL(origin); } catch { throw new Error('Invalid CORS_ORIGINS'); }
     if (!['http:', 'https:'].includes(parsed.protocol) || parsed.origin !== origin) throw new Error('Invalid CORS_ORIGINS');
   }
+  const jwtSecret = env.JWT_SECRET ?? '';
+  if (Buffer.byteLength(jwtSecret) < 32 || /^replace_with_/i.test(jwtSecret)) throw new Error('JWT_SECRET must be a random secret of at least 32 bytes');
   return {
     host,
     port: integer(env.PORT, 3001, 'PORT', 65_535),
@@ -41,6 +49,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     mongodbDatabase: env.MONGODB_DATABASE,
     mongodbTimeoutMs: integer(env.MONGODB_TIMEOUT_MS, 2_000, 'MONGODB_TIMEOUT_MS', 60_000),
     corsOrigins,
+    jwtSecret,
+    // Stable across restarts with domain separation from JWT signing.
+    cursorSecret: createHmac('sha256', jwtSecret).update('pm25:cursor:v1').digest('hex'),
+    loginRateMax: integer(env.LOGIN_RATE_LIMIT_MAX, 10, 'LOGIN_RATE_LIMIT_MAX', 100_000),
+    loginRateWindowMs: integer(env.LOGIN_RATE_LIMIT_WINDOW_MS, 60_000, 'LOGIN_RATE_LIMIT_WINDOW_MS', 86_400_000),
     logLevel: logLevel as ServerConfig['logLevel'],
   };
 }

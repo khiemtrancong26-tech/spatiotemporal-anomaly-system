@@ -21,6 +21,7 @@ Tài liệu phân tích yêu cầu, thiết kế và phối hợp phát triển 
 | **Frontend M1 — Kết quả** | [frontend/m1-verification.md](frontend/m1-verification.md) | Scaffold, online adapter, mock transport, kiểm thử và giới hạn tích hợp | 46 tests + 3 Chromium tests đạt |
 | **Frontend M2 — Kết quả** | [frontend/m2-verification.md](frontend/m2-verification.md) | Register/Login, session, guard, Datasets và workspace shell | Kiểm thử FE; Backend thật còn chờ |
 | **Backend B1 — Kết quả** | [backend/b1-verification.md](backend/b1-verification.md) · [Backend plan](backend-online-plan.md) | Nền Fastify/Official Driver, health, HTTP/auth hooks, cursor, index và DB thật | B1 đã triển khai; API nghiệp vụ B2 trở đi còn chờ |
+| **Backend B2 — Kết quả** | [backend/b2-verification.md](backend/b2-verification.md) · [D011](decisions.md#d011--quy-tắc-user-và-xác-thực-b2) | Register/Login/me, datasets list, scrypt/JWT/RBAC và CLI seed | API/DB thật và E2E FE M2; B3 trở đi còn chờ |
 | **Technical Decisions** | [decisions.md](decisions.md) | Các quyết định đã chốt, lựa chọn đang mở và lý do thay đổi | Đã có; cần cập nhật khi quyết định mới được duyệt |
 
 
