@@ -124,12 +124,12 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 - [x] **Rà soát tĩnh** OpenAPI ↔ 20 generated operations/online adapter; kiểm tra Register, envelope, review/Idempotency-Key ở mức contract. **Chưa coi là xác nhận của Tài hoặc integration API thật.**
 - [x] **Đã ghi nhận và phân loại** C02–C04: minLength Zod chặt hơn OpenAPI; miền tọa độ, UTC Z/precision cần quyết định theo luồng. **Review/duyệt với Khải + Tài vẫn chưa hoàn tất**, không đổi schema.
 - [x] Đã phân loại quyết định theo mục 6, owner/mốc phụ thuộc; **Official Driver chốt tại D010**, Redis/BullMQ chỉ là phương án B5; OPEN/NEW khác chưa được tự đóng.
-- [ ] Thống nhất quy ước báo cáo `chưa triển khai / mock / API thật + seed / tích hợp engine thật`, dữ liệu seed được ghi nhãn và acceptance theo feature.
-- [ ] Cường/Khiêm thống nhất cách dựng DB test, account analyst/admin, env, port/build/start, kiểm tra readiness; xác định luồng bàn giao endpoint trước FE M3–M8.
+- [x] Thống nhất quy ước báo cáo `chưa triển khai / mock / API thật + seed / tích hợp engine thật`, dữ liệu seed được ghi nhãn và acceptance theo feature.
+- [x] Cường/Khiêm thống nhất cách dựng DB test, account analyst/admin, env, port/build/start, kiểm tra readiness; xác định luồng bàn giao endpoint trước FE M3–M8.
 
 **Bằng chứng B0 (14/11/2026):** 25 HTTP operations trong OpenAPI (21 paths), 20 operations P0 online/health khớp method + URL với generated adapter; 38 fixture HTTP cases có operation/status tương ứng; 232 lượt tham chiếu schema không phát hiện tên thiếu. Kiểm tra độc lập trên **subset JSON Schema** của generated client contract: 38/38 fixture cases, 7/7 core DTO, 7/7 legacy payload, trường hợp partial-review bị từ chối. **Không coi đây là chạy đầy đủ `docs/frontend/verify_m0.py`, parser/ref validator chuẩn, kiểm thử Fastify/MongoDB hay E2E thật.** Báo cáo M5 trong repo ghi bộ Python đã đạt ở thời điểm FE triển khai nhưng không phải lượt test Backend này. Quyết định và định hướng B0: [D010](decisions.md#d010--mongodb-official-driver-và-ranh-giới-triển-khai-b0).
 
-**Trạng thái cổng B0 → B1:** **Đủ điều kiện bắt đầu scaffold B1**. Chưa nghiệm thu liên nhóm: Tài/Khải xác nhận validator C02–C04 và Cường xác nhận DB test/seed/readiness. Tiêu chí báo cáo nhất quán: `chưa triển khai` / `mock` / `API thật + seed` / `tích hợp engine thật`, không nâng nhãn nếu thiếu bằng chứng.
+**Trạng thái cổng B0 → B1:** **Đủ điều kiện bắt đầu scaffold B1**. B0 hoàn thành phần rà soát và quyết định thuộc trách nhiệm Khiêm, đủ điều kiện triển khai B1.
 
 **Dependency:** tài liệu/checkout hiện tại; review Khiêm–Tài–Khải–Cường, Duy khi chạm shared DTO/interface tương lai. Driver đã chốt cho repository B1; các blocker import/analysis không chặn scaffold.
 
