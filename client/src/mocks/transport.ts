@@ -1,4 +1,4 @@
-import type { AnalysisRun, DetectionRequest } from '../shared/api/generated/wire';
+import type { AnalysisRun, DetectionRequest, UserPublic } from '../shared/api/generated/wire';
 import fixtures from '../../../docs/fixtures/frontend-online-examples.json';
 
 export type MockScenario = 'success' | 'empty' | 'server-error' | 'network-error' | 'malformed';
@@ -30,6 +30,9 @@ function delay(ms: number, signal?: AbortSignal | null): Promise<void> {
 
 /** Fixture transport only: no service worker, network fallback, storage or background sync. */
 export function createMockTransport(controls: MockControls): typeof globalThis.fetch {
+  let reviewed = structuredClone(fixtures.cases.find(c => c.id === 'anomaly-detail')!.response) as { data: import('../shared/api/generated/wire').Anomaly };
+  const users = new Map<string, UserPublic>([['user-001', { id: 'user-001', username: 'admin01', role: 'admin', isActive: true }], ['mock-analyst', { id: 'mock-analyst', username: 'analyst01', role: 'analyst', isActive: true }]]);
+  const userReceipts = new Map<string, { fingerprint: string; user: UserPublic; expires: number }>();
   const runs = new Map<string, { run: AnalysisRun; acceptedAt: number; reads: number }>();
   const receipts = new Map<string, { body: string; response: { data: AnalysisRun } }>();
   // Demo accounts only. New mock accounts live in RAM until reload.
@@ -46,7 +49,9 @@ export function createMockTransport(controls: MockControls): typeof globalThis.f
     if (!candidate) return error(404, 'MOCK_ROUTE_NOT_FOUND');
     const bearer = new Headers(init?.headers).get('Authorization') ?? '';
     const mockToken = bearer.replace(/^Bearer /, '');
-    const sessionRole = mockToken === 'mock-admin01' ? 'admin' : mockToken === 'mock-analyst01' || mockToken.startsWith('mock-registered:') ? 'analyst' : controls.role;
+    const sessionUser = [...users.values()].find(u => u.username === (mockToken.startsWith('mock-registered:') ? decodeURIComponent(mockToken.slice(16)) : mockToken.slice(5)));
+    if (sessionUser && !sessionUser.isActive) return error(401, 'INACTIVE');
+    const sessionRole = sessionUser?.role ?? (mockToken === 'mock-admin01' ? 'admin' : mockToken === 'mock-analyst01' || mockToken.startsWith('mock-registered:') ? 'analyst' : controls.role);
     if (url.pathname.startsWith('/api/v1/admin/') && sessionRole !== 'admin') return error(403, 'FORBIDDEN');
     if (!['/api/v1/health', '/api/v1/auth/tokens', '/api/v1/auth/register'].includes(url.pathname) && !bearer) return error(401, 'UNAUTHORIZED');
     const overrideId = controls.overrides?.[candidate.id];
@@ -74,10 +79,33 @@ export function createMockTransport(controls: MockControls): typeof globalThis.f
         return json({ data: record.run });
       }
     }
+    if (candidate.id === 'admin-create') {
+      const body = JSON.parse(String(init?.body));
+      const fingerprint = await digest(JSON.stringify(body));
+      const key = `${mockToken}:${new Headers(init?.headers).get('Idempotency-Key')}`;
+      const prior = userReceipts.get(key);
+      if (prior && prior.expires > Date.now()) return prior.fingerprint === fingerprint ? json({ data: prior.user }, 201) : error(422, 'KEY_PAYLOAD_MISMATCH');
+      if ([...users.values()].some(u => u.username.toLowerCase() === body.username.toLowerCase())) return error(409, 'USERNAME_CONFLICT');
+      const user: UserPublic = { id: `mock-user-${crypto.randomUUID()}`, username: body.username, role: body.role, isActive: true };
+      users.set(user.id, user);
+      accounts.set(user.username.toLowerCase(), { username: user.username, digest: await digest(body.password) });
+      userReceipts.set(key, { fingerprint, user: structuredClone(user), expires: Date.now() + 900000 });
+      return json({ data: user }, 201);
+    }
+    if (candidate.id === 'admin-update') {
+      const id = decodeURIComponent(url.pathname.split('/').at(-1)!);
+      const user = users.get(id);
+      if (!user) return error(404, 'NOT_FOUND');
+      const patch = JSON.parse(String(init?.body));
+      const updated = { ...user, ...patch };
+      users.set(id, updated);
+      return json({ data: updated });
+    }
     const payload = structuredClone(candidate.response) as Record<string, unknown>;
     const id = candidate.path.includes('{id}') ? decodeURIComponent(url.pathname.split('/')[candidate.path.split('/').indexOf('{id}')]) : undefined;
     const pathParams = candidate.request as { pathParams?: { id: string } };
     if (id && id !== pathParams.pathParams?.id) return error(404, 'NOT_FOUND');
+    if (candidate.id === 'admin-list') payload.data = [...users.values()];
     if (candidate.id === 'analysis-list') payload.data = [...(payload.data as object[]), ...[...runs.values()].map(record => record.run)];
     if (candidate.id === 'anomalies' && url.searchParams.get('analysisRunId')?.startsWith('demo-')) {
       const record = runs.get(url.searchParams.get('analysisRunId')!);
@@ -85,7 +113,11 @@ export function createMockTransport(controls: MockControls): typeof globalThis.f
       if (record.run.status !== 'completed') return error(409, 'RESULTS_NOT_READY');
       payload.data = controls.scenario === 'empty' ? [] : (payload.data as Record<string, unknown>[]).map(item => ({ ...item, datasetId: record.run.datasetId, analysisRunId: record.run.id, family: record.run.family, method: record.run.method }));
     }
+    if (candidate.id === 'anomaly-detail') return json(reviewed);
+    if (candidate.id === 'anomaly-review') { const patch = JSON.parse(String(init?.body)); if (patch.baseVersion !== reviewed.data.version) return error(409, 'VERSION_CONFLICT'); reviewed = { data: { ...reviewed.data, ...patch.changes, version: reviewed.data.version + 1, updatedAt: new Date().toISOString() } }; return json(reviewed); }
+    if (candidate.id === 'anomalies' && !url.searchParams.get('analysisRunId')?.startsWith('demo-')) payload.data = (payload.data as Record<string, unknown>[]).map(a => a.id === reviewed.data.id ? reviewed.data : a);
     if (candidate.id === 'me') payload.data = { ...(payload.data as object), role: sessionRole, username: mockToken.startsWith('mock-registered:') ? decodeURIComponent(mockToken.slice('mock-registered:'.length)) : sessionRole === 'admin' ? 'admin01' : 'analyst01' };
+    if (candidate.id === 'me' && sessionUser) payload.data = sessionUser;
     if (candidate.id === 'register') {
       const credentials = JSON.parse(String(init?.body));
       if (Object.keys(credentials).some((key) => !['username', 'password'].includes(key)) || typeof credentials.username !== 'string' || !credentials.username.trim() || typeof credentials.password !== 'string' || credentials.password.length < 8) return error(422, 'VALIDATION_ERROR');
@@ -95,7 +127,9 @@ export function createMockTransport(controls: MockControls): typeof globalThis.f
       const passwordDigest = await digest(credentials.password);
       if (accounts.has(normalized)) return error(409, 'USERNAME_CONFLICT');
       accounts.set(normalized, { username, digest: passwordDigest });
-      return json({ data: { id: `mock-user-${encodeURIComponent(username)}`, username, role: 'analyst', isActive: true } }, 201);
+      const user: UserPublic = { id: `mock-user-${encodeURIComponent(username)}`, username, role: 'analyst', isActive: true };
+      users.set(user.id, user);
+      return json({ data: user }, 201);
     }
     if (candidate.id === 'login') {
       const credentials = JSON.parse(String(init?.body));
@@ -103,11 +137,17 @@ export function createMockTransport(controls: MockControls): typeof globalThis.f
       if (account) {
         if (account.digest !== await digest(credentials.password)) return error(401, 'INVALID_CREDENTIALS');
         payload.user = { ...(payload.user as object), username: account.username, role: 'analyst' };
+        const user = [...users.values()].find(u => u.username === account.username)!;
+        if (!user.isActive) return error(401, 'INACTIVE');
+        payload.user = user;
         payload.accessToken = `mock-registered:${encodeURIComponent(account.username)}`;
       } else if (credentials.username !== 'demo') {
         if (!['analyst01', 'admin01'].includes(credentials.username) || credentials.password !== 'demo-password') return error(401, 'INVALID_CREDENTIALS');
         const role = credentials.username === 'admin01' ? 'admin' : 'analyst';
         payload.user = { ...(payload.user as object), username: credentials.username, role };
+        const user = [...users.values()].find(u => u.username === credentials.username)!;
+        if (!user.isActive) return error(401, 'INACTIVE');
+        payload.user = user;
         payload.accessToken = `mock-${credentials.username}`;
       } else payload.user = { ...(payload.user as object), role: controls.role };
     }

@@ -14,6 +14,8 @@ export interface WorkspaceState {
   filters: WorkspaceFilters;
   tab: WorkspaceTab;
   selectedReadingId?: string;
+  reviewDirty: boolean;
+  setReviewDirty: (dirty: boolean) => void;
   resultRun?: AnalysisRun;
   anomalies: Anomaly[];
   setResults: (run?: AnalysisRun, anomalies?: Anomaly[]) => void;
@@ -30,17 +32,19 @@ export function createWorkspaceStore() {
     filters: {},
     tab: 'visualization',
     anomalies: [],
+    reviewDirty: false,
+    setReviewDirty: reviewDirty => set({ reviewDirty }),
     setResults: (resultRun, anomalies = []) => set({ resultRun, anomalies }),
     openDataset(id) {
       if (!id.trim()) throw new TypeError('Dataset ID is required.');
       if (get().datasetId === id) return;
-      set({ datasetId: id, filters: {}, selectedReadingId: undefined, tab: 'visualization', resultRun: undefined, anomalies: [] });
+      set({ datasetId: id, filters: {}, selectedReadingId: undefined, tab: 'visualization', resultRun: undefined, anomalies: [], reviewDirty: false });
     },
     applyFilters(filters) {
       set({ filters: { ...filters, bbox: filters.bbox ? [...filters.bbox] as Bbox : undefined }, selectedReadingId: undefined });
     },
     selectTab: (tab) => set({ tab }),
     selectReading: (selectedReadingId) => set({ selectedReadingId }),
-    clear: () => set({ datasetId: undefined, filters: {}, tab: 'visualization', selectedReadingId: undefined, resultRun: undefined, anomalies: [] }),
+    clear: () => set({ datasetId: undefined, filters: {}, tab: 'visualization', selectedReadingId: undefined, resultRun: undefined, anomalies: [], reviewDirty: false }),
   }));
 }

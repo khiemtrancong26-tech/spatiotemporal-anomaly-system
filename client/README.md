@@ -80,7 +80,7 @@ HTTP client hỗ trợ Bearer từ token getter, JSON/multipart, cancellation, p
 
 ## Giới hạn mock và tooling
 
-Mock có list/filter/sort/cursor, cancellation/delay, chọn lỗi, tài khoản demo và Register/Login trong RAM; mutations nghiệp vụ khác vẫn trả fixture minh họa. Mock **không** giả lập đầy đủ database, CAS, receipt idempotency hoặc trạng thái import. Kiểm thử helper retry xác minh key/payload phía client, không chứng minh chống trùng phía Server.
+Mock có list/filter/sort/cursor, cancellation/delay, chọn lỗi, tài khoản demo, Register/Login/Admin users, analysis lifecycle và review CAS trong RAM; import vẫn trả fixture minh họa. Mock **không** giả lập đầy đủ database, CAS, receipt idempotency hoặc trạng thái import. Kiểm thử helper retry xác minh key/payload phía client, không chứng minh chống trùng phía Server.
 
 Tại lần kiểm tra M1, `npm audit --omit=dev` không có advisory production; audit đầy đủ báo 10 moderate trên chuỗi lint tooling dùng minimatch 10.2.6. Chưa ép override major dependency của ESLint/typescript-eslint; cần cập nhật khi upstream hỗ trợ phiên bản vá. TanStack CLI hiện in cảnh báo circular dependency khi generate; generation, typecheck và build vẫn thành công. Những giới hạn này không được diễn giải thành API/Frontend đã nghiệm thu toàn bộ P0.
 
@@ -102,3 +102,11 @@ Xem [M4 verification](../docs/frontend/m4-verification.md). Workspace tải read
 ## D008 / M5 đã migrate (14/11/2026)
 
 Generated types/schema, adapter create/get/list, mock và shared-core đã cập nhật D008. Xem [M5 verification](../docs/frontend/m5-verification.md). Form thật gửi zscore `{threshold:3}` hoặc iqr `{multiplier:1.5}`; ML Isolation Forest khóa chờ method/config API. History và run deep-link dùng `?runId=...`, poll có backoff/visibility, kết quả chỉ tải sau completed. Bbox chặn gửi; retry unknown POST thật khóa vì retention chưa chốt. Mock mô phỏng lifecycle/replay trong RAM, không engine/database; reload mất run demo mới, fixture lịch sử vẫn có. Backend thật/ML chưa nghiệm thu.
+
+## M6
+
+Tab Anomalies có list/filter/detail và review CAS; 409 giữ draft để đối chiếu Server, không tự ghi đè. Xem [M6 verification](../docs/frontend/m6-verification.md). Backend thật chưa nghiệm thu.
+
+## M7
+
+Admin có list cursor/sort, create với idempotency key và PATCH role/isActive. Tự đổi quyền đọc lại `/users/me`; inactive thoát phiên. Create unknown trên API thật khóa retry, mock giữ intent trong RAM tối đa 15 phút. Xem [M7 verification](../docs/frontend/m7-verification.md); Backend thật và chính sách admin cuối cùng/retention chưa nghiệm thu.

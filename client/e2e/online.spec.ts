@@ -298,3 +298,132 @@ test('M5 sends fixed statistical payloads and never retries unknown online accep
   await page.reload(); await page.getByRole('button', { name: 'Analysis', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Thử lại cùng key', exact: true })).toBeDisabled(); expect(sent).toHaveLength(2);
 });
+
+test('M6 preserves draft on 409, rebases explicitly and saves only review fields', async ({ page }) => {
+  const original = (fixture('anomaly-detail') as { data: Record<string, unknown> }).data;
+  let server = { ...original }, conflict = true;
+  const writes: Record<string, unknown>[] = [];
+  await page.route('http://localhost:3001/api/v1/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    let body: unknown = fixture(path.endsWith('/auth/tokens') ? 'login' : path.endsWith('/users/me') ? 'me' : path.endsWith('/sensors') ? 'sensors' : 'readings');
+    if (path.endsWith('/anomalies/anomaly-001')) {
+      if (route.request().method() === 'PATCH') {
+        const payload = route.request().postDataJSON(); writes.push(payload);
+        if (conflict) { conflict = false; server = { ...server, version: Number(original.version) + 1, note: 'Server note' }; return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: { code: 'CONFLICT', message: 'Changed' } }) }); }
+        expect(payload.baseVersion).toBe(server.version); expect(Object.keys(payload).sort()).toEqual(['baseVersion', 'changes']); expect(Object.keys(payload.changes).sort()).toEqual(['note', 'status']);
+        server = { ...server, ...payload.changes, version: Number(server.version) + 1 };
+      }
+      body = { data: server };
+    } else if (path.endsWith('/anomalies')) body = { data: [server], page: { limit: 100, nextCursor: null } };
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  });
+  await page.goto('/workspace/dataset-001'); await page.getByLabel('Tên đăng nhập', { exact: true }).fill('analyst01'); await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password'); await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await page.getByRole('button', { name: 'Anomalies', exact: true }).click(); await page.getByRole('button', { name: 'Review anomaly-001', exact: true }).click();
+  await page.getByLabel('Ghi chú', { exact: true }).fill('My note'); await page.getByLabel('Review status', { exact: true }).selectOption('confirmed'); await page.getByRole('button', { name: 'Lưu review', exact: true }).click();
+  await expect(page.getByText(/Server v.*Server note/)).toBeVisible(); await expect(page.getByLabel('Ghi chú', { exact: true })).toHaveValue('My note'); expect(writes).toHaveLength(1); await expect(page.getByRole('button', { name: 'Lưu review', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Giữ bản sửa trên version mới' }).click(); expect(writes).toHaveLength(1);
+  await page.getByRole('button', { name: 'Lưu review', exact: true }).click(); await expect(page.getByText('Server đã xác nhận lưu review.')).toBeVisible(); expect(writes).toHaveLength(2);
+  await page.screenshot({ path: 'test-results/m6-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('M6 keeps draft through network/409 and allows explicit discard without another PATCH', async ({ page }) => {
+  const base = (fixture('anomaly-detail') as { data: Record<string, unknown> }).data;
+  let patches = 0;
+  await page.route('http://localhost:3001/api/v1/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    let body: unknown = fixture(path.endsWith('/auth/tokens') ? 'login' : path.endsWith('/users/me') ? 'me' : path.endsWith('/sensors') ? 'sensors' : 'readings');
+    if (path.endsWith('/anomalies/anomaly-001')) {
+      if (route.request().method() === 'PATCH') { patches++; if (patches === 1) return route.abort(); return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: { code: 'CONFLICT', message: 'Changed' } }) }); }
+      body = { data: patches > 1 ? { ...base, note: 'Server wins', version: Number(base.version) + 1 } : base };
+    } else if (path.endsWith('/anomalies')) body = { data: [base], page: { limit: 100, nextCursor: null } };
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  });
+  await page.goto('/workspace/dataset-001'); await page.getByLabel('Tên đăng nhập', { exact: true }).fill('analyst01'); await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password'); await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await page.getByRole('button', { name: 'Anomalies', exact: true }).click(); await page.getByRole('button', { name: 'Review anomaly-001', exact: true }).click();
+  await page.getByLabel('Ghi chú', { exact: true }).fill('Keep me'); await page.getByRole('button', { name: 'Lưu review', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Bản sửa vẫn được giữ'); await expect(page.getByLabel('Ghi chú', { exact: true })).toHaveValue('Keep me');
+  await expect(page.getByText('Server đã xác nhận lưu review.')).toHaveCount(0); expect(patches).toBe(1);
+  page.once('dialog', d => d.dismiss()); await page.getByRole('button', { name: 'Visualization', exact: true }).click(); await expect(page.getByLabel('Ghi chú', { exact: true })).toHaveValue('Keep me');
+  await page.getByRole('button', { name: 'Lưu review', exact: true }).click(); await page.getByRole('button', { name: 'Bỏ bản sửa, dùng Server' }).click();
+  await expect(page.getByLabel('Ghi chú', { exact: true })).toHaveValue('Server wins'); expect(patches).toBe(2); await expect(page.getByRole('button', { name: 'Lưu review', exact: true })).toBeDisabled();
+});
+
+test('M7 online validates create, locks uncertain retry and pages users', async ({ page }) => {
+  let posts = 0;
+  let createStatus = 422;
+  const admin = { id: 'admin-self', username: 'admin01', role: 'admin', isActive: true };
+  const queries: string[] = [];
+  await page.route('http://localhost:3001/api/v1/**', async route => {
+    const request = route.request(), url = new URL(request.url());
+    if (url.pathname.endsWith('/auth/tokens')) return route.fulfill({ json: { ...fixture('login'), user: admin } });
+    if (url.pathname.endsWith('/users/me')) return route.fulfill({ json: { data: admin } });
+    if (request.method() === 'POST') {
+      posts++;
+      expect(request.headers()['idempotency-key']).toBeTruthy();
+      expect(request.postDataJSON()).toEqual({ username: 'newadmin', password: 'secret-password', role: 'analyst' });
+      if (!createStatus) return route.abort('failed');
+      return route.fulfill({ status: createStatus, json: { error: { code: createStatus === 409 ? 'USERNAME_CONFLICT' : 'VALIDATION_ERROR', message: 'Invalid' } } });
+    }
+    queries.push(url.search);
+    const next = url.searchParams.has('cursor');
+    return route.fulfill({ json: { data: [next ? { ...admin, id: 'second', username: 'second' } : admin], page: { limit: 100, nextCursor: next ? null : 'page2' } } });
+  });
+  await page.goto('/admin/users');
+  await page.getByLabel('Tên đăng nhập', { exact: true }).fill('admin01');
+  await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password');
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await page.getByRole('button', { name: 'Tải thêm users' }).click();
+  await expect(page.getByRole('button', { name: 'Sửa second', exact: true })).toBeVisible();
+  await page.getByLabel('Sắp xếp user').selectOption('username:desc');
+  await expect(page.getByRole('button', { name: 'Sửa second', exact: true })).toHaveCount(0);
+  expect(queries.some(q => q.includes('cursor=page2'))).toBe(true);
+  expect(queries.at(-1)).not.toContain('cursor');
+  await page.getByLabel('Username mới').fill('newadmin');
+  await page.getByLabel('Mật khẩu mới').fill('secret-password');
+  await page.getByRole('button', { name: 'Tạo user', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('chưa hợp lệ');
+  await expect(page.getByLabel('Username mới')).toBeEnabled();
+  createStatus = 409;
+  await page.getByLabel('Mật khẩu mới').fill('secret-password');
+  await page.getByRole('button', { name: 'Tạo user', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Username đã tồn tại');
+  await expect(page.getByLabel('Username mới')).toBeEnabled();
+  createStatus = 0;
+  await page.getByLabel('Mật khẩu mới').fill('secret-password');
+  await page.getByRole('button', { name: 'Tạo user', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Thử lại tạo cùng key' })).toBeDisabled();
+  await expect(page.getByLabel('Mật khẩu mới')).toHaveValue('');
+  expect(posts).toBe(3);
+  expect(await page.evaluate(() => JSON.stringify({ ...sessionStorage, ...localStorage }))).not.toContain('secret-password');
+});
+
+test('M7 online keeps rejected PATCH draft and logs out a disabled current admin', async ({ page }) => {
+  const admin = { id: 'self', username: 'admin01', role: 'admin', isActive: true };
+  let rejected = true;
+  await page.route('http://localhost:3001/api/v1/**', async route => {
+    const request = route.request(), path = new URL(request.url()).pathname;
+    if (path.endsWith('/auth/tokens')) return route.fulfill({ json: { ...fixture('login'), user: admin } });
+    if (path.endsWith('/users/me')) return route.fulfill({ json: { data: admin } });
+    if (request.method() === 'PATCH') {
+      expect(request.postDataJSON()).toEqual({ isActive: false });
+      if (rejected) return route.fulfill({ status: 403, json: { error: { code: 'FORBIDDEN', message: 'Denied' } } });
+      return route.fulfill({ json: { data: { ...admin, isActive: false } } });
+    }
+    return route.fulfill({ json: { data: [admin], page: { limit: 100, nextCursor: null } } });
+  });
+  await page.goto('/admin/users');
+  await page.getByLabel('Tên đăng nhập', { exact: true }).fill('admin01');
+  await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password');
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await page.getByRole('button', { name: 'Sửa admin01', exact: true }).click();
+  await page.getByLabel('Đang hoạt động').uncheck();
+  page.on('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Lưu tài khoản' }).click();
+  await expect(page.getByRole('alert')).toContainText('không có quyền');
+  await expect(page.getByLabel('Đang hoạt động')).not.toBeChecked();
+  rejected = false;
+  await page.getByRole('button', { name: 'Lưu tài khoản' }).click();
+  await expect(page.getByRole('heading', { name: 'Đăng nhập', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem('pm25.auth.online'))).toBeNull();
+});

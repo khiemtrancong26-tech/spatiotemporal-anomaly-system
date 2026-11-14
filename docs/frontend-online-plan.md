@@ -183,23 +183,27 @@ Theo D008: cả statistical và ml dùng async; API Contract v0.3.0-draft. Đã 
 
 ### M6 — Anomaly list, chi tiết và review online
 
-- [ ] Theo D008 chỉ hiển thị anomalies đã công bố của run completed; 409 chưa sẵn sàng khác kết quả rỗng. Danh sách theo dataset/run, family/method/severity/status/thời gian đúng các query hỗ trợ; cursor và trạng thái rỗng/lỗi rõ ràng.
-- [ ] GET chi tiết, panel reading/location/detector/score/severity/review/version; một reading có thể có nhiều anomalies, không ép quan hệ một-một.
-- [ ] PATCH chỉ `{baseVersion, changes: {status, note}}`; không sửa score/severity/method.
-- [ ] Chỉ báo đã lưu sau response thành công; dùng version mới và cập nhật danh sách/detail/lớp 3D liên quan.
-- [ ] Với 409: giữ bản sửa đang nhập trong phiên, tải trạng thái Server, hiển thị khác biệt và cho chọn bỏ bản sửa hoặc sửa lại dựa trên version mới. Không tự ghi đè hoặc tự retry với baseVersion mới.
-- [ ] Chọn anomaly từ danh sách làm nổi bật đúng điểm nếu điểm có trong tập đang tải; nếu chưa có, nói rõ giới hạn và dùng chi tiết sẵn có. Không tự bịa endpoint lấy reading theo ID.
+- [x] Theo D008 chỉ hiển thị anomalies đã công bố của run completed; 409 chưa sẵn sàng khác kết quả rỗng. Danh sách theo dataset/run, family/method/severity/status/thời gian đúng các query hỗ trợ; cursor và trạng thái rỗng/lỗi rõ ràng.
+- [x] GET chi tiết, panel reading/location/detector/score/severity/review/version; một reading có thể có nhiều anomalies, không ép quan hệ một-một.
+- [x] PATCH chỉ `{baseVersion, changes: {status, note}}`; không sửa score/severity/method.
+- [x] Chỉ báo đã lưu sau response thành công; dùng version mới và cập nhật danh sách/detail/lớp 3D liên quan.
+- [x] Với 409: giữ bản sửa đang nhập trong phiên, tải trạng thái Server, hiển thị khác biệt và cho chọn bỏ bản sửa hoặc sửa lại dựa trên version mới. Không tự ghi đè hoặc tự retry với baseVersion mới.
+- [x] Chọn anomaly từ danh sách làm nổi bật đúng điểm nếu điểm có trong tập đang tải; nếu chưa có, nói rõ giới hạn và dùng chi tiết sẵn có. Không tự bịa endpoint lấy reading theo ID.
 
 **Nghiệm thu:** review cập nhật đồng nhất; hai phiên sửa cùng anomaly tạo conflict có thể xử lý; lỗi mạng không làm xuất hiện thông báo lưu thành công.
 
+**Bằng chứng FE:** [M6 verification](frontend/m6-verification.md); nghiệm thu CAS/Backend thật còn chờ.
+
 ### M7 — Quản lý tài khoản Admin
 
-- [ ] List user với cursor/sort theo contract, thông tin public username/role/isActive.
-- [ ] Tạo user có username/password/role và idempotency key; xử lý trùng username 409, lỗi 422.
-- [ ] Sửa role/isActive bằng PATCH, cập nhật danh sách sau response thành công; không thêm delete/reset password.
-- [ ] Kiểm tra route guard và phản hồi 403 từ Server; thay đổi quyền/trạng thái tài khoản hiện tại phải được xử lý nhất quán với Backend.
+- [x] List user với cursor/sort theo contract, thông tin public username/role/isActive.
+- [x] Tạo user có username/password/role và idempotency key; xử lý trùng username 409, lỗi 422.
+- [x] Sửa role/isActive bằng PATCH, cập nhật danh sách sau response thành công; không thêm delete/reset password.
+- [x] Kiểm tra route guard và phản hồi 403 từ Server; thay đổi quyền/trạng thái tài khoản hiện tại phải được xử lý nhất quán với Backend.
 
 **Nghiệm thu:** admin tạo/sửa được tài khoản, analyst không truy cập được chức năng; không giữ password đã nhập trong state lâu hơn cần thiết và không hiển thị trường nhạy cảm từ response.
+
+**Bằng chứng FE:** [M7 verification](frontend/m7-verification.md). Đã kiểm thử mock/HTTP interception; chưa nghiệm thu Backend thật. Backend quyết định admin cuối cùng/tự hạ quyền; PATCH tài khoản hiện tại thành công thì kiểm tra `/users/me`, response inactive thì thoát phiên. Create mất phản hồi: mock giữ key/payload trong RAM tối đa 15 phút; API thật khóa retry khi retention chưa chốt. Không lưu password vào storage.
 
 ### M8 — Tích hợp, kiểm thử và bàn giao
 

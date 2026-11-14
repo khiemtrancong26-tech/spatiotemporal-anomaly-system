@@ -39,9 +39,10 @@ it('routes every adapter method through the mock HTTP transport with the right e
   expect((await api.anomalies.list({ datasetId: 'dataset-001' })).data[0].id).toBe('anomaly-001');
   expect((await api.anomalies.get('anomaly-001')).readingId).toBe('reading-002');
   expect((await api.anomalies.review('anomaly-001', body('anomaly-review') as W.ReviewPatchRequest)).version).toBe(2);
-  expect((await api.adminUsers.list({})).data).toHaveLength(1);
-  expect((await api.adminUsers.create(body('admin-create') as W.AdminUserCreateRequest, key)).id).toBe('user-002');
-  expect((await api.adminUsers.update('user-002', { isActive: false })).isActive).toBe(false);
+  expect((await api.adminUsers.list({})).data).toHaveLength(2);
+  const createdUser = await api.adminUsers.create(body('admin-create') as W.AdminUserCreateRequest, key);
+  expect(createdUser.username).toBe((body('admin-create') as W.AdminUserCreateRequest).username);
+  expect((await api.adminUsers.update(createdUser.id, { isActive: false })).isActive).toBe(false);
 });
 
 it('pages mock data with query-bound cursors and returns honest empty results', async () => {
@@ -78,4 +79,21 @@ it('D008 mock replays one accepted run without rerunning and exposes terminal re
   expect((await api.analysis.get(accepted.data.id)).status).toBe('completed');
   expect(await api.analysis.create(request, key)).toEqual(accepted);
   expect((await api.anomalies.list({ datasetId: request.datasetId, analysisRunId: accepted.data.id })).data[0].analysisRunId).toBe(accepted.data.id);
+});
+
+it('M7 mock create replay, duplicate, patch and account permissions stay coherent', async () => {
+  const transport = createMockTransport(controls);
+  const api = createOnlineDataSource({ baseUrl: 'http://mock.local/api/v1', getAccessToken: () => 'mock-admin01', fetch: transport });
+  const request = { username: 'another', password: 'demo-password', role: 'analyst' as const };
+  const created = await api.adminUsers.create(request, key);
+  expect(await api.adminUsers.create(request, key)).toEqual(created);
+  await expect(api.adminUsers.create({ ...request, role: 'admin' }, key)).rejects.toMatchObject({ status: 422 });
+  await expect(api.adminUsers.create(request, { idempotencyKey: crypto.randomUUID() })).rejects.toMatchObject({ status: 409 });
+  expect((await api.adminUsers.list({})).data.filter(u => u.username === 'another')).toHaveLength(1);
+  await api.adminUsers.update(created.id, { isActive: false });
+  await expect(api.auth.login({ username: 'another', password: 'demo-password' })).rejects.toMatchObject({ status: 401 });
+  const self = await api.auth.me();
+  await api.adminUsers.update(self.id, { role: 'analyst' });
+  expect((await api.auth.me()).role).toBe('analyst');
+  await expect(api.adminUsers.list({})).rejects.toMatchObject({ status: 403 });
 });

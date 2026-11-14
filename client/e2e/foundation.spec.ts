@@ -90,3 +90,28 @@ test('M5 demo submits one immutable intent, follows async lifecycle and clears c
   await page.getByRole('button', { name: 'Đăng xuất', exact: true }).click();
   expect(await page.evaluate(() => Object.keys(sessionStorage).filter(k => k.startsWith('pm25.analysis.')).length)).toBe(0);
 });
+
+test('M7 admin creates, edits and loses admin access after self downgrade', async ({ page }) => {
+  await page.goto('/admin/users');
+  await login(page, 'admin01');
+  await page.getByLabel('Username mới').fill('created-admin');
+  await page.getByLabel('Mật khẩu mới').fill('secret-password');
+  await page.getByRole('button', { name: 'Tạo user', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Server đã tạo' })).toBeVisible();
+  await expect(page.getByLabel('Mật khẩu mới')).toHaveValue('');
+  await page.getByRole('button', { name: 'Sửa created-admin', exact: true }).click();
+  await page.getByLabel('Role', { exact: true }).selectOption('admin');
+  await page.getByRole('button', { name: 'Lưu tài khoản' }).click();
+  await expect(page.getByRole('status')).toContainText('xác nhận cập nhật');
+  page.on('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Về danh sách user' }).click();
+  await expect(page.getByRole('row').filter({ hasText: 'created-admin' })).toContainText('admin');
+  await page.screenshot({ path: 'test-results/m7-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'test-results/m7-mobile.png', fullPage: true });
+  await page.getByRole('button', { name: 'Sửa admin01', exact: true }).click();
+  await page.getByLabel('Role', { exact: true }).selectOption('analyst');
+  await page.getByRole('button', { name: 'Lưu tài khoản' }).click();
+  await expect(page.getByRole('heading', { name: 'Không có quyền truy cập' })).toBeVisible();
+});

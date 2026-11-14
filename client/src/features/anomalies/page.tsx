@@ -1,0 +1,48 @@
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useBlocker } from '@tanstack/react-router';
+import { useServices } from '../../app/services';
+import { Button, Field, ErrorState, LoadingState } from '../../shared/ui/primitives';
+import { createCursorPager } from '../../shared/lib/cursor-pager';
+import { DataSourceError, errorMessage } from '../../shared/api/errors';
+import type { Anomaly, AnomaliesQuery } from '../../shared/api/generated/wire';
+import type { WorkspaceFilters } from '../workspace/state';
+function Review({ item, saved }: { item: Anomaly; saved: (a: Anomaly) => void }) {
+  const { data, workspace } = useServices();
+  const [base, setBase] = useState(item), [status, setStatus] = useState(item.status), [note, setNote] = useState(item.note);
+  const [conflict, setConflict] = useState(false), [latest, setLatest] = useState<Anomaly>();
+  const [pending, setPending] = useState(false), [error, setError] = useState(''), [success, setSuccess] = useState(false);
+  const active = useRef<AbortController | undefined>(undefined);
+  const dirty = status !== base.status || note !== base.note;
+  useEffect(() => { workspace.getState().setReviewDirty(dirty || conflict); return () => workspace.getState().setReviewDirty(false); }, [workspace, dirty, conflict]);
+  useBlocker({ shouldBlockFn: () => (dirty || conflict) && !window.confirm('Bỏ bản review chưa lưu?'), enableBeforeUnload: dirty || conflict });
+  useEffect(() => () => active.current?.abort(), []);
+  async function loadLatest() {
+    const controller = new AbortController(); active.current = controller; setPending(true);
+    try { const a = await data.anomalies.get(base.id, { signal: controller.signal }); if (!controller.signal.aborted) { if (a.datasetId !== base.datasetId || a.id !== base.id) throw new Error('Dataset không khớp'); setLatest(a); } }
+    catch (e) { if (!controller.signal.aborted) setError(errorMessage(e)); }
+    finally { if (!controller.signal.aborted) setPending(false); }
+  }
+  async function save() {
+    if (pending || conflict || !dirty) return;
+    const controller = new AbortController(); active.current = controller; setPending(true); setError(''); setSuccess(false);
+    try { const a = await data.anomalies.review(base.id, { baseVersion: base.version, changes: { status, note } }, { signal: controller.signal }); if (controller.signal.aborted) return; if (a.id !== base.id || a.datasetId !== base.datasetId || a.version <= base.version) throw new Error('Response không khớp'); setBase(a); setStatus(a.status); setNote(a.note); setSuccess(true); saved(a); }
+    catch (e) { if (!controller.signal.aborted) { setError(errorMessage(e)); if (e instanceof DataSourceError && e.status === 409) { setConflict(true); setLatest(undefined); await loadLatest(); } } }
+    finally { if (!controller.signal.aborted) setPending(false); }
+  }
+  return <section className="card analysis-page"><h3>Chi tiết {base.id}</h3><p>Reading: {base.readingId} · Sensor: {base.sensorId} · Run: {base.analysisRunId}</p><p>{base.ts} (UTC) · Lon/Lat: {base.location.coordinates.join(', ')}</p><p>{base.family} / {base.method} · Score {base.score} · Severity {base.severity} · Version {base.version} · Cập nhật: {base.updatedAt}</p><p>Giá trị reading không nằm trong DTO anomaly; xem workspace nếu reading đã tải.</p><label className="field">Review status<select aria-label="Review status" disabled={pending} value={status} onChange={e => { setStatus(e.target.value as Anomaly['status']); setSuccess(false); }}><option>open</option><option>confirmed</option><option>false_positive</option></select></label><label className="field">Ghi chú<textarea aria-label="Ghi chú" disabled={pending} value={note} onChange={e => { setNote(e.target.value); setSuccess(false); }} /></label><Button disabled={pending || conflict || !dirty} onClick={() => { void save(); }}>Lưu review</Button>{success && <p role="status">Server đã xác nhận lưu review.</p>}{error && <p role="alert">{error} Bản sửa vẫn được giữ. Lỗi mạng không chứng minh Server chưa lưu; ứng dụng không tự gửi lại.</p>}{conflict && <div><p role="alert">Xung đột phiên bản. Không tự ghi đè hoặc tự gửi lại.</p>{latest ? <><p>Server v{latest.version}: {latest.status} · {latest.note || '(ghi chú rỗng)'}</p><p>Bản của bạn: {status} · {note || '(ghi chú rỗng)'}</p><Button disabled={pending} onClick={() => { setBase(latest); setStatus(latest.status); setNote(latest.note); setConflict(false); setError(''); saved(latest); }}>Bỏ bản sửa, dùng Server</Button><Button disabled={pending} onClick={() => { setBase(latest); setConflict(false); setError(''); }}>Giữ bản sửa trên version mới</Button><p>Sau khi giữ bản sửa, kiểm tra lại rồi bấm Lưu review.</p></> : <Button disabled={pending} onClick={() => { void loadLatest(); }}>Đọc lại bản Server</Button>}</div>}<Button variant="secondary" disabled={dirty || conflict || pending} onClick={() => { workspace.getState().selectReading(base.readingId); workspace.getState().selectTab('visualization'); }}>Xem reading trên workspace</Button></section>;
+}
+export function AnomaliesPage({ datasetId, filters, runId }: { datasetId: string; filters: WorkspaceFilters; runId?: string }) {
+  const { data, workspace } = useServices();
+  const [draft, setDraft] = useState({ run: runId ?? '', family: '', method: '', severity: '', status: '', sort: 'ts:asc' });
+  const [query, setQuery] = useState<AnomaliesQuery>({ datasetId, analysisRunId: runId, from: filters.from, to: filters.to, sort: 'ts:asc', limit: 100 });
+  const [item, setItem] = useState<Anomaly>(), [error, setError] = useState(''), [loading, setLoading] = useState(false);
+  const [revision, refresh] = useState(0);
+  const request = useRef<AbortController | undefined>(undefined);
+  const pager = useMemo(() => createCursorPager(data.anomalies.list), [data]);
+  const state = useSyncExternalStore(pager.subscribe, pager.getSnapshot);
+  useEffect(() => { void pager.setQuery(query); return () => pager.dispose(); }, [pager, query, revision]);
+  useEffect(() => () => request.current?.abort(), []);
+  async function select(id: string) { request.current?.abort(); const controller = new AbortController(); request.current = controller; setLoading(true); setError(''); try { const a = await data.anomalies.get(id, { signal: controller.signal }); if (!controller.signal.aborted) { if (a.datasetId !== datasetId || a.id !== id) throw new Error('Response không khớp'); setItem(a); const current = workspace.getState(); current.setResults(undefined, [a]); } } catch(e) { if (!controller.signal.aborted) setError(errorMessage(e)); } finally { if (!controller.signal.aborted) setLoading(false); } }
+  function saved(a: Anomaly) { const current = workspace.getState(); current.setResults(current.resultRun, current.anomalies.map(value => value.id === a.id ? a : value)); refresh(v => v + 1); }
+  return <section className="card analysis-page"><h2>Anomalies và review</h2><p>Scope: dataset {datasetId}, thời gian {filters.from ?? 'mọi thời điểm'} → {filters.to ?? 'không giới hạn'}. Trạm/bbox không áp dụng. Chỉ kết quả đã công bố; 409 chưa sẵn sàng khác kết quả rỗng.</p>{!item && <><form onSubmit={e => { e.preventDefault(); setQuery({ datasetId, from: filters.from, to: filters.to, analysisRunId: draft.run || undefined, family: (draft.family || undefined) as AnomaliesQuery['family'], method: draft.method || undefined, severity: (draft.severity || undefined) as AnomaliesQuery['severity'], status: (draft.status || undefined) as AnomaliesQuery['status'], sort: draft.sort as AnomaliesQuery['sort'], limit: 100 }); }}><Field label="Analysis run ID" value={draft.run} onChange={e => setDraft({ ...draft, run: e.target.value })} /><Field label="Method" value={draft.method} onChange={e => setDraft({ ...draft, method: e.target.value })} />{(['family','severity','status','sort'] as const).map(field => <label className="field" key={field}>{field}<select aria-label={field} value={draft[field]} onChange={e => setDraft({ ...draft, [field]: e.target.value })}>{(field === 'family' ? ['', 'statistical', 'ml'] : field === 'severity' ? ['', 'low', 'medium', 'high'] : field === 'status' ? ['', 'open', 'confirmed', 'false_positive'] : ['ts:asc','ts:desc']).map(v => <option key={v} value={v}>{v || 'Tất cả'}</option>)}</select></label>)}<Button type="submit">Lọc anomalies</Button></form>{state.status === 'loading' && <LoadingState />}{state.status === 'error' && <ErrorState message={errorMessage(state.error)} retry={() => { void pager.retry(); }} />}{state.status === 'ready' && !state.data.length && <p>Không có anomaly trong trang/phạm vi này.</p>}<div className="table-scroll"><table><thead><tr><th>Anomaly</th><th>Reading</th><th>Method</th><th>Severity</th><th>Status</th><th>Chi tiết</th></tr></thead><tbody>{state.data.map(a => <tr key={a.id}><td>{a.id}</td><td>{a.readingId}</td><td>{a.family}/{a.method}</td><td>{a.severity}</td><td>{a.status}</td><td><Button disabled={loading} onClick={() => { void select(a.id); }}>Review {a.id}</Button></td></tr>)}</tbody></table></div><p>Đã tải {state.data.length} anomalies{state.nextCursor ? ' · Còn trang' : ''}</p>{state.nextCursor && <Button disabled={state.status === 'loading' || state.data.length >= 2000} onClick={() => { void pager.loadMore(); }}>Tải thêm anomalies</Button>}</>}{loading && <LoadingState />}{error && <p role="alert">{error}</p>}{item && <><Review key={item.id} item={item} saved={saved} /><Button variant="secondary" onClick={() => { if (window.confirm('Về danh sách và bỏ bản sửa chưa lưu nếu có?')) setItem(undefined); }}>Về danh sách anomalies</Button></>}</section>;
+}
