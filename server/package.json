@@ -19,7 +19,9 @@
     "db:indexes": "tsx --env-file-if-exists=../.env scripts/ensure-indexes.ts",
     "db:seed": "tsx --env-file-if-exists=../.env scripts/seed-demo.ts",
     "check": "npm run typecheck && npm run lint && npm test && npm run build",
-    "test:e2e:b3": "playwright test --config playwright.config.ts b3.spec.ts"
+    "test:e2e:b3": "playwright test --config playwright.config.ts b3.spec.ts",
+    "test:e2e:b4": "playwright test --config playwright.config.ts b4.spec.ts",
+    "benchmark:query": "node --expose-gc --import tsx scripts/benchmark-query.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

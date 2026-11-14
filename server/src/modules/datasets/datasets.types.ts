@@ -14,6 +14,10 @@ export interface Dataset {
   createdBy: string; createdAt: string; importSummary?: ImportSummary;
 }
 export interface DatasetListQuery { sort?: string; limit?: number; cursor?: string }
+/** Public read boundary for Query/Analysis; no BSON or internal repository access. */
+export interface DatasetReadAccess {
+  getState: (id: string) => Promise<{ id: string; status: Dataset['status'] } | null>;
+}
 export const requiredSourceFields = ['sensorId', 'latitude', 'longitude', 'timestamp', 'value'] as const;
 export type SourceField = typeof requiredSourceFields[number] | 'unit' | 'name' | 'region';
 export interface MappingRequest {

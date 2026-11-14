@@ -8,6 +8,7 @@ import { onlineIndexes } from '../src/shared/persistence/indexes.js';
 import { userPublicSchema, userResponseSchema } from '../src/modules/users/users.schema.js';
 import { loginRequestSchema, loginResponseSchema, registerRequestSchema } from '../src/modules/auth/auth.schema.js';
 import { datasetPageSchema, datasetSchema, importSummarySchema, mappingRequestSchema, singleDatasetSchema, validationReportSchema } from '../src/modules/datasets/datasets.schema.js';
+import { sensorSchema, readingSchema, sensorPageSchema, readingPageSchema, sensorsQuerySchema, readingsQuerySchema } from '../src/modules/query/query.schema.js';
 
 describe('foundation contract drift checks', () => {
   it('keeps B2 request/response schemas aligned without tightening open DTO constraints', async () => {
@@ -17,13 +18,19 @@ describe('foundation contract drift checks', () => {
       if (!value || typeof value !== 'object') return value;
       const record = value as Record<string, unknown>;
       if (typeof record.$ref === 'string') return expand(spec.components.schemas[record.$ref.split('/').at(-1)!]);
-      return Object.fromEntries(Object.entries(record).filter(([name]) => name !== 'description').map(([name, item]) => [name, expand(item)]));
+      return Object.fromEntries(Object.entries(record).filter(([name]) => !['description', 'example'].includes(name)).map(([name, item]) => [name, expand(item)]));
     }
     for (const [name, schema] of Object.entries({ UserPublic: userPublicSchema, UserResponse: userResponseSchema,
       RegisterRequest: registerRequestSchema, LoginRequest: loginRequestSchema, LoginResponse: loginResponseSchema,
       Dataset: datasetSchema, DatasetPage: datasetPageSchema, ImportSummary: importSummarySchema,
       MappingRequest: mappingRequestSchema, SingleDataset: singleDatasetSchema, ValidationReport: validationReportSchema,
+      Sensor: sensorSchema, Reading: readingSchema, SensorPage: sensorPageSchema, ReadingPage: readingPageSchema,
     })) expect(expand(schema)).toEqual(expand(spec.components.schemas[name]));
+    for (const [path, schema] of [['/api/v1/sensors', sensorsQuerySchema], ['/api/v1/readings', readingsQuerySchema]] as const) {
+      const parameters = spec.paths[path].get.parameters as { name: string; required: boolean; schema: unknown }[];
+      expect(schema.required).toEqual(parameters.filter(parameter => parameter.required).map(parameter => parameter.name));
+      expect(expand(schema.properties)).toEqual(expand(Object.fromEntries(parameters.map(parameter => [parameter.name, parameter.schema]))));
+    }
   });
   it('keeps health and error schemas exactly aligned with the existing OpenAPI', async () => {
     const spec = parse(await readFile(new URL('../../docs/api/openapi.yaml', import.meta.url), 'utf8'));

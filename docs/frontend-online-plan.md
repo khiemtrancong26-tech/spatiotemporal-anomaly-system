@@ -160,7 +160,7 @@ Các checkbox là việc cần thực hiện, chưa đánh dấu hoàn thành ch
 
 **Nghiệm thu:** cùng bộ lọc cho cùng tập dữ liệu giữa Mapbox và Cube; tọa độ/thời gian đúng, chọn đúng reading; đổi dataset nhanh không trộn kết quả; không mặc định tải hết 100k–500k readings.
 
-**Bằng chứng FE:** [M4 verification](frontend/m4-verification.md). Code và kiểm thử fixture đã có; nghiệm thu Backend/Mapbox token thật và đo tổng memory/FPS trên thiết bị mục tiêu còn chờ. Giới hạn ban đầu 2.000 điểm, không tự tải toàn bộ dataset.
+**Bằng chứng FE:** [M4 verification](frontend/m4-verification.md); bổ sung 14/11/2026: [B4 Backend verification](backend/b4-verification.md) đã kiểm tra import → Query/Workspace bằng API/DB thật, không intercept, theo D013. Mapbox token/tiles/camera thật và tổng memory/FPS thiết bị mục tiêu còn chờ. Giới hạn ban đầu 2.000 điểm, không tự tải toàn bộ dataset.
 
 ### M5 — Analysis online bất đồng bộ và lịch sử
 
@@ -259,7 +259,7 @@ Chưa ấn định ngày hoàn thành vì chưa có năng lực triển khai/ng�
 | Mapbox token và môi trường demo | Cấp public token/origin hợp lệ và kiểm tra tải nền; môi trường không có token vẫn chạy được các màn khác và Cube | Tài + Cường | M4 |
 | API thật và dữ liệu đánh giá | Chốt endpoint ready, tài khoản analyst/admin, dataset lỗi/hợp lệ, run thống kê/ML và môi trường tích hợp | Tài + Khiêm + Khải + Cường | Theo feature, xong trước M8 |
 | Anomalies không nhận sensorId/bbox, DTO không có giá trị reading | Tab Anomalies ghi scope riêng; không giả lọc toàn bộ vùng từ một trang; reading chưa tải thì báo rõ. Chi tiết C07/C08 và R09 trong M0 | Tài + Khiêm | M4/M6 |
-| Biên thời gian from/to chưa rõ đóng/mở | UTC+07 cho UI đã chọn; semantics biên và snapshot phân trang vẫn cần Backend xác nhận (R08) | Tài + Khiêm | M4/M5 |
+| Biên thời gian Query B4 (D013) | Đã chốt/kiểm thử [from,to] đóng, UTC Z ≤3 chữ số phần lẻ; from=to hợp lệ, không hứa snapshot giữa các trang. Scope/biên Analysis B5 vẫn cần chốt riêng | Tài + Khiêm | M4 đã tích hợp; M5 còn gate riêng |
 | Runtime validator chặt hơn HTTP schema | Đồng bộ chuỗi không rỗng, tọa độ và độ chính xác timestamp trước khi áp shared Zod lên HTTP response (C02–C04) | Tài + Khiêm + Khải | M1/tích hợp |
 | Tự đổi quyền/vô hiệu admin cuối cùng | Chờ quy tắc Backend; không tự đặt business rule ở frontend (R10) | Tài + Khiêm | M7 |
 

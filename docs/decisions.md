@@ -15,6 +15,7 @@
 | D010 | MongoDB Official Node.js Driver (`mongodb`), không dùng Mongoose | B0 đã xác nhận; truy vấn/batch qua Repository, không thêm ODM |
 | D011 | User/JWT/scrypt B2 và login rate limiting | Người dùng chốt trong lượt triển khai B2; chi tiết bên dưới |
 | D012 | Import B3, giới hạn đầu vào, durable idempotency và recovery | Chủ dự án xác nhận trong chat B3; không thay OpenAPI |
+| D013 | Query B4: parent/sensor 422, thời gian đóng và bbox tọa độ đóng | Chủ dự án xác nhận ba đề xuất B4; không đổi OpenAPI |
 
 ## Quyết định chưa hoàn tất
 
@@ -33,6 +34,15 @@
 - Lý do:
 - Ảnh hưởng:
 - Người thống nhất:
+
+## D013 — Semantics Query B4
+
+- Ngày: 14/11/2026. Chủ dự án đồng ý cả ba đề xuất trong chat B4; chưa suy ra review/nghiệm thu riêng của Tài/Khải/Cường.
+- GET sensors/readings yêu cầu dataset imported. Dataset không tồn tại → 422 DATASET_NOT_FOUND; chưa imported → 422 DATASET_NOT_READY; sensorId không tồn tại/thuộc dataset khác → 422 SENSOR_NOT_IN_DATASET. ID public vẫn opaque; không thêm 404 ngoài OpenAPI hoặc coi mã trạm nguồn là sensorId nội bộ.
+- Thời gian là khoảng đóng [from,to]; from=to truy vấn đúng thời điểm đó. Chỉ UTC ISO có Z, tối đa 3 chữ số phần lẻ, không làm tròn/cắt; có thể thiếu một đầu. from>to hoặc sai quy tắc ngữ nghĩa → 422; sai cú pháp/schema → 400. Chuẩn hóa mili-giây cho truy vấn/cursor tương đương.
+- Bbox là hình chữ nhật tọa độ WGS84 [minLon,minLat,maxLon,maxLat], nhận cả biên và min=max (đường/điểm). Không wrap qua kinh tuyến 180° khi minLon>maxLon; đảo chiều/vượt WGS84 → 422. Không thay semantics bằng cạnh cung lớn của GeoJSON polygon. Truy vấn phải giữ đúng biên lon/lat này.
+- Giữ limit 100/max200, sort whitelist và keyset tie-break theo OpenAPI; cursor gắn operation/dataset/sensor/bbox/time/sort, không hứa snapshot khi dữ liệu thay đổi. Không đổi HTTP/DTO/shared schema hoặc thêm query region/search.
+- D013 đóng gate nghiệp vụ Query B4; không tự chốt scope/biên Analysis B5, anomaly/sync, detector hoặc bổ sung index. Tối ưu index phải dựa trên explain/số đo.
 
 ## D012 — Import B3 và durable idempotency
 

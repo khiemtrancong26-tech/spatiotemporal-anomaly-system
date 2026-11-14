@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { createCursorCodec } from '../../shared/pagination.js';
-import { createDatasetRepository } from './datasets.repository.js';
+import { createDatasetRepository, createDatasetReadRepository } from './datasets.repository.js';
+import type { Db } from 'mongodb';
 import { createDatasetService } from './datasets.service.js';
 import { createDatasetRoutes } from './datasets.routes.js';
 import multipart from '@fastify/multipart';
@@ -11,6 +12,9 @@ import { createSourceFiles } from './source-files.js';
 import { createImportService } from './import.service.js';
 import { createImportRoutes } from './import.routes.js';
 import type { ImportTestHooks } from './import.types.js';
+
+export type { DatasetReadAccess } from './datasets.types.js';
+export const createDatasetReadAccess = (db: Db) => createDatasetReadRepository(db);
 
 export const datasetRoutes: FastifyPluginAsync<{ cursorSecret: string; imports: ImportConfig; importTestHooks?: ImportTestHooks }> = async (app, options) => {
   const { cursorSecret, imports } = options;

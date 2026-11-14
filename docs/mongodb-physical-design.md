@@ -4,6 +4,14 @@
 **Trạng thái:** Thiết kế vật lý **đề xuất cho MVP**, cần Khiêm review trước khi triển khai database chính thức. `indexes.js` là script tạo index gợi ý, **không phải migration đã chạy**.  
 **DB:** `spatiotemporal_anomaly` (tên đề xuất), MongoDB. **7 collections lõi:** `users`, `datasets`, `sensors`, `readings`, `analysisRuns`, `anomalies`, `processedMutations`.
 
+## Bổ sung Query B4 — D013, 14/11/2026
+
+- Hai GET sensors/readings đã có; DatasetReadAccess public của module Dataset kiểm tra imported trước đọc. Dataset không có/chưa imported và sensor khác dataset trả 422 theo D013, không lộ partial. Reading.location lấy từ snapshot đã lưu, không join để thay bằng Sensor hiện tại.
+- Khoảng thời gian đóng `$gte from/$lte to`; keyset `_id` là tie-break. Projection và limit+1 giữ số document đưa về Node hữu hạn; không skip/đọc toàn dataset vào heap để phân trang. Sensor cursor compact ký digest khóa nguồn và ID, chỉ đọc một anchor để khôi phục khóa externalId đầy đủ; anchor thay đổi/xóa trả 400. Readings cursor self-contained ts/ID.
+- Bbox dùng scalar `location.coordinates.0/.1` đóng để giữ đúng rectangle, kể cả point/line/world. Circle `$centerSphere` bao ngoài là prefilter tùy trường hợp để dùng 2dsphere hiện có; bán kính chặn trên từ đường meridian + parallel, có padding; scalar vẫn quyết định kết quả. Circle lớn ≥π được bỏ, không dùng polygon/circle để thay biên rectangle.
+- Bộ **13 indexes online không đổi**. Đã đo explain/response/memory trên 100k/500k seed mô phỏng và lưu [báo cáo trước/sau](backend/b4-verification.md). 2d coordinate index chỉ được thử rồi xóa trong DB tạm để so sánh; không chọn làm physical design hoặc điều kiện triển khai.
+- Đây không phải nghiệm thu 100 VU/10 phút, failover, TLS, detector hoặc Sync. Script/fixture và số đo chi tiết trong B4 verification.
+
 ## Bổ sung B3 đã triển khai — D012, 14/11/2026
 
 Phần này cập nhật các đề xuất import/receipt cũ bên dưới theo [D012](decisions.md#d012--import-b3-và-durable-idempotency); không thay HTTP/DTO. Có thêm collection nội bộ `idempotencyReceipts`: tổng thiết kế 8 collections, trong đó 7 thuộc online và `processedMutations` vẫn hoãn. Script online hiện có 13 indexes ngoài `_id`.

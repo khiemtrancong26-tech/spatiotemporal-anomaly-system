@@ -80,7 +80,7 @@ test('Register → Login → reload/me → datasets/workspace → admin/401 uses
   await expect(page.getByText(seedName, { exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Mở dữ liệu', exact: true }).click();
   await expect(page.getByRole('heading', { name: seedName, exact: true })).toBeVisible();
-  // Query/visualization APIs are B4, so they remain actual 404s in this B2 suite.
+  // B4 now serves Query; this metadata-only B2 seed has no readings.
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Dataset Workspace', exact: true })).toBeVisible();
   await expect(page.getByText('Chưa có metadata dataset.', { exact: false })).toBeVisible();

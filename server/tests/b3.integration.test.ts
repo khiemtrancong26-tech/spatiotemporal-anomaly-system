@@ -98,7 +98,8 @@ describe('B3 actual HTTP, files and MongoDB replica-set transactions', () => {
     expect((await f.app.inject({ method: 'POST', url: `/api/v1/datasets/${id}/imports`, headers: { ...f.headers, 'idempotency-key': 'bad' } })).statusCode).toBe(400);
     expect((await f.app.inject({ method: 'POST', url: `/api/v1/datasets/${id}/imports`, headers: { ...f.headers, 'idempotency-key': randomUUID() }, payload: {} })).statusCode).toBe(400);
     expect((await f.map(id, { ...mapping, extra: true })).statusCode).toBe(422);
-    for (const path of ['reading-batches', 'exports', 'sensors', 'readings']) expect((await f.get(path)).statusCode).toBe(404);
+    for (const path of ['reading-batches', 'exports']) expect((await f.get(path)).statusCode).toBe(404);
+    for (const path of ['sensors', 'readings']) expect((await f.get(path)).statusCode).toBe(400); // B4 now requires datasetId.
     expect((await f.app.inject({ method: 'DELETE', url: `/api/v1/datasets/${id}/mapping` })).statusCode).toBe(405);
     expect((await f.upload('{}')).statusCode).toBe(422);
     expect((await f.upload('[{},]')).statusCode).toBe(422);

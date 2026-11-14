@@ -1,6 +1,6 @@
 # Server — Backend P0 online
 
-**B1–B3 đã triển khai ngày 14/11/2026:** health, Register/Login, current user, imported-only datasets list và bốn API upload/validation/mapping/import thật. Xem [B3 verification và runbook](../docs/backend/b3-verification.md), [D012](../docs/decisions.md#d012--import-b3-và-durable-idempotency). Giữ feature modules với Route → Validation → Service → Repository → MongoDB. Owner: Khiêm; Cường phối hợp môi trường/kiểm thử. Xem [B2 verification](../docs/backend/b2-verification.md), [B1 verification](../docs/backend/b1-verification.md) và [D011](../docs/decisions.md#d011--quy-tắc-user-và-xác-thực-b2).
+**B1–B4 đã triển khai ngày 14/11/2026:** health, Register/Login, current user, imported-only datasets list và upload/validation/mapping/import + Query sensors/readings thật. Xem [B4 verification](../docs/backend/b4-verification.md). Xem [B3 verification và runbook](../docs/backend/b3-verification.md), [D012](../docs/decisions.md#d012--import-b3-và-durable-idempotency). Giữ feature modules với Route → Validation → Service → Repository → MongoDB. Owner: Khiêm; Cường phối hợp môi trường/kiểm thử. Xem [B2 verification](../docs/backend/b2-verification.md), [B1 verification](../docs/backend/b1-verification.md) và [D011](../docs/decisions.md#d011--quy-tắc-user-và-xác-thực-b2).
 
 ## Chạy từ thư mục gốc
 
@@ -45,7 +45,7 @@ Nếu FE dùng `localhost` thay vì `127.0.0.1`, thêm origin đó vào `CORS_OR
 
 ## API đã có và API chưa có
 
-Đã có 9 operations theo OpenAPI hiện tại:
+Đã có 11 operations theo OpenAPI hiện tại:
 
 | API | Thành công / quyền |
 |---|---|
@@ -58,6 +58,8 @@ Nếu FE dùng `localhost` thay vì `127.0.0.1`, thêm origin đó vào `CORS_OR
 | GET `/api/v1/datasets/:id/validation` | JWT analyst/admin; `200 ValidationReport` trực tiếp |
 | PUT `/api/v1/datasets/:id/mapping` | JWT analyst/admin; replace và `200 SingleDataset` |
 | POST `/api/v1/datasets/:id/imports` | JWT analyst/admin, UUID key, không body; `200 SingleDataset` sau persistence/report |
+| GET `/api/v1/sensors` | JWT analyst/admin; datasetId/bbox, sort externalId asc/desc; `200 SensorPage` |
+| GET `/api/v1/readings` | JWT analyst/admin; datasetId/sensorId/bbox/from/to, sort ts asc/desc; `200 ReadingPage` |
 
 Health giữ các trạng thái:
 
@@ -66,7 +68,17 @@ Health giữ các trạng thái:
 - Method không hỗ trợ trả `405` với `Allow`. HEAD không tự bật. Khi cấu hình CORS, OPTIONS preflight là xử lý transport, không phải API nghiệp vụ mới.
 - Path chưa triển khai trả `404` theo error envelope; không có fallback fixture.
 
-11 operations P0 online còn lại chưa có handler. Analysis theo D008/D009 async sẽ làm ở B5; chưa có worker/queue/model thật. Offline/Sync/P1 và HTTP `reading-batches` vẫn hoãn. Admin có thể đăng nhập và xem dữ liệu, còn CRUD tài khoản là B7.
+9 operations P0 online còn lại chưa có handler. Analysis theo D008/D009 async sẽ làm ở B5; chưa có worker/queue/model thật. Offline/Sync/P1 và HTTP `reading-batches` vẫn hoãn. Admin có thể đăng nhập và xem dữ liệu, còn CRUD tài khoản là B7.
+
+## Query B4
+
+Hai GET giữ đúng [OpenAPI](../docs/api/openapi.yaml), không region/search/aggregates hoặc dataset detail. Chỉ đọc parent imported qua public DatasetReadAccess; parent không tồn tại/chưa imported hoặc sensorId không thuộc dataset → 422 theo [D013](../docs/decisions.md#d013--semantics-query-b4). SensorId là ID nội bộ, không phải externalId nguồn. B3 → B4 đã kiểm tra cả importing/failed với partial thật và retry sau cleanup.
+
+Khoảng thời gian đóng [from,to], from=to hợp lệ; UTC Z tối đa 3 chữ số phần lẻ, không làm tròn/cắt. Bbox WGS84 nhận biên và min=max, không wrap minLon>maxLon. Scalar lon/lat quyết định kết quả; circle bao ngoài bảo toàn mọi điểm của rectangle giúp dùng 2dsphere index sẵn có, không dùng polygon để thay semantics. World/bbox quá rộng bỏ circle, vẫn dùng scalar chính xác. Không thêm index/hint production.
+
+Mỗi request limit 100/max200, lấy tối đa limit+1 bản ghi/projection; cursor gắn toàn bộ bộ lọc/sort. Sensors dùng digest của externalId + ID trong cursor đã ký, repository đọc một anchor để lấy khóa gốc (hỗ trợ mã trạm dài, không thêm maxLength); anchor đổi/xóa → 400 và bắt đầu lại. Readings cursor giữ ts + ID. Không hứa snapshot giữa các trang; ngân sách FE 2.000 điểm không giới hạn dataset hoặc Analysis.
+
+[B4 verification](../docs/backend/b4-verification.md) có fixture biên, E2E thật và số đo/explain 100k/500k. Chạy benchmark riêng bằng `npm run benchmark:query --workspace @pm25/server`: chỉ tạo DB mô phỏng tạm, không dùng DB người dùng; ghi báo cáo JSON vào docs/backend. Benchmark dùng timeout DB 10 giây để ghi nhận cả truy vấn chậm (runtime mặc định 2 giây), không chứng minh SLA 100 VU/10 phút, TLS hoặc peak memory riêng của Backend.
 
 ## B3 và cấu hình nguồn persistent
 
@@ -88,7 +100,8 @@ src/plugins/               MongoDB lifecycle, lỗi HTTP, auth hooks
 src/modules/health/        composition + routes/schema/service/repository
 src/modules/users/         User service/repository, hashing và current user
 src/modules/auth/          Register/Login, JWT và composition auth hooks
-src/modules/datasets/      list + import routes/schema/service/repository, source streams và normalization
+src/modules/datasets/      list/import và public DatasetReadAccess cho parent visibility
+src/modules/query/         sensors/readings theo routes/validation/service/repository, bounded keyset
 src/shared/http/           lỗi và response schema
 src/shared/persistence/    BSON/keyset/indexes + durable receipt transaction/lease primitives
 src/shared/pagination.ts   bounded query, fingerprint, signed opaque cursor
@@ -142,12 +155,13 @@ npm run test:coverage --workspace @pm25/server
 # Browser E2E FE online + Backend + mongod thật, không HTTP intercept.
 npm run test:e2e:b2
 npm run test:e2e:b3
+npm run test:e2e:b4
 # Kiểm tra cả client/server; integration thật là lệnh riêng phía trên.
 npm run check
 ```
 
 `mongodb-memory-server` quản lý binary/process và thư mục test; driver gửi lệnh tới MongoDB thật. Lần đầu cài/chạy cần tải binary từ MongoDB. Lỗi tải/khởi động làm integration thất bại, không bỏ qua/chuyển mock. Test không dùng `MONGODB_URI` của người dùng hoặc sửa DB có sẵn; mongod tạm đóng sau suite.
 
-Coverage tính `src/**` trừ entrypoint `main.ts`; scripts CLI không nằm trong coverage. Báo cáo tại `server/coverage/` (gitignored). Unit service dùng test doubles có nhãn; integration B2 dùng scrypt/JWT/DB thật. Browser suite tự khởi tạo DB tạm, Backend và Vite online trên port tạm rồi dọn process, không đụng DB người dùng. Nếu Chromium chưa có, chạy `npx playwright install chromium` trong thư mục server. E2E thật bao phủ M2 và M3; B4 Query trở đi còn chờ. Test doubles/fault hooks chỉ dùng trong tests, main không bật; B3 E2E dùng file/API/DB thật, không intercept. Chưa nghiệm thu load/stress, TLS hoặc performance dataset lớn.
+Coverage tính `src/**` trừ entrypoint `main.ts`; scripts CLI không nằm trong coverage. Báo cáo tại `server/coverage/` (gitignored). Unit service dùng test doubles có nhãn; integration B2 dùng scrypt/JWT/DB thật. Browser suite tự khởi tạo DB tạm, Backend và Vite online trên port tạm rồi dọn process, không đụng DB người dùng. Nếu Chromium chưa có, chạy `npx playwright install chromium` trong thư mục server. E2E thật bao phủ M2–M4; B5 Analysis trở đi còn chờ. Mapbox token/tiles thật vẫn chưa nghiệm thu. Test doubles/fault hooks chỉ dùng trong tests, main không bật; B3 E2E dùng file/API/DB thật, không intercept. Đã đo Query seed 100k/500k ở B4; chưa nghiệm thu load/stress, TLS hoặc SLA/peak memory trên triển khai thật.
 
 Tham chiếu triển khai: [Fastify validation](https://fastify.dev/docs/latest/Reference/Validation-and-Serialization/), [Fastify routing lookup](https://fastify.dev/docs/latest/Reference/Server/#findroute), [Official Driver timeout](https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/csot/). Driver 7.9 dùng timeout theo giai đoạn; `timeoutMS` deprecated không được dùng làm bảo đảm timeout.

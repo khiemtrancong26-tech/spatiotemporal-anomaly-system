@@ -1,6 +1,6 @@
 # Kế hoạch triển khai Backend P0 online — PM2.5
 
-Ngày lập: 13/11/2026. Cập nhật 14/11/2026: **B1–B3 đã triển khai: 9/20 operations online có API thật, gồm health, auth/me, datasets list và wizard import. 11 operations B4–B7 chưa triển khai.** Xem [B1 verification](backend/b1-verification.md), [B2 verification](backend/b2-verification.md), [B3 verification](backend/b3-verification.md).
+Ngày lập: 13/11/2026. Cập nhật 14/11/2026: **B1–B4 đã triển khai: 11/20 operations online có API thật, gồm health, auth/me, datasets list, import và Query sensors/readings. 9 operations B5–B7 còn chờ.** Xem [B1 verification](backend/b1-verification.md), [B2 verification](backend/b2-verification.md), [B3 verification](backend/b3-verification.md), [B4 verification](backend/b4-verification.md).
 
 ## 1. Mục tiêu và cơ sở lập kế hoạch
 
@@ -22,14 +22,14 @@ Nguồn đã đọc và đối chiếu:
 
 | Thành phần | Hiện trạng kiểm tra | Hệ quả cho kế hoạch |
 |---|---|---|
-| `server/` | B1–B3 có health/auth/list/import thật, streaming, receipt bền vững, transactions và recovery | FE M2/M3 đã E2E thật; B4–B7 và engine/ML còn chờ |
+| `server/` | B1–B4 có health/auth/list/import/Query thật, streaming, receipts/recovery và keyset | FE M2–M4 đã E2E API thật; B5–B7 và engine/ML còn chờ |
 | Root workspace | Scripts check/build/typecheck/lint/test đã bao phủ client + server; dev client giữ nguyên, thêm dev:server | Integration MongoDB thật chạy riêng bằng `npm run test:server:integration` hoặc server coverage |
-| `client/` | FE đến M7; M2/M3 đã chạy với API thật, các phần còn lại vẫn mock/intercept hoặc API chưa có | Dùng B3 verification cho bàn giao wizard; không coi Query/Analysis/Admin đã tích hợp |
+| `client/` | FE đến M7; M2–M4 đã chạy với API thật; Mapbox tiles/camera chưa có token để kiểm tra thật | B3/B4 verification cho wizard/Workspace; Analysis/Admin chưa tích hợp |
 | `shared-core/` | Đã có package Zod và DTO/contract đã migrate D008; **chưa có bằng chứng engine statistical/ML chạy thật phía Server** | Chữ ký/fixture không chứng minh engine chạy; B5 phụ thuộc sản phẩm thật của Khải |
 | `infra/`, `tests/` | Harness DB thật, B3 kiểm tra replica-set transaction/recovery; 13 indexes online trên DB tạm | Cường tiếp tục Docker/Nginx/TLS/CI, persistent volume, timeout và stress; Sync vẫn hoãn |
 | Tài liệu | Một số mục lục, đoạn SDD/DB và báo cáo FE M0/M1 giữ version/URL/số operations cũ | Dùng file nguồn hiện tại: 25 operations tổng cộng, 20 thuộc online/health; không tạo alias URL cũ |
 
-Phần “client mới có README” trong mở đầu kế hoạch FE và các dòng M2 ở thời điểm lập plan là mô tả lịch sử; hiện dùng [M7 verification](frontend/m7-verification.md) cùng source FE để xác định tiến độ. Test E2E dùng intercept/mock không phải bằng chứng Backend thật. B0 chỉ cập nhật tài liệu; B1–B3 hiện có bằng chứng runtime riêng cho health/auth/list/import; các phần B4–B7 vẫn chờ API/engine thật.
+Phần “client mới có README” trong mở đầu kế hoạch FE và các dòng M2 ở thời điểm lập plan là mô tả lịch sử; hiện dùng [M7 verification](frontend/m7-verification.md) cùng source FE để xác định tiến độ. Test E2E dùng intercept/mock không phải bằng chứng Backend thật. B0 chỉ cập nhật tài liệu; B1–B4 có bằng chứng runtime riêng cho health/auth/list/import/Query; B5–B7 vẫn chờ API/engine thật.
 
 ## 2. Phạm vi và ranh giới
 
@@ -206,18 +206,20 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 ### B4 — Query sensors/readings cho Workspace và hai renderer
 
+**Trạng thái 14/11/2026:** đã có hai API và E2E import → Query/Workspace thật; quyết định [D013](decisions.md#d013--semantics-query-b4), [báo cáo/fixture/số đo](backend/b4-verification.md). Giữ 13 indexes hiện có; có explain và so sánh 100k/500k trước/sau prefilter địa lý, chưa nghiệm thu stress/SLA hoặc Mapbox tiles thật.
+
 **Mục tiêu:** FE M4 có dữ liệu chuẩn, đúng phạm vi và phân trang hữu hạn; không chờ import hoàn tất mới bắt đầu phát triển query.
 
 **Endpoint:** `GET /sensors` → `200 SensorPage`; `GET /readings` → `200 ReadingPage`; dùng lại `GET /datasets`.
 
-- [ ] Sensors nhận datasetId bắt buộc, bbox, externalId sort asc/desc; readings nhận datasetId bắt buộc, một sensorId tùy chọn, bbox/from/to, ts sort asc/desc và cursor/limit.
-- [ ] Kiểm tra parent dataset imported, sensor thuộc dataset, bbox WGS84, from/to hợp lệ theo semantics đã chốt; không thêm region/search query.
-- [ ] Query và DTO dùng location snapshot từ Sensor đúng thứ tự lon/lat; UTC ts, value/unit; không trả BSON/raw documents.
-- [ ] Cursor gắn đầy đủ bộ lọc/sort, tie-break khi ts bằng nhau, `nextCursor: null` ở cuối; không đọc hết 500k readings vào RAM chỉ để trả một trang. **FE M4 hiện tải 100/trang và giới hạn 2.000 readings/phiên**, nhưng đây là ngân sách hiển thị, không phải giới hạn dataset hay phạm vi Analysis.
-- [ ] Kiểm tra index/time/geo bằng explain trên dữ liệu đại diện; chỉ tối ưu hoặc đề xuất index theo số đo, không thêm aggregates/Redis như điều kiện mặc định.
-- [ ] Bàn giao fixture biên tọa độ/thời gian cho Tài kiểm tra Mapbox/Cube dùng cùng readings; Backend không phụ trách tiles, camera hay ngân sách render.
+- [x] Sensors nhận datasetId bắt buộc, bbox, externalId sort asc/desc; readings nhận datasetId bắt buộc, một sensorId tùy chọn, bbox/from/to, ts sort asc/desc và cursor/limit.
+- [x] Kiểm tra parent dataset imported, sensor thuộc dataset, bbox WGS84, from/to hợp lệ theo semantics đã chốt; không thêm region/search query.
+- [x] Query và DTO dùng location snapshot từ Sensor đúng thứ tự lon/lat; UTC ts, value/unit; không trả BSON/raw documents.
+- [x] Cursor gắn đầy đủ bộ lọc/sort, tie-break khi ts bằng nhau, `nextCursor: null` ở cuối; không đọc hết 500k readings vào RAM chỉ để trả một trang. **FE M4 hiện tải 100/trang và giới hạn 2.000 readings/phiên**, nhưng đây là ngân sách hiển thị, không phải giới hạn dataset hay phạm vi Analysis.
+- [x] Kiểm tra index/time/geo bằng explain trên dữ liệu đại diện; chỉ tối ưu hoặc đề xuất index theo số đo, không thêm aggregates/Redis như điều kiện mặc định.
+- [x] Bàn giao fixture biên tọa độ/thời gian cho Tài kiểm tra Mapbox/Cube dùng cùng readings; Backend không phụ trách tiles, camera hay ngân sách render.
 
-**Dependency:** B1/B2, decision biên thời gian và xử lý dataset không tồn tại/chưa imported; seed đúng physical design cho phát triển độc lập. Nghiệm thu xuyên luồng cần dataset nhập thật từ B3. Anomaly overlay nối sau B6.
+**Dependency:** B1/B2/B3 đã có; D013 chốt Query B4: parent/sensor 422, [from,to] đóng, UTC Z ≤3 chữ số phần lẻ và bbox tọa độ đóng. Gate B3 → B4 đã test trên import/partial/failure/retry thật. Scope Analysis B5 và anomaly overlay B6 còn chờ.
 
 **Kiểm thử:** unit query/cursor/DTO; integration MongoDB cho isolation giữa dataset, sensor khác dataset, bbox/time giao nhau, biên from/to đã duyệt, cùng ts nhiều reading, sort hai chiều, limit/cursor sai, không kết quả; mọi trạng thái dataset chưa imported. Test concurrent changes không được quảng cáo như snapshot. Explain/đo dung lượng response và memory; FE kiểm tra dữ liệu hiển thị từ API thật.
 
@@ -325,8 +327,8 @@ Paths dưới đây đều có tiền tố `/api/v1`. **Hiện trạng sau B2: h
 | 7 | GET `/datasets/{id}/validation` | B3 — đã có | M3 | Report không bọc data, lỗi/counts thực |
 | 8 | PUT `/datasets/{id}/mapping` | B3 — đã có | M3 | Replace/idempotent, lifecycle đã chốt |
 | 9 | POST `/datasets/{id}/imports` | B3 — đã có | M3 | BR-08, visibility, replay/recovery đã test |
-| 10 | GET `/sensors` | B4 | M4; scope M5 | Bbox/cursor, dataset isolation |
-| 11 | GET `/readings` | B4 | M4 | Filters/UTC/location đúng; đối chiếu B3 |
+| 10 | GET `/sensors` | B4 — đã có | M4; scope M5 | Bbox/cursor, dataset isolation |
+| 11 | GET `/readings` | B4 — đã có | M4 | Filters/UTC/location đúng; đối chiếu B3 |
 | 12 | POST `/analysis-runs` | B5a/B5b | M5 | Thống kê thật trước, ML thật sau; cùng contract |
 | 13 | GET `/analysis-runs` | B5 | M5 | History/query có thể test sớm bằng seed |
 | 14 | GET `/anomalies` | B6 | M4 overlay/M5/M6 | Scope đúng query; kết quả thật xác nhận cùng B5 |
@@ -373,7 +375,7 @@ Chưa ấn định ngày/số ngày cho milestone: chưa có năng lực triển
 
 ## 6. Quyết định mở, sai lệch tài liệu và điều kiện chặn
 
-**D010 chốt driver, D011 chốt auth B2, D012 chốt import B3. Các dòng dưới là gate ban đầu; phần B3 đã được D012 thay thế, phần Analysis/B5 và các mốc khác vẫn mở nếu chưa được xác nhận riêng.** “Trước Bx” nghĩa là trước triển khai phần phụ thuộc trong mốc đó; có thể tiếp tục scaffold/contract tests hoặc phần độc lập. Chỉ nghiệm thu sau khi có quyết định, implementation và test tương ứng. Nếu cần thay HTTP/DTO/phạm vi, Khiêm phải đưa đề xuất cụ thể để người dùng/nhóm review, cập nhật nguồn qua quy trình; kế hoạch này không cấp phép tự sửa OpenAPI.
+**D010 chốt driver, D011 chốt auth B2, D012 chốt import B3, D013 chốt Query B4. Các dòng dưới là gate ban đầu; phần B3 đã được D012 thay thế, phần Analysis/B5 và các mốc khác vẫn mở nếu chưa được xác nhận riêng.** “Trước Bx” nghĩa là trước triển khai phần phụ thuộc trong mốc đó; có thể tiếp tục scaffold/contract tests hoặc phần độc lập. Chỉ nghiệm thu sau khi có quyết định, implementation và test tương ứng. Nếu cần thay HTTP/DTO/phạm vi, Khiêm phải đưa đề xuất cụ thể để người dùng/nhóm review, cập nhật nguồn qua quy trình; kế hoạch này không cấp phép tự sửa OpenAPI.
 
 | Mục | Cần làm rõ / quy tắc giữ nguyên | Người phối hợp | Hạn / phần bị chặn |
 |---|---|---|---|
@@ -385,7 +387,7 @@ Chưa ấn định ngày/số ngày cho milestone: chưa có năng lực triển
 | OPEN-05 / nguồn file | File/batch/report limits, timeout, lưu/retention file và hành vi thiếu file sau restart; báo cáo preview không có cờ truncation trong schema. Không thêm report-download endpoint hoặc ngưỡng MB tùy tiện | Khiêm + Cường + Tài | Trước upload/import B3; đo lại B8 |
 | NEW-01 / invalid rows | Cùng externalId khác tọa độ: phải báo/review, chi tiết reject row/dataset còn mở. Chốt điều kiện import có invalid rows, file toàn invalid, counts/report; không tự di chuyển trạm hoặc công bố dataset lỗi | Khiêm + Khải + Tài | Trước nghiệp vụ validation/import B3 |
 | NEW-02 / recovery | Run lifecycle đã chốt tại D008; cơ chế claim/attempt/recovery còn mở. Dataset lifecycle cần chốt bảng chuyển trạng thái, thời điểm sửa mapping, retry failed/đã imported và dọn attempt lỗi. Imported không nhập lại; in-flight request khác `409` đã có trong OpenAPI | Khiêm + Khải + Tài | Trước state machine B3/B5 |
-| Query biên / parent state | from/to đóng hay mở chưa chốt; xử lý dataset ID không tồn tại/chưa imported và tham chiếu khác dataset phải thống nhất trong statuses hiện có (list query không khai báo `404`). Không trả partial data hoặc tự mở rộng mã lỗi | Khiêm + Tài | Trước B4 và query B5/B6 |
+| Query biên / parent state (D013) | **ĐÃ CHỐT/triển khai B4:** [from,to] đóng, UTC Z ≤3 chữ số phần lẻ, bbox tọa độ đóng; dataset không có/chưa imported hoặc sensor sai dataset → 422; không thêm 404. B5/B6 còn phải chốt/ghép scope riêng | Khiêm; Tài nhận fixture; Cường nhận số đo | B4 đã kiểm chứng; không tự áp quyết định sang Analysis/Sync |
 | OPEN-03/04 / detector | D009 đã chọn Isolation Forest và presets FE zscore `{threshold:3}`, iqr `{multiplier:1.5}`. Còn mở model artifact/version/features/runtime, method/config API cho ML, dữ liệu tối thiểu, grouping/window, severity và ánh xạ insufficient_data/invalid_input sang HTTP + run status | Khải + Khiêm + Tài | Trước engine integration B5a/B5b |
 | OPEN-06 / D008 | Async statistical/ml đã chốt; **Redis + BullMQ chỉ là ứng viên**. Chưa chốt queue/execution topology, concurrency, admission, claim/restart và retention. Polling phía FE đã chốt theo D009. Import giữ đồng bộ | Khiêm + Khải + Cường + Tài | Trước triển khai B5; FE M5 đã làm mock/adapter, chưa tích hợp worker thật |
 | Nhất quán run/results | Quy trình persist, cleanup/recovery và visibility khi engine hoặc ghi anomalies thất bại; không completed giả, không lộ kết quả partial như run thành công | Khiêm + Khải + Cường | Trước persistence B5 |

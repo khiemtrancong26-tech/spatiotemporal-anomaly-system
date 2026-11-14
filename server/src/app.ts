@@ -10,6 +10,7 @@ import { buildHttpValidator } from './shared/http/validation.js';
 import { usersPlugin } from './modules/users/index.js';
 import { authenticationPlugin } from './modules/auth/index.js';
 import { datasetRoutes } from './modules/datasets/index.js';
+import { queryRoutes } from './modules/query/index.js';
 import { HttpError } from './shared/http/errors.js';
 import type { ImportTestHooks } from './modules/datasets/import.types.js';
 
@@ -57,5 +58,6 @@ export function buildApp(options: AppOptions = {}) {
   app.register(healthRoutes, { prefix: '/api/v1' });
   app.register(datasetRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret, imports: config.imports,
     ...(options.importTestHooks ? { importTestHooks: options.importTestHooks } : {}) });
+  app.register(queryRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret });
   return app;
 }

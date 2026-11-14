@@ -1,0 +1,9 @@
+sensorId,name,latitude,longitude,timestamp,value,unit,region
+SW,South West,10,106,2026-11-14T00:00:00.000Z,0,ug/m3,Fixture B4
+NE,North East,11,107,2026-11-14T01:00:00.000Z,100,ug/m3,Fixture B4
+N,North Edge,11,106.5,2026-11-14T00:30:00.000Z,50,ug/m3,Fixture B4
+OUT-N,Outside North,11.001,106.5,2026-11-14T00:30:00.000Z,60,ug/m3,Fixture B4
+C,Center,10.5,106.5,2026-11-13T23:59:59.999Z,5,ug/m3,Fixture B4
+C,Center,10.5,106.5,2026-11-14T00:00:00.000Z,10,ug/m3,Fixture B4
+C,Center,10.5,106.5,2026-11-14T01:00:00.000Z,20,ug/m3,Fixture B4
+C,Center,10.5,106.5,2026-11-14T01:00:00.001Z,25,ug/m3,Fixture B4

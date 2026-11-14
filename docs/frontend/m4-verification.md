@@ -20,7 +20,13 @@ Ngày: 2026-11-13.
 - Build bổ sung có placeholder public token để kiểm tra nhánh bundling Mapbox/CSS đạt; không dùng token này gọi dịch vụ thật. Mapbox lazy chunk khoảng 1.892 KB minified / 529 KB gzip.
 - Three.js lazy chunk khoảng 743 KB minified / 188 KB gzip, build có cảnh báo kích thước; không tải trên màn login/datasets.
 
-## Chưa nghiệm thu thật
+## Bổ sung tích hợp Backend B4 — 14/11/2026
+
+[B4 Backend verification](../backend/b4-verification.md) ghi nhận luồng B3 import → sensors/readings → Workspace bằng file/API/DB thật, không HTTP intercept; D013 đã chốt/kiểm thử biên thời gian và bbox. Bộ E2E có đổi mode/giữ selection, chọn trạm nội bộ, lọc UTC+07 gửi UTC Z, empty và reload. Không sửa code renderer/adapter/Shared Data Contract trong B4. Các số đo và kiểm thử mock ở trên là bằng chứng lịch sử riêng.
+
+Mapbox chưa có token dùng cho nghiệm thu tiles/camera/click dịch vụ thật; B4 E2E chỉ xác nhận nhánh thiếu token và dữ liệu/bảng vẫn dùng được. FPS/GPU/bộ nhớ thiết bị mục tiêu và anomaly overlay B6 vẫn chờ Tài/Cường.
+
+## Chưa nghiệm thu thật (ghi nhận lịch sử trước Backend B4)
 
 Backend thật và public Mapbox token hợp lệ chưa có trong môi trường kiểm tra. Chưa xác minh tiles/click/camera Mapbox với dịch vụ thật, biên from/to phía Server, hoặc ngân sách tổng memory/FPS trên thiết bị mục tiêu. Đây là các phần nghiệm thu còn chờ, không thay bằng mock. Không thay contract, Backend, PWA, Offline/Sync hoặc triển khai M5/M6.
 
