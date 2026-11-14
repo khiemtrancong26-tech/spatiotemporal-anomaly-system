@@ -167,7 +167,7 @@ test('restored validation controls importing, failed and imported states without
   await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeDisabled();
   status = 'failed';
   await page.getByRole('button', { name: 'Đọc lại trạng thái / validation' }).click();
-  await expect(page.getByRole('alert')).toContainText('cleanup');
+  await expect(page.getByRole('alert')).toContainText('dữ liệu nhập dở đã được dọn');
   await expect(page.getByRole('link', { name: 'Mở workspace', exact: true })).toHaveCount(0);
   status = 'imported';
   await page.getByRole('button', { name: 'Đọc lại trạng thái / validation' }).click();

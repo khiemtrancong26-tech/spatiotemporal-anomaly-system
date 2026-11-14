@@ -44,3 +44,36 @@ export const datasetPageSchema = {
     },
   },
 } as const;
+
+export const datasetIdSchema = {
+  type: 'object', additionalProperties: false, required: ['id'],
+  properties: { id: { type: 'string', minLength: 1 } },
+} as const;
+export const singleDatasetSchema = {
+  type: 'object', additionalProperties: false, required: ['data'], properties: { data: datasetSchema },
+} as const;
+export const mappingRequestSchema = {
+  type: 'object', additionalProperties: false, required: ['fieldMap', 'unit'],
+  properties: {
+    fieldMap: {
+      type: 'object', additionalProperties: false, required: ['sensorId', 'latitude', 'longitude', 'timestamp', 'value'],
+      properties: {
+        sensorId: { type: 'string' }, latitude: { type: 'string' }, longitude: { type: 'string' },
+        timestamp: { type: 'string' }, value: { type: 'string' }, unit: { type: 'string' },
+        name: { type: 'string' }, region: { type: 'string' },
+      },
+    },
+    unit: { type: 'string', enum: ['ug/m3'] },
+  },
+} as const;
+export const validationReportSchema = {
+  type: 'object', additionalProperties: false,
+  required: ['datasetId', 'status', 'sourceColumns', 'totalRows', 'validRows', 'invalidRows', 'mappingSuggestions', 'issues'],
+  properties: {
+    datasetId: { type: 'string', minLength: 1 }, status: datasetSchema.properties.status,
+    sourceColumns: { type: 'array', items: { type: 'string' } }, totalRows: { type: 'integer', minimum: 0 },
+    validRows: { type: 'integer', minimum: 0 }, invalidRows: { type: 'integer', minimum: 0 },
+    mappingSuggestions: { type: 'object', additionalProperties: { type: 'string' } },
+    issues: { type: 'array', items: importIssueSchema },
+  },
+} as const;

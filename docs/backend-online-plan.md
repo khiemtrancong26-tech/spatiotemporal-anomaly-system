@@ -1,6 +1,6 @@
 # Kế hoạch triển khai Backend P0 online — PM2.5
 
-Ngày lập: 13/11/2026. Cập nhật 14/11/2026: **B1/B2 đã triển khai và kiểm tra với MongoDB thật; health + Register/Login/me + datasets list đã có, 15 operations online còn lại chưa triển khai.** Xem [B1 verification](backend/b1-verification.md), [B2 verification](backend/b2-verification.md).
+Ngày lập: 13/11/2026. Cập nhật 14/11/2026: **B1–B3 đã triển khai: 9/20 operations online có API thật, gồm health, auth/me, datasets list và wizard import. 11 operations B4–B7 chưa triển khai.** Xem [B1 verification](backend/b1-verification.md), [B2 verification](backend/b2-verification.md), [B3 verification](backend/b3-verification.md).
 
 ## 1. Mục tiêu và cơ sở lập kế hoạch
 
@@ -22,14 +22,14 @@ Nguồn đã đọc và đối chiếu:
 
 | Thành phần | Hiện trạng kiểm tra | Hệ quả cho kế hoạch |
 |---|---|---|
-| `server/` | B1/B2 có Fastify theo các tầng, health, User/Auth, imported-only datasets list, scrypt/JWT và tests DB thật | Luồng FE M2 đã E2E thật; các API B3–B7 và engine/ML còn chờ |
+| `server/` | B1–B3 có health/auth/list/import thật, streaming, receipt bền vững, transactions và recovery | FE M2/M3 đã E2E thật; B4–B7 và engine/ML còn chờ |
 | Root workspace | Scripts check/build/typecheck/lint/test đã bao phủ client + server; dev client giữ nguyên, thêm dev:server | Integration MongoDB thật chạy riêng bằng `npm run test:server:integration` hoặc server coverage |
-| `client/` | FE đã hoàn thành đến M7 (xem `frontend/m7-verification.md`), có online adapter, mock và test bằng HTTP interception; **chưa tích hợp Backend thật** | B2 ưu tiên thay mock cho auth/datasets; chưa có bằng chứng tích hợp Backend thật |
+| `client/` | FE đến M7; M2/M3 đã chạy với API thật, các phần còn lại vẫn mock/intercept hoặc API chưa có | Dùng B3 verification cho bàn giao wizard; không coi Query/Analysis/Admin đã tích hợp |
 | `shared-core/` | Đã có package Zod và DTO/contract đã migrate D008; **chưa có bằng chứng engine statistical/ML chạy thật phía Server** | Chữ ký/fixture không chứng minh engine chạy; B5 phụ thuộc sản phẩm thật của Khải |
-| `infra/`, `tests/` | B1 có harness MongoDB thật tại server/tests, đã áp dụng 11 indexes online trên DB tạm; chưa có Docker/Nginx/TLS/CI triển khai chung | Cường tiếp tục hạ tầng; chưa benchmark dữ liệu lớn hoặc nghiệm thu transactions/sync |
+| `infra/`, `tests/` | Harness DB thật, B3 kiểm tra replica-set transaction/recovery; 13 indexes online trên DB tạm | Cường tiếp tục Docker/Nginx/TLS/CI, persistent volume, timeout và stress; Sync vẫn hoãn |
 | Tài liệu | Một số mục lục, đoạn SDD/DB và báo cáo FE M0/M1 giữ version/URL/số operations cũ | Dùng file nguồn hiện tại: 25 operations tổng cộng, 20 thuộc online/health; không tạo alias URL cũ |
 
-Phần “client mới có README” trong mở đầu kế hoạch FE và các dòng M2 ở thời điểm lập plan là mô tả lịch sử; hiện dùng [M7 verification](frontend/m7-verification.md) cùng source FE để xác định tiến độ. Test E2E dùng intercept/mock không phải bằng chứng Backend thật. B0 chỉ cập nhật tài liệu; runtime/health thật bắt đầu có ở B1, chưa thay thế mock nghiệp vụ FE.
+Phần “client mới có README” trong mở đầu kế hoạch FE và các dòng M2 ở thời điểm lập plan là mô tả lịch sử; hiện dùng [M7 verification](frontend/m7-verification.md) cùng source FE để xác định tiến độ. Test E2E dùng intercept/mock không phải bằng chứng Backend thật. B0 chỉ cập nhật tài liệu; B1–B3 hiện có bằng chứng runtime riêng cho health/auth/list/import; các phần B4–B7 vẫn chờ API/engine thật.
 
 ## 2. Phạm vi và ranh giới
 
@@ -100,16 +100,16 @@ Cross-feature chỉ qua public interface: Auth/Admin tái sử dụng nghiệp v
 - ObjectId/Date ở persistence → ID string/UTC ISO Z ở API. `externalId` là mã trạm nguồn; `sensorId` của Reading là ID nội bộ. Location WGS84 `[lon,lat]`, value hữu hạn và không âm; `0` hợp lệ, số rất cao không tự bị loại.
 - Dataset chỉ công bố sau `imported`; gate áp dụng ở mọi đường đọc/phân tích, không chỉ danh sách dataset. Không để truy vấn bằng ID biết trước đọc được dữ liệu nhập dở.
 - BR-08: chuẩn hóa rồi kiểm tra theo thứ tự dòng; giữ bản ghi hợp lệ đầu tiên, tách duplicate/conflict và dòng được giữ. Unique index là hàng rào cuối, không thay cho thuật toán dedup.
-- Bốn POST bắt buộc key UUID: upload, import, analysis, admin-create. Trong phạm vi user: cùng key/payload đã hoàn tất trả lại cùng status/body; đang xử lý trả `409`; key cũ khác payload trả `422`; thiếu/sai key trả `400`. Upload fingerprint gồm nội dung file và metadata. Riêng Analysis, hoàn tất ở đây là tiếp nhận bền vững, không đợi inference; replay 202 cùng run sau tiếp nhận, 409 chỉ trong cửa sổ tiếp nhận chưa hoàn tất. Cách lưu/recovery/retention cần được duyệt trước B3/B5/B7.
+- Bốn POST bắt buộc key UUID: upload, import, analysis, admin-create. Trong phạm vi user: cùng key/payload đã hoàn tất trả lại cùng status/body; đang xử lý trả `409`; key cũ khác payload trả `422`; thiếu/sai key trả `400`. Upload fingerprint gồm nội dung file và metadata. Riêng Analysis, hoàn tất ở đây là tiếp nhận bền vững, không đợi inference; replay 202 cùng run sau tiếp nhận, 409 chỉ trong cửa sổ tiếp nhận chưa hoàn tất. B3 đã hiện thực receipt/recovery/24h replay theo D012; B5/B7 phải tích hợp effect riêng và chốt các gate còn lại trước triển khai.
 - Review chỉ status/note, `baseVersion` dương, CAS tăng version và cập nhật updatedAt cùng thao tác. Không sửa score/severity/method. POST idempotency, PUT mapping idempotence và PATCH CAS là ba cơ chế khác nhau.
 
 ### 3.3. Persistence và chỉ mục
 
-P0 online sử dụng `users`, `datasets`, `sensors`, `readings`, `analysisRuns`, `anomalies`. Áp dụng/review các unique keys đã thiết kế: `usernameNormalized`, `(datasetId,externalId)`, `(datasetId,sensorId,ts)`, `(analysisRunId,readingId)`. Index thời gian/geo/cursor lấy từ physical design và kiểm tra bằng explain; script hiện tại chưa phải bằng chứng DB có index.
+P0 online sử dụng `users`, `datasets`, `sensors`, `readings`, `analysisRuns`, `anomalies` và private `idempotencyReceipts` được duyệt thêm tại D012/B3. Áp dụng/review các unique keys đã thiết kế: `usernameNormalized`, `(datasetId,externalId)`, `(datasetId,sensorId,ts)`, `(analysisRunId,readingId)`. Index thời gian/geo/cursor lấy từ physical design và kiểm tra bằng explain; script hiện tại chưa phải bằng chứng DB có index.
 
-File nguồn lưu an toàn ngoài MongoDB, tham chiếu/checksum nội bộ; nơi lưu, retention và phục hồi sau restart phải chốt ở B3. Import tuần tự theo batch hoặc phương án staging giữ thứ tự được review; không dùng một transaction khổng lồ cho file 500k readings, không dùng unordered upsert cạnh tranh để chọn dòng thắng. Dataset failed phải được cô lập; retry có chủ đích dọn dữ liệu attempt cũ và xử lý lại toàn bộ nguồn theo BR-08.
+File nguồn lưu an toàn ngoài MongoDB, tham chiếu/checksum nội bộ; nơi lưu persistent, retention và phục hồi B3 đã chốt tại D012. Import tuần tự theo batch hoặc phương án staging giữ thứ tự được review; không dùng một transaction khổng lồ cho file 500k readings, không dùng unordered upsert cạnh tranh để chọn dòng thắng. Dataset failed phải được cô lập; retry có chủ đích dọn dữ liệu attempt cũ và xử lý lại toàn bộ nguồn theo BR-08.
 
-Thiết kế tổng thể đã yêu cầu replica set cho sync transaction về sau. Cường chuẩn bị môi trường phù hợp; không giả định MongoDB standalone chạy được multi-document transaction nếu lựa chọn nhất quán online cần dùng nó. Chưa chốt thêm collection/idempotency store hay cơ chế bảo vệ last admin bằng kế hoạch này.
+Thiết kế tổng thể đã yêu cầu replica set cho sync transaction về sau. Cường chuẩn bị môi trường phù hợp; không giả định MongoDB standalone chạy được multi-document transaction nếu lựa chọn nhất quán online cần dùng nó. D012 đã chốt collection receipt và transactions online B3; cơ chế bảo vệ last admin B7 và execution/queue B5 vẫn cần quyết định riêng.
 
 ## 4. Các milestone và tiêu chí hoàn thành
 
@@ -169,7 +169,7 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 - [x] Login trả accessToken/tokenType/user; lỗi 401 chung cho sai thông tin/unknown/inactive; JWT HS256 hạn 1 giờ, secret env ≥32 byte, role/isActive đọc lại mỗi protected request. Login rate limit trước scrypt, 429/Retry-After; ngưỡng mặc định 10/60 giây/IP có env, không phải kết quả benchmark tải.
 - [x] Datasets list chỉ imported; createdAt hai chiều/default desc, bounded keyset có ID tie-break; cursor ký và ràng buộc sort, empty envelope đúng. Secret ổn định qua restart giữ cursor hợp lệ.
 - [x] Có CLI db:seed với username/password từ env, không password mặc định/HTTP bootstrap; chạy lại không reset user. Dataset `[SEED B2]` ghi rõ metadata thử, chưa qua import thật.
-- [x] E2E browser FE online + API/DB thật: Register → Login → reload/me → datasets/workspace, admin menu và inactive/401 kết thúc phiên. Giữ deep-link metadata fallback hiện có; B3+ chưa có API nên không giả response cho chúng.
+- [x] E2E browser FE online + API/DB thật: Register → Login → reload/me → datasets/workspace, admin menu và inactive/401 kết thúc phiên. Giữ deep-link metadata fallback hiện có; Tại thời điểm B2 chưa có API B3; hiện B3 có báo cáo kiểm thử riêng, B4+ vẫn chưa giả response để nghiệm thu.
 
 **Dependency:** B1; quyết định username normalization, password/JWT config, hiệu lực role/isActive và account bootstrap ở mục 6. Không phụ thuộc B3 hoặc Khải.
 
@@ -181,22 +181,24 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 ### B3 — Upload, validation, mapping và batch import
 
+**Trạng thái 14/11/2026:** implementation và kiểm thử B3 đã có; xem [bằng chứng/runbook](backend/b3-verification.md), quyết định [D012](decisions.md#d012--import-b3-và-durable-idempotency). Chưa thay nghiệm thu thủ công của Tài/Cường hoặc gate Query B4.
+
 **Mục tiêu:** FE M3 hoàn tất wizard bằng API thật, công bố dataset đúng BR-08 và không lộ dữ liệu nhập dở.
 
 **Endpoint:** `POST /datasets` → `201 SingleDataset`; `GET /datasets/{id}/validation` → `200 ValidationReport` trực tiếp; `PUT /datasets/{id}/mapping` → `200 SingleDataset`; `POST /datasets/{id}/imports` → `200 SingleDataset`. GET datasets của B2 xác minh kết quả.
 
-- [ ] Triển khai idempotency bền vững theo phương án đã review, dùng chung cho B5/B7: claim/replay/fingerprint, in-flight, lỗi và recovery sau restart/mất response; không chỉ cache RAM rồi coi đã đạt.
-- [ ] Upload multipart file/name, parse CSV/JSON, lưu nguồn an toàn ngoài MongoDB và metadata dataset. Dùng Node.js Streams/async I/O với backpressure, giới hạn RAM, số file/request xử lý đồng thời; không tải toàn bộ nguồn lớn vào heap. Giới hạn file/batch/report/timeout theo OPEN-05 đã chốt; xử lý `413/415/422/503` đúng operation.
-- [ ] Validation report gồm sourceColumns, counts, mappingSuggestions và issues theo schema. Không tự thêm số trạm imported, metadata file, mapping đã lưu hay download-report endpoint vào response.
-- [ ] PUT mapping thay toàn bộ fieldMap, đủ sensorId/latitude/longitude/timestamp/value và unit `ug/m3`; kiểm tra cột nguồn tồn tại, mapping được xác nhận và trạng thái cho phép. PUT lặp cùng nội dung không tạo nghiệp vụ mới.
-- [ ] Normalize UTC và WGS84, sensor externalId → ID nội bộ; giải quyết timestamp thiếu offset/đơn vị nguồn/tọa độ trạm bất nhất theo quyết định được duyệt, không dùng timezone hiển thị FE để đoán nguồn.
-- [ ] Import claim trạng thái bằng CAS/importAttemptId; xử lý theo stream, gom batch bounded và dùng MongoDB driver `bulkWrite()` với thứ tự/partition đã kiểm soát (hoặc pre-dedup chứng minh tương đương BR-08). **Không dùng unordered upsert cạnh tranh để chọn winner**; chuẩn hóa trước dedup, giữ first valid row, đếm duplicate/conflict/invalid và keptRowNumber. Giới hạn concurrency, không dùng một transaction khổng lồ. Không gọi HTTP reading-batches.
-- [ ] Đặt imported sau khi persistence và report hoàn tất; failure/restart giữ dataset không public, cleanup/retry theo lifecycle đã duyệt. Request khác khi importing trả `409`; dataset đã imported không nhập lại; cùng key phải replay đúng kết quả cũ.
-- [ ] Thống nhất recovery wizard trong khả năng validation API: có status và datasetId nhưng không đủ khôi phục metadata/mapping/key. Không hứa resume đầy đủ hoặc tự import lại khi chưa biết kết quả request cũ.
+- [x] Triển khai idempotency bền vững theo phương án đã review, dùng chung cho B5/B7: claim/replay/fingerprint, in-flight, lỗi và recovery sau restart/mất response; không chỉ cache RAM rồi coi đã đạt.
+- [x] Upload multipart file/name, parse CSV/JSON, lưu nguồn an toàn ngoài MongoDB và metadata dataset. Dùng Node.js Streams/async I/O với backpressure, giới hạn RAM, số file/request xử lý đồng thời; không tải toàn bộ nguồn lớn vào heap. Giới hạn file/batch/report/timeout theo OPEN-05 đã chốt; xử lý `413/415/422/503` đúng operation.
+- [x] Validation report gồm sourceColumns, counts, mappingSuggestions và issues theo schema. Không tự thêm số trạm imported, metadata file, mapping đã lưu hay download-report endpoint vào response.
+- [x] PUT mapping thay toàn bộ fieldMap, đủ sensorId/latitude/longitude/timestamp/value và unit `ug/m3`; kiểm tra cột nguồn tồn tại, mapping được xác nhận và trạng thái cho phép. PUT lặp cùng nội dung không tạo nghiệp vụ mới.
+- [x] Normalize UTC và WGS84, sensor externalId → ID nội bộ; giải quyết timestamp thiếu offset/đơn vị nguồn/tọa độ trạm bất nhất theo quyết định được duyệt, không dùng timezone hiển thị FE để đoán nguồn.
+- [x] Import claim trạng thái bằng CAS/importAttemptId; xử lý theo stream, gom batch bounded và dùng MongoDB driver `bulkWrite()` với thứ tự/partition đã kiểm soát (hoặc pre-dedup chứng minh tương đương BR-08). **Không dùng unordered upsert cạnh tranh để chọn winner**; chuẩn hóa trước dedup, giữ first valid row, đếm duplicate/conflict/invalid và keptRowNumber. Giới hạn concurrency, không dùng một transaction khổng lồ. Không gọi HTTP reading-batches.
+- [x] Đặt imported sau khi persistence và report hoàn tất; failure/restart giữ dataset không public, cleanup/retry theo lifecycle đã duyệt. Request khác khi importing trả `409`; dataset đã imported không nhập lại; cùng key phải replay đúng kết quả cũ.
+- [x] Thống nhất recovery wizard trong khả năng validation API: có status và datasetId nhưng không đủ khôi phục metadata/mapping/key. Không hứa resume đầy đủ hoặc tự import lại khi chưa biết kết quả request cũ.
 
 **Phân biệt sync/async:** HTTP Import **đồng bộ**: chỉ trả thành công 200 sau khi hoàn tất persistence/report. I/O dùng stream và promise **không** biến endpoint thành job 202; Client chờ response hoặc nhận lỗi/timeout theo contract. Khi mất phản hồi, trạng thái thực tế có thể chưa rõ: không tự đổi key hay tự chạy lại nếu chưa có cơ chế đối soát/replay; giới hạn request/proxy timeout phải đo/chốt trước B3.
 
-**Dependency:** B1/B2; OPEN-02/05/06 cho import, NEW-01/02; persistence/recovery idempotency, nguồn file và chính sách invalid-row/report ở mục 6. Các nhánh này phải chốt trước implementation tương ứng. B4 có thể làm song song bằng seed đã imported.
+**Dependency:** B1/B2; các gate import OPEN-02/05/06, NEW-01/02, receipt/source/report và wizard reload đã chốt riêng cho B3 tại D012. Gate Analysis B5 vẫn mở. B4 có thể làm song song bằng seed; gate xuyên import/query phải kiểm tra khi B4 có API.
 
 **Kiểm thử:** unit parser/mapping/normalize/dedup; DB integration với CSV và JSON hợp lệ/sai cú pháp/thiếu cột; value 0, âm, không hữu hạn, tọa độ sai, timestamp offset tương đương; dòng đầu invalid rồi dòng hợp lệ; duplicate/conflict qua ranh giới batch; hai dataset cùng mã trạm/thời gian. Fault injection giữa các batch/restart, import cạnh tranh, retry sau commit mất response; test bốn tình huống key: replay/in-flight/khác payload/thiếu-sai key. Kích thước lớn dùng giới hạn đã duyệt, không tự chọn số MB.
 
@@ -318,11 +320,11 @@ Paths dưới đây đều có tiền tố `/api/v1`. **Hiện trạng sau B2: h
 | 2 | POST `/auth/register` | B2 — đã có | M2 | Đã test unique/race, scrypt, analyst/active, 201 không token |
 | 3 | POST `/auth/tokens` | B2 — đã có | M2 | JWT thật, hai role, rate limit, 401 chung; E2E thật |
 | 4 | GET `/users/me` | B2 — đã có | M2 | Reload và quyền/isActive hiện tại qua DB đã test |
-| 5 | GET `/datasets` | B2 — đã có | M2; M3 cập nhật kết quả | Imported-only/cursor thật + seed metadata; import thật còn B3 |
-| 6 | POST `/datasets` | B3 | M3 | Multipart, key, file lưu và validation thật |
-| 7 | GET `/datasets/{id}/validation` | B3 | M3 | Report không bọc data, lỗi/counts thực |
-| 8 | PUT `/datasets/{id}/mapping` | B3 | M3 | Replace/idempotent, lifecycle đã chốt |
-| 9 | POST `/datasets/{id}/imports` | B3 | M3 | BR-08, visibility, replay/recovery đã test |
+| 5 | GET `/datasets` | B2/B3 — đã có | M2/M3 | Imported-only/cursor thật; đối chiếu import thật |
+| 6 | POST `/datasets` | B3 — đã có | M3 | Multipart, key, file lưu và validation thật |
+| 7 | GET `/datasets/{id}/validation` | B3 — đã có | M3 | Report không bọc data, lỗi/counts thực |
+| 8 | PUT `/datasets/{id}/mapping` | B3 — đã có | M3 | Replace/idempotent, lifecycle đã chốt |
+| 9 | POST `/datasets/{id}/imports` | B3 — đã có | M3 | BR-08, visibility, replay/recovery đã test |
 | 10 | GET `/sensors` | B4 | M4; scope M5 | Bbox/cursor, dataset isolation |
 | 11 | GET `/readings` | B4 | M4 | Filters/UTC/location đúng; đối chiếu B3 |
 | 12 | POST `/analysis-runs` | B5a/B5b | M5 | Thống kê thật trước, ML thật sau; cùng contract |
@@ -371,7 +373,7 @@ Chưa ấn định ngày/số ngày cho milestone: chưa có năng lực triển
 
 ## 6. Quyết định mở, sai lệch tài liệu và điều kiện chặn
 
-**B0 đã chốt MongoDB Official Driver (D010); các lựa chọn khác dưới đây vẫn mở nếu chưa được xác nhận riêng.** “Trước Bx” nghĩa là trước triển khai phần phụ thuộc trong mốc đó; có thể tiếp tục scaffold/contract tests hoặc phần độc lập. Chỉ nghiệm thu sau khi có quyết định, implementation và test tương ứng. Nếu cần thay HTTP/DTO/phạm vi, Khiêm phải đưa đề xuất cụ thể để người dùng/nhóm review, cập nhật nguồn qua quy trình; kế hoạch này không cấp phép tự sửa OpenAPI.
+**D010 chốt driver, D011 chốt auth B2, D012 chốt import B3. Các dòng dưới là gate ban đầu; phần B3 đã được D012 thay thế, phần Analysis/B5 và các mốc khác vẫn mở nếu chưa được xác nhận riêng.** “Trước Bx” nghĩa là trước triển khai phần phụ thuộc trong mốc đó; có thể tiếp tục scaffold/contract tests hoặc phần độc lập. Chỉ nghiệm thu sau khi có quyết định, implementation và test tương ứng. Nếu cần thay HTTP/DTO/phạm vi, Khiêm phải đưa đề xuất cụ thể để người dùng/nhóm review, cập nhật nguồn qua quy trình; kế hoạch này không cấp phép tự sửa OpenAPI.
 
 | Mục | Cần làm rõ / quy tắc giữ nguyên | Người phối hợp | Hạn / phần bị chặn |
 |---|---|---|---|

@@ -11,11 +11,13 @@ import { usersPlugin } from './modules/users/index.js';
 import { authenticationPlugin } from './modules/auth/index.js';
 import { datasetRoutes } from './modules/datasets/index.js';
 import { HttpError } from './shared/http/errors.js';
+import type { ImportTestHooks } from './modules/datasets/import.types.js';
 
 interface AppOptions {
   config?: ServerConfig;
   logger?: FastifyServerOptions['logger'];
   verifyAccessToken?: VerifyAccessToken;
+  importTestHooks?: ImportTestHooks;
 }
 
 export function buildApp(options: AppOptions = {}) {
@@ -53,6 +55,7 @@ export function buildApp(options: AppOptions = {}) {
   app.register(usersPlugin);
   app.register(authenticationPlugin, { config, ...(options.verifyAccessToken ? { verifyAccessToken: options.verifyAccessToken } : {}) });
   app.register(healthRoutes, { prefix: '/api/v1' });
-  app.register(datasetRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret });
+  app.register(datasetRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret, imports: config.imports,
+    ...(options.importTestHooks ? { importTestHooks: options.importTestHooks } : {}) });
   return app;
 }

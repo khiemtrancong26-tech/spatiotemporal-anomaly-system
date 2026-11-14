@@ -1,7 +1,7 @@
 import type { Db, IndexDescription } from 'mongodb';
 
 // Online subset of infra/mongo/indexes.js; integration tests guard against drift.
-// No offline receipt/sync indexes, new collection or retention policy is introduced.
+// B3 adds the D012 online receipt collection; offline processedMutations remains separate.
 export const onlineIndexes: Record<string, IndexDescription[]> = {
   users: [{ key: { usernameNormalized: 1 }, unique: true, name: 'uq_users_username_normalized' }],
   datasets: [{ key: { status: 1, createdAt: -1, _id: -1 }, name: 'ix_datasets_status_created' }],
@@ -19,6 +19,10 @@ export const onlineIndexes: Record<string, IndexDescription[]> = {
     { key: { analysisRunId: 1, readingId: 1 }, unique: true, name: 'uq_anomalies_run_reading' },
     { key: { datasetId: 1, ts: 1, _id: 1 }, name: 'ix_anomalies_dataset_ts_id' },
     { key: { datasetId: 1, status: 1, ts: 1 }, name: 'ix_anomalies_dataset_status_ts' },
+  ],
+  idempotencyReceipts: [
+    { key: { userId: 1, key: 1 }, unique: true, name: 'uq_idempotency_user_key' },
+    { key: { status: 1, leaseUntil: 1 }, name: 'ix_idempotency_recovery' },
   ],
 };
 

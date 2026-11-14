@@ -1,4 +1,12 @@
 import { createHmac } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
+
+export interface ImportConfig {
+  storageDir: string; maxFileBytes: number; maxRecordBytes: number; batchSize: number;
+  maxIssues: number; maxSensors: number; uploadConcurrency: number; importConcurrency: number;
+  timeoutMs: number; leaseMs: number; replayMs: number;
+}
 
 export interface ServerConfig {
   host: string;
@@ -11,6 +19,7 @@ export interface ServerConfig {
   cursorSecret: string;
   loginRateMax: number;
   loginRateWindowMs: number;
+  imports: ImportConfig;
   logLevel: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent';
 }
 
@@ -54,6 +63,19 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     cursorSecret: createHmac('sha256', jwtSecret).update('pm25:cursor:v1').digest('hex'),
     loginRateMax: integer(env.LOGIN_RATE_LIMIT_MAX, 10, 'LOGIN_RATE_LIMIT_MAX', 100_000),
     loginRateWindowMs: integer(env.LOGIN_RATE_LIMIT_WINDOW_MS, 60_000, 'LOGIN_RATE_LIMIT_WINDOW_MS', 86_400_000),
+    imports: {
+      storageDir: env.IMPORT_STORAGE_DIR ? resolve(env.IMPORT_STORAGE_DIR) : fileURLToPath(new URL('../../.local/imports/', import.meta.url)),
+      maxFileBytes: integer(env.IMPORT_MAX_FILE_BYTES, 100 * 1024 * 1024, 'IMPORT_MAX_FILE_BYTES', 1024 * 1024 * 1024),
+      maxRecordBytes: integer(env.IMPORT_MAX_RECORD_BYTES, 1024 * 1024, 'IMPORT_MAX_RECORD_BYTES', 8 * 1024 * 1024),
+      batchSize: integer(env.IMPORT_BATCH_SIZE, 1000, 'IMPORT_BATCH_SIZE', 1000),
+      maxIssues: integer(env.IMPORT_MAX_ISSUES, 1000, 'IMPORT_MAX_ISSUES', 1000),
+      maxSensors: integer(env.IMPORT_MAX_SENSORS, 10000, 'IMPORT_MAX_SENSORS', 10000),
+      uploadConcurrency: integer(env.IMPORT_UPLOAD_CONCURRENCY, 2, 'IMPORT_UPLOAD_CONCURRENCY', 2),
+      importConcurrency: integer(env.IMPORT_CONCURRENCY, 1, 'IMPORT_CONCURRENCY', 1),
+      timeoutMs: integer(env.IMPORT_TIMEOUT_MS, 120_000, 'IMPORT_TIMEOUT_MS', 120_000),
+      leaseMs: integer(env.IMPORT_LEASE_MS, 30_000, 'IMPORT_LEASE_MS', 120_000),
+      replayMs: 24 * 60 * 60 * 1000,
+    },
     logLevel: logLevel as ServerConfig['logLevel'],
   };
 }

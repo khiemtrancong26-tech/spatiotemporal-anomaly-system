@@ -4,6 +4,19 @@
 **Trạng thái:** Thiết kế vật lý **đề xuất cho MVP**, cần Khiêm review trước khi triển khai database chính thức. `indexes.js` là script tạo index gợi ý, **không phải migration đã chạy**.  
 **DB:** `spatiotemporal_anomaly` (tên đề xuất), MongoDB. **7 collections lõi:** `users`, `datasets`, `sensors`, `readings`, `analysisRuns`, `anomalies`, `processedMutations`.
 
+## Bổ sung B3 đã triển khai — D012, 14/11/2026
+
+Phần này cập nhật các đề xuất import/receipt cũ bên dưới theo [D012](decisions.md#d012--import-b3-và-durable-idempotency); không thay HTTP/DTO. Có thêm collection nội bộ `idempotencyReceipts`: tổng thiết kế 8 collections, trong đó 7 thuộc online và `processedMutations` vẫn hoãn. Script online hiện có 13 indexes ngoài `_id`.
+
+- Dataset lưu private `source:{fileId,format,checksum,bytes}`, `validationReport`, `fieldMapping`, `sourceUnit`, `mappingVersion`, `mappingConfirmed`, tùy lỗi `mappingError`. File ID do Backend sinh, không nhận path từ HTTP. Nguồn đã tiếp nhận lưu persistent ngoài MongoDB, P0 không tự xóa; không có API tải/xóa báo cáo nguồn.
+- Lifecycle thực tế: upload thành công tạo `awaiting_mapping`; PUT mapping hợp lệ giữ trạng thái đó, invalid toàn bộ/tọa độ bất nhất/report vượt hạn mức chuyển `failed`; CAS mapping/version chuyển `importing`; publish sau đủ persistence → `imported`. Failure sau ghi batch chỉ chuyển `failed` sau cleanup có fencing. Mất DB trong cleanup giữ `importing` và receipt processing cho recovery. Imported không sửa mapping/nhập lại.
+- Trong importing có private `importAttemptId` (owner UUID), `importReceiptId`, `batchRevision`. Sensor/Reading có private attempt marker; Reading có `sourceRowNumber` để lưu winner BR-08 qua nhiều batch. PM2.5 ghi BSON Double, thời gian BSON Date/UTC mili-giây, reading location snapshot `[longitude,latitude]` từ tọa độ đã kiểm tra. Dòng invalid không tham gia chọn winner hoặc kiểm tra bất nhất trạm.
+- Report tối đa 1.000 issues theo D012. Nhiều trường sai có thể tạo nhiều issues cho một dòng, nhưng `invalidRows` chỉ tăng một lần. Vượt hạn mức → 422/failed, không truncate rồi báo imported; failed preview có giới hạn. Không triển khai file báo cáo đầy đủ hoặc API phân trang/download mới.
+- `idempotencyReceipts`: `_id`, `userId:ObjectId`, `key:UUID string`, `operation`, `requestHash`, `resourceId`, `kind`, `owner`, `status:processing|completed|failed`, `createdAt`, `expiresAt`, `leaseUntil`, tùy kết quả `response:{statusCode,body}`. Unique `{userId:1,key:1}` và recovery `{status:1,leaseUntil:1}`; **không TTL**, không Redis/processedMutations.
+- Replica set là điều kiện B3. Upload metadata + receipt 201, hoặc Dataset imported + receipt 200, chốt cùng transaction snapshot/majority. Mỗi batch và cleanup batch có transaction riêng, khóa receipt + Dataset; không dùng transaction toàn file. Recovery chỉ tiếp quản receipt hết lease và chỉ dọn attempt có cùng receipt ID; receipt bỏ dở trước start CAS không được dọn attempt khác.
+- Replay 24 giờ, key quá hạn vẫn giữ và trả 409; snapshot cũ không đổi theo Dataset mới. Chi tiết restart, file thất lạc, admission và retry trong [B3 verification](backend/b3-verification.md).
+
+
 ## 1. Nguyên tắc vật lý
 
 1. `_id` và các foreign keys dùng **BSON ObjectId** trong DB. API chuyển thành ID chuỗi opaque (hex ObjectId trong implementation dự kiến), không trả BSON hoặc `_id` ra Client.

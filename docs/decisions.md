@@ -14,13 +14,14 @@
 | D007 | npm workspaces | Quản lý Monorepo chung |
 | D010 | MongoDB Official Node.js Driver (`mongodb`), không dùng Mongoose | B0 đã xác nhận; truy vấn/batch qua Repository, không thêm ODM |
 | D011 | User/JWT/scrypt B2 và login rate limiting | Người dùng chốt trong lượt triển khai B2; chi tiết bên dưới |
+| D012 | Import B3, giới hạn đầu vào, durable idempotency và recovery | Chủ dự án xác nhận trong chat B3; không thay OpenAPI |
 
 ## Quyết định chưa hoàn tất
 
 - **Driver đã chốt tại D010**, không còn là quyết định mở.
 - Isolation Forest đã được chọn trong D009; **model artifact, method/config API, features, version và ngưỡng đánh giá** còn mở.
 - Redis + BullMQ là **phương án đề xuất** cho hàng đợi Analysis B5, **chưa chọn làm kiến trúc chính thức**; queue topology, recovery, concurrency, retention/admission còn mở.
-- Giới hạn Import (file/batch/timeout/bộ nhớ) và quy trình recovery vẫn phải chốt tại B3; không thêm Kafka/Spark khi chưa có nhu cầu streaming/distributed rõ ràng.
+- Import B3 đã chốt tại D012; performance thực tế và proxy/volume triển khai vẫn do Cường phối hợp đo. B5 còn cần quyết định riêng về Analysis; không thêm Kafka/Spark khi chưa có nhu cầu rõ ràng.
 
 ## Mẫu ghi quyết định mới
 
@@ -32,6 +33,19 @@
 - Lý do:
 - Ảnh hưởng:
 - Người thống nhất:
+
+## D012 — Import B3 và durable idempotency
+
+- Ngày: 14/11/2026. Chủ dự án chốt ba nhóm đề xuất và hai chi tiết bổ sung; chưa suy ra review riêng của Tài/Khải/Cường.
+- Nguồn: CSV UTF-8 có header, JSON array các object phẳng. Chỉ PM2.5 `ug/m3`, timestamp có Z/offset, tối đa 3 chữ số phần lẻ. Không đoán timezone, tự quy đổi unit hoặc cắt/làm tròn phần lẻ dài hơn. Invalid row bị bỏ và báo; không có dòng hợp lệ thì 422/failed. Cùng mã trạm có tọa độ khác nhau trong các dòng hợp lệ làm cả dataset thất bại, không công bố partial.
+- Giới hạn ban đầu có env: file 100 MiB, record 1 MiB, batch tối đa 1.000 dòng, 2 upload và 1 import đồng thời mỗi process, tối đa 10.000 trạm/dataset, timeout upload/import 120 giây. Đây là cấu hình để đo, không phải benchmark. Proxy của Cường cần timeout lớn hơn công việc Backend.
+- Báo cáo tối đa 1.000 issues; vượt mức từ chối 422 rõ nguyên nhân, không cắt report rồi báo imported. Preview khi failed có giới hạn và phải giải thích; không thêm report-download endpoint hoặc trường ngoài schema.
+- Validation trước mapping chỉ phản ánh cấu trúc dòng; sau PUT mapping kiểm tra ngữ nghĩa và cập nhật report; import kiểm tra lại. FE có nhãn giải thích số liệu sơ bộ, không thêm API/field.
+- Tạo collection persistence riêng `idempotencyReceipts`, unique user+key; fingerprint gồm operation/path/nội dung, upload gồm checksum bytes + metadata. Không tái dùng processedMutations hoặc thêm Redis. Replay 24 giờ; quá hạn giữ receipt/tombstone và trả 409, không tự tạo nghiệp vụ lại/TTL xóa key.
+- MongoDB replica set hỗ trợ transaction nhỏ chốt Dataset + HTTP response receipt nguyên tử; không đặt toàn file import trong transaction khổng lồ. Lease/owner guards và đối soát restart giữ partial không public; retry failed là thao tác có chủ đích sau cleanup.
+- File nguồn nằm ở thư mục persistent ngoài MongoDB, P0 không tự xóa nguồn đã tiếp nhận. Chỉ loại file tạm/uncommitted thuộc request; không có API xóa hoặc cleanup dữ liệu người dùng tùy tiện.
+- Mapping sửa trước import, hoặc sau failed đã cleanup. PUT cùng nội dung không tạo nghiệp vụ mới. Cùng key replay snapshot cũ; key mới cho dataset imported trả 200 hiện trạng, không nhập lại. Failed được sửa mapping và retry bằng key mới. Reload wizard chỉ đọc status/validation và xác nhận lại, không hứa phục hồi file/key đã mất.
+- Các thông số vận hành và lease phải được kiểm chứng trước mở rộng tải; D012 không khóa worker/queue/model của Analysis B5, Sync hoặc P1/P2.
 
 ## D011 — Quy tắc User và xác thực B2
 
@@ -74,7 +88,7 @@
 
 ## B0 — Định hướng xử lý dữ liệu và Analysis (không đồng nghĩa triển khai xong)
 
-- **Import B3:** Giữ `POST /api/v1/datasets/{id}/imports` đồng bộ, trả `200 SingleDataset` khi thành công (không chuyển 202). Thiết kế dùng async I/O, Node.js Streams/backpressure, batch `bulkWrite()` và giới hạn concurrency/bộ nhớ; bảo toàn BR-08 **first valid row wins** theo thứ tự nguồn. Kích thước batch/file, timeout và cleanup/retry còn OPEN-05/NEW-02; không coi streaming là bảo đảm request không timeout.
+- **Import B3:** Giữ `POST /api/v1/datasets/{id}/imports` đồng bộ, trả `200 SingleDataset` khi thành công (không chuyển 202). Thiết kế dùng async I/O, Node.js Streams/backpressure, batch `bulkWrite()` và giới hạn concurrency/bộ nhớ; bảo toàn BR-08 **first valid row wins** theo thứ tự nguồn. Batch/file, timeout và cleanup/retry B3 đã chốt bổ sung tại D012; không coi streaming là bảo đảm request không timeout.
 - **Analysis B5:** D008 vẫn quyết định `202 Accepted` sau tiếp nhận bền vững. Redis + BullMQ là **ứng viên cần đánh giá**, không phải điều kiện B1 hoặc công nghệ đã chốt. Nếu chọn queue ngoài tiến trình, phải có cách đối soát run đã lưu nhưng chưa dispatch, khôi phục sau crash và idempotent processing khi job bị chạy lại.
 - **Tính nhất quán:** Không công bố anomalies của run queued/running/failed; chỉ đánh dấu completed sau khi lưu đầy đủ, dùng unique `(analysisRunId, readingId)` và trạng thái/attempt guard chống duplicate. Không hứa exactly-once execution hay một transaction khổng lồ.
 - **Tách workload:** Phân trang `GET /readings` cho FE (mặc định 100/trang, FE M4 tự giới hạn 2.000 readings/phiên) không giới hạn phạm vi Analysis Server. Kịch bản dataset 500.000 readings và run xét 30.000 chỉ là **ví dụ**, không phải limit hay benchmark đã đạt. FE M5 chỉ tải anomalies sau completed, theo trang.

@@ -7,7 +7,7 @@ import { errorSchema } from '../src/shared/http/errors.js';
 import { onlineIndexes } from '../src/shared/persistence/indexes.js';
 import { userPublicSchema, userResponseSchema } from '../src/modules/users/users.schema.js';
 import { loginRequestSchema, loginResponseSchema, registerRequestSchema } from '../src/modules/auth/auth.schema.js';
-import { datasetPageSchema, datasetSchema, importSummarySchema } from '../src/modules/datasets/datasets.schema.js';
+import { datasetPageSchema, datasetSchema, importSummarySchema, mappingRequestSchema, singleDatasetSchema, validationReportSchema } from '../src/modules/datasets/datasets.schema.js';
 
 describe('foundation contract drift checks', () => {
   it('keeps B2 request/response schemas aligned without tightening open DTO constraints', async () => {
@@ -22,6 +22,7 @@ describe('foundation contract drift checks', () => {
     for (const [name, schema] of Object.entries({ UserPublic: userPublicSchema, UserResponse: userResponseSchema,
       RegisterRequest: registerRequestSchema, LoginRequest: loginRequestSchema, LoginResponse: loginResponseSchema,
       Dataset: datasetSchema, DatasetPage: datasetPageSchema, ImportSummary: importSummarySchema,
+      MappingRequest: mappingRequestSchema, SingleDataset: singleDatasetSchema, ValidationReport: validationReportSchema,
     })) expect(expand(schema)).toEqual(expand(spec.components.schemas[name]));
   });
   it('keeps health and error schemas exactly aligned with the existing OpenAPI', async () => {
@@ -50,6 +51,6 @@ describe('foundation contract drift checks', () => {
     }
     expect(names).not.toContain('ix_anomalies_sync_updated');
     expect(names).not.toContain('uq_mutations_client_id');
-    expect(names).toHaveLength(11);
+    expect(names).toHaveLength(13);
   });
 });

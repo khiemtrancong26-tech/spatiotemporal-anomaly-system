@@ -13,7 +13,8 @@
     "test:server:integration": "npm run test:integration --workspace @pm25/server",
     "test:e2e:b2": "npm run test:e2e:b2 --workspace @pm25/server",
     "test:e2e": "npm run test:e2e --workspace @pm25/client",
-    "check": "npm run typecheck && npm run lint && npm test && npm run build"
+    "check": "npm run typecheck && npm run lint && npm test && npm run build",
+    "test:e2e:b3": "npm run test:e2e:b3 --workspace @pm25/server"
   },
   "workspaces": [
     "client",

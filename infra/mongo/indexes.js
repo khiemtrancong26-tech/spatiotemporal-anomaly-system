@@ -18,6 +18,9 @@ const indexes = [
   ['anomalies', { updatedAt: 1, _id: 1 }, { name: 'ix_anomalies_sync_updated' }],
   ['anomalies', { datasetId: 1, status: 1, ts: 1 }, { name: 'ix_anomalies_dataset_status_ts' }],
   ['processedMutations', { clientMutationId: 1 }, { unique: true, name: 'uq_mutations_client_id' }],
+  // D012/B3 online POST receipts: no TTL and not the offline mutation ledger.
+  ['idempotencyReceipts', { userId: 1, key: 1 }, { unique: true, name: 'uq_idempotency_user_key' }],
+  ['idempotencyReceipts', { status: 1, leaseUntil: 1 }, { name: 'ix_idempotency_recovery' }],
 ];
 
 for (const [collection, keys, options] of indexes) {

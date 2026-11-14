@@ -15,10 +15,11 @@
     "test": "vitest run --exclude tests/*.integration.test.ts",
     "test:integration": "vitest run .integration.test.ts",
     "test:coverage": "vitest run --coverage",
-    "test:e2e:b2": "playwright test --config playwright.config.ts",
+    "test:e2e:b2": "playwright test --config playwright.config.ts b2.spec.ts",
     "db:indexes": "tsx --env-file-if-exists=../.env scripts/ensure-indexes.ts",
     "db:seed": "tsx --env-file-if-exists=../.env scripts/seed-demo.ts",
-    "check": "npm run typecheck && npm run lint && npm test && npm run build"
+    "check": "npm run typecheck && npm run lint && npm test && npm run build",
+    "test:e2e:b3": "playwright test --config playwright.config.ts b3.spec.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -37,7 +38,9 @@
   "dependencies": {
     "@fastify/ajv-compiler": "4.0.7",
     "@fastify/cors": "11.4.3",
+    "@fastify/multipart": "10.1.8",
     "@fastify/rate-limit": "11.2.2",
+    "csv-parse": "7.0.3",
     "fastify": "5.12.8",
     "fastify-plugin": "6.0.1",
     "jose": "6.2.17",

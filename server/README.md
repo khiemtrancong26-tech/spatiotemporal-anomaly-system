@@ -1,10 +1,10 @@
 # Server — Backend P0 online
 
-**B2 đã triển khai ngày 14/11/2026:** Register/Login, current user và datasets list trên nền B1 Fastify + TypeScript/Official Driver. Giữ feature modules với Route → Validation → Service → Repository → MongoDB. Owner: Khiêm; Cường phối hợp môi trường/kiểm thử. Xem [B2 verification](../docs/backend/b2-verification.md), [B1 verification](../docs/backend/b1-verification.md) và [D011](../docs/decisions.md#d011--quy-tắc-user-và-xác-thực-b2).
+**B1–B3 đã triển khai ngày 14/11/2026:** health, Register/Login, current user, imported-only datasets list và bốn API upload/validation/mapping/import thật. Xem [B3 verification và runbook](../docs/backend/b3-verification.md), [D012](../docs/decisions.md#d012--import-b3-và-durable-idempotency). Giữ feature modules với Route → Validation → Service → Repository → MongoDB. Owner: Khiêm; Cường phối hợp môi trường/kiểm thử. Xem [B2 verification](../docs/backend/b2-verification.md), [B1 verification](../docs/backend/b1-verification.md) và [D011](../docs/decisions.md#d011--quy-tắc-user-và-xác-thực-b2).
 
 ## Chạy từ thư mục gốc
 
-Yêu cầu Node.js ≥22.12, npm và MongoDB đang hoạt động cho health `200`. Các phiên bản khóa trong package/lockfile: Fastify 5.12.8, Official Driver 7.9.0, TypeScript 5.9.3.
+Yêu cầu Node.js ≥22.12, npm và MongoDB đang hoạt động cho health `200`. B3 cần replica set đã khởi tạo; standalone chỉ phục vụ B1/B2, upload/import trả 503. Các phiên bản khóa trong package/lockfile: Fastify 5.12.8, Official Driver 7.9.0, TypeScript 5.9.3.
 
 ```powershell
 npm ci
@@ -45,7 +45,7 @@ Nếu FE dùng `localhost` thay vì `127.0.0.1`, thêm origin đó vào `CORS_OR
 
 ## API đã có và API chưa có
 
-Đã có 5 operations theo OpenAPI hiện tại:
+Đã có 9 operations theo OpenAPI hiện tại:
 
 | API | Thành công / quyền |
 |---|---|
@@ -54,6 +54,10 @@ Nếu FE dùng `localhost` thay vì `127.0.0.1`, thêm origin đó vào `CORS_OR
 | POST `/api/v1/auth/tokens` | Public, `200 {accessToken,tokenType,user}`; sai thông tin/inactive `401` chung, rate limit `429` |
 | GET `/api/v1/users/me` | JWT, `200 {data: UserPublic}`; role/isActive đọc từ DB |
 | GET `/api/v1/datasets` | JWT analyst/admin, chỉ imported; `200 {data,page}`, mặc định createdAt:desc/100, tối đa 200, sort hai chiều và cursor |
+| POST `/api/v1/datasets` | JWT analyst/admin, multipart file/name và UUID key; `201 SingleDataset` |
+| GET `/api/v1/datasets/:id/validation` | JWT analyst/admin; `200 ValidationReport` trực tiếp |
+| PUT `/api/v1/datasets/:id/mapping` | JWT analyst/admin; replace và `200 SingleDataset` |
+| POST `/api/v1/datasets/:id/imports` | JWT analyst/admin, UUID key, không body; `200 SingleDataset` sau persistence/report |
 
 Health giữ các trạng thái:
 
@@ -62,7 +66,17 @@ Health giữ các trạng thái:
 - Method không hỗ trợ trả `405` với `Allow`. HEAD không tự bật. Khi cấu hình CORS, OPTIONS preflight là xử lý transport, không phải API nghiệp vụ mới.
 - Path chưa triển khai trả `404` theo error envelope; không có fallback fixture.
 
-15 operations P0 online còn lại chưa có handler. Analysis theo D008/D009 async sẽ làm ở B5; chưa có worker/queue/model thật. Offline/Sync/P1 và HTTP `reading-batches` vẫn hoãn. Admin có thể đăng nhập và xem dữ liệu, còn CRUD tài khoản là B7.
+11 operations P0 online còn lại chưa có handler. Analysis theo D008/D009 async sẽ làm ở B5; chưa có worker/queue/model thật. Offline/Sync/P1 và HTTP `reading-batches` vẫn hoãn. Admin có thể đăng nhập và xem dữ liệu, còn CRUD tài khoản là B7.
+
+## B3 và cấu hình nguồn persistent
+
+Bốn operations thật: `POST /api/v1/datasets` (multipart, key UUID, 201), `GET /api/v1/datasets/:id/validation` (report trực tiếp), `PUT /api/v1/datasets/:id/mapping` (replace, 200), `POST /api/v1/datasets/:id/imports` (key UUID, đồng bộ 200 sau publish). Cùng key replay snapshot gốc, key mới cho dataset imported trả hiện trạng mà không nhập lại. Không có HTTP reading-batches hoặc endpoint report mới.
+
+Mặc định nguồn lưu ở `<repo>/.local/imports` (gitignored); triển khai phải đặt `IMPORT_STORAGE_DIR` trên volume persistent, giữ cùng MongoDB qua restart. `.env.example` có các limits D012: 100 MiB/file, 1 MiB/record, batch 1.000, report 1.000 issues, 10.000 trạm, 2 uploads/1 import mỗi process, 120 giây. Cường đồng bộ proxy body size gồm multipart overhead và timeout lớn hơn Backend; không coi defaults là benchmark.
+
+CSV UTF-8/header hoặc JSON array object phẳng. Trước mapping chỉ đếm cấu trúc; sau mapping kiểm tra ngữ nghĩa, import kiểm tra lại checksum/nguồn. Chỉ ug/m3 và timestamp có Z/offset, tối đa 3 chữ số phần lẻ; tọa độ bất nhất giữa dòng hợp lệ làm dataset failed. Invalid rows bị bỏ có báo cáo, zero/high finite vẫn hợp lệ. Report vượt cap làm 422, không thành công bị cắt lỗi.
+
+Import failure giữ partial không public; chỉ `failed` sau cleanup, còn `importing` phải chờ đối soát. Retry chủ động: đọc validation → xác nhận lại mapping → key mới; key cũ replay failure cũ. Nguồn đã tiếp nhận không tự xóa. Đọc [runbook](../docs/backend/b3-verification.md) cho mất response/restart/file và điều kiện bàn giao B4.
 
 ## Cấu trúc và điểm tích hợp
 
@@ -74,9 +88,9 @@ src/plugins/               MongoDB lifecycle, lỗi HTTP, auth hooks
 src/modules/health/        composition + routes/schema/service/repository
 src/modules/users/         User service/repository, hashing và current user
 src/modules/auth/          Register/Login, JWT và composition auth hooks
-src/modules/datasets/      imported-only list, DTO và cursor
+src/modules/datasets/      list + import routes/schema/service/repository, source streams và normalization
 src/shared/http/           lỗi và response schema
-src/shared/persistence/    BSON mapping, keyset predicate, online indexes
+src/shared/persistence/    BSON/keyset/indexes + durable receipt transaction/lease primitives
 src/shared/pagination.ts   bounded query, fingerprint, signed opaque cursor
 src/shared/idempotency.ts  header validation, replay semantics, store interface
 ```
@@ -91,7 +105,7 @@ Username trim đầu/cuối; giữ cách viết để hiển thị, so trùng/lo
 
 Datasets list dùng cursor đã ký gắn với operation/filter/sort; lỗi cursor không tương thích trả 400. Limit mặc định 100/tối đa 200; sort whitelist; keyset có `_id` tie-break, lấy thêm đúng một dòng để xác định nextCursor. Chỉ query status imported, không thêm dataset detail hoặc cam kết snapshot. DTO whitelist cả nested importSummary, không lộ storagePath/mapping nội bộ.
 
-Idempotency mới có kiểm tra UUID, interface claim/complete và ánh xạ replay/in-flight/payload mismatch. **Chưa có store bền vững, retention hoặc effect/receipt recovery.** Không bật RAM-store giả hoặc tự retry mutation; phải chốt các quyết định còn mở trước POST ở B3/B5/B7.
+B3 có durable `idempotencyReceipts`: unique user+key, fingerprint operation/path/content, replay 24 giờ, in-flight 409, payload mismatch 422, key expired 409 và giữ receipt không TTL. Transaction nhỏ chốt effect/receipt cùng nhau, lease + fencing chống worker cũ ghi/dọn sau recovery. Đây là primitive dùng chung; B5/B7 phải ghép effect/atomicity riêng, không tự coi queue/run/admin đã được triển khai hoặc recover bởi B3.
 
 ## MongoDB indexes
 
@@ -101,9 +115,9 @@ Sau khi cấu hình đúng database đích và MongoDB chạy:
 npm run db:indexes --workspace @pm25/server
 ```
 
-Lệnh tạo/kiểm tra lặp lại được **11 indexes online** trên 6 collections theo physical design và `infra/mongo/indexes.js`. Không tạo `processedMutations` hoặc sync indexes, không xóa dữ liệu. Unique-index setup thất bại nếu dữ liệu có sẵn bị trùng; phải kiểm tra và xử lý riêng. Health/khởi động Server không tự tạo index. **B2 User Repository bảo đảm unique usernameNormalized index tồn tại trước insert đầu tiên**, kể cả trên DB mới, để Register/CLI/future Admin không thể tạo trùng do race; không tự cleanup dữ liệu cũ bị trùng.
+Lệnh tạo/kiểm tra lặp lại được **13 indexes online** trên 7 collections theo physical design và `infra/mongo/indexes.js`. Không tạo `processedMutations` hoặc sync indexes, không xóa dữ liệu. Unique-index setup thất bại nếu dữ liệu có sẵn bị trùng; phải kiểm tra và xử lý riêng. Health/khởi động Server không tự tạo index. B3 chuẩn bị indexes trước request đầu tiên và trong recovery sweep; standalone không được sử dụng để import. **B2 User Repository bảo đảm unique usernameNormalized index tồn tại trước insert đầu tiên**, kể cả trên DB mới, để Register/CLI/future Admin không thể tạo trùng do race; không tự cleanup dữ liệu cũ bị trùng.
 
-Integration test dùng `mongod` 8.2.6 thực/WiredTiger/database tạm. Đây là phiên bản kiểm thử, chưa khóa bản MongoDB triển khai chung. Suite chạy standalone, không kiểm chứng transaction replica-set/sync. Cường tiếp tục phụ trách môi trường MongoDB replica set/Docker và Nginx/TLS.
+Harness mặc định tải `mongod` 8.2.6/WiredTiger trên database/port tạm. Lượt B3 hiện tại dùng binary MongoDB **9.0.4** có sẵn với `MONGOMS_SYSTEM_BINARY`; B1/B2 chạy standalone, B3 chạy replica set 1 node thực để kiểm chứng transactions/recovery. Không khóa phiên bản triển khai chung hoặc nghiệm thu Sync/HA. Cường tiếp tục Docker/replica-set triển khai, volume và Nginx/TLS; xem lệnh tái lập trong B3 verification.
 
 ## Demo/bootstrap có chủ đích
 
@@ -127,12 +141,13 @@ npm run test:server:integration
 npm run test:coverage --workspace @pm25/server
 # Browser E2E FE online + Backend + mongod thật, không HTTP intercept.
 npm run test:e2e:b2
+npm run test:e2e:b3
 # Kiểm tra cả client/server; integration thật là lệnh riêng phía trên.
 npm run check
 ```
 
 `mongodb-memory-server` quản lý binary/process và thư mục test; driver gửi lệnh tới MongoDB thật. Lần đầu cài/chạy cần tải binary từ MongoDB. Lỗi tải/khởi động làm integration thất bại, không bỏ qua/chuyển mock. Test không dùng `MONGODB_URI` của người dùng hoặc sửa DB có sẵn; mongod tạm đóng sau suite.
 
-Coverage tính `src/**` trừ entrypoint `main.ts`; scripts CLI không nằm trong coverage. Báo cáo tại `server/coverage/` (gitignored). Unit service dùng test doubles có nhãn; integration B2 dùng scrypt/JWT/DB thật. Browser suite tự khởi tạo DB tạm, Backend và Vite online trên port tạm rồi dọn process, không đụng DB người dùng. Nếu Chromium chưa có, chạy `npx playwright install chromium` trong thư mục server. E2E chỉ nghiệm thu luồng M2; API B3 trở đi còn chờ. Chưa nghiệm thu load/stress, TLS hoặc performance dataset lớn.
+Coverage tính `src/**` trừ entrypoint `main.ts`; scripts CLI không nằm trong coverage. Báo cáo tại `server/coverage/` (gitignored). Unit service dùng test doubles có nhãn; integration B2 dùng scrypt/JWT/DB thật. Browser suite tự khởi tạo DB tạm, Backend và Vite online trên port tạm rồi dọn process, không đụng DB người dùng. Nếu Chromium chưa có, chạy `npx playwright install chromium` trong thư mục server. E2E thật bao phủ M2 và M3; B4 Query trở đi còn chờ. Test doubles/fault hooks chỉ dùng trong tests, main không bật; B3 E2E dùng file/API/DB thật, không intercept. Chưa nghiệm thu load/stress, TLS hoặc performance dataset lớn.
 
 Tham chiếu triển khai: [Fastify validation](https://fastify.dev/docs/latest/Reference/Validation-and-Serialization/), [Fastify routing lookup](https://fastify.dev/docs/latest/Reference/Server/#findroute), [Official Driver timeout](https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/csot/). Driver 7.9 dùng timeout theo giai đoạn; `timeoutMS` deprecated không được dùng làm bảo đảm timeout.

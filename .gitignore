@@ -151,3 +151,6 @@ vite.config.ts.timestamp-*
 # Frontend browser test artifacts
 playwright-report/
 test-results/
+
+# Persistent local import sources / temporary intake files (never commit user data)
+.local/
