@@ -2,6 +2,12 @@
 
 **B1–B4 đã triển khai ngày 14/11/2026:** health, Register/Login, current user, imported-only datasets list và upload/validation/mapping/import + Query sensors/readings thật. Xem [B4 verification](../docs/backend/b4-verification.md). Xem [B3 verification và runbook](../docs/backend/b3-verification.md), [D012](../docs/decisions.md#d012--import-b3-và-durable-idempotency). Giữ feature modules với Route → Validation → Service → Repository → MongoDB. Owner: Khiêm; Cường phối hợp môi trường/kiểm thử. Xem [B2 verification](../docs/backend/b2-verification.md), [B1 verification](../docs/backend/b1-verification.md) và [D011](../docs/decisions.md#d011--quy-tắc-user-và-xác-thực-b2).
 
+## Tích hợp thư viện trước B5 — 15/11/2026
+
+Có internal adapters tại `src/engines`: gọi statistical engine của shared-core và Python/scikit-learn load/predict artifact đã có; xác minh references/score rồi tạo candidates trong bộ nhớ. [Báo cáo và lệnh setup](../docs/backend/detector-integration-verification.md), [artifact/runtime](ml/README.md). CLI `npm run verify:detectors` chạy profile có nhãn thử nghiệm và ghi kết quả kiểm chứng; không ghi run/anomaly hoặc tạo API.
+
+**B5 vẫn chưa triển khai**. API count vẫn 11/20; chưa có Analysis routes/job/queue hoặc production policy/features/severity. Model được chọn chỉ là demo hai features x0/x1, không tự coi PM2.5 feature extraction đã xong. B1–B4 không tự khởi động Python hoặc tải model; Python/artifact chỉ cần cho bộ kiểm thử engines integration và CLI trước B5.
+
 ## Chạy từ thư mục gốc
 
 Yêu cầu Node.js ≥22.12, npm và MongoDB đang hoạt động cho health `200`. B3 cần replica set đã khởi tạo; standalone chỉ phục vụ B1/B2, upload/import trả 503. Các phiên bản khóa trong package/lockfile: Fastify 5.12.8, Official Driver 7.9.0, TypeScript 5.9.3.

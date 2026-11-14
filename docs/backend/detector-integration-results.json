@@ -1,0 +1,161 @@
+{
+  "checkedAt": "2026-11-14T17:42:11.780Z",
+  "node": "v24.14.1",
+  "purpose": "library integration only, not B5 or detector-quality evaluation",
+  "profileStatus": "explicit experiment; no production defaults/severity or API method chosen",
+  "statistical": [
+    {
+      "method": "zscore",
+      "config": {
+        "threshold": 3
+      },
+      "engineVersion": "simple-statistics@8.0.0",
+      "policyId": "EXPERIMENT-ONLY/zscore/v1",
+      "status": "completed",
+      "results": 22,
+      "message": null,
+      "candidates": [
+        {
+          "readingId": "integration-reading-21",
+          "datasetId": "SYNTHETIC-INTEGRATION-ONLY",
+          "sensorId": "station-A",
+          "ts": "2026-11-15T00:00:21.000Z",
+          "value": 100,
+          "unit": "ug/m3",
+          "location": {
+            "type": "Point",
+            "coordinates": [
+              106,
+              10
+            ]
+          },
+          "score": 4.5790805769126415,
+          "reason": "EXPERIMENT-ONLY: absolute library z-score above threshold."
+        }
+      ],
+      "elapsedMs": 6.931700000000035
+    },
+    {
+      "method": "iqr",
+      "config": {
+        "multiplier": 1.5
+      },
+      "engineVersion": "simple-statistics@8.0.0",
+      "policyId": "EXPERIMENT-ONLY/iqr/v1",
+      "status": "completed",
+      "results": 22,
+      "message": null,
+      "candidates": [
+        {
+          "readingId": "integration-reading-21",
+          "datasetId": "SYNTHETIC-INTEGRATION-ONLY",
+          "sensorId": "station-A",
+          "ts": "2026-11-15T00:00:21.000Z",
+          "value": 100,
+          "unit": "ug/m3",
+          "location": {
+            "type": "Point",
+            "coordinates": [
+              106,
+              10
+            ]
+          },
+          "score": 94,
+          "reason": "EXPERIMENT-ONLY: distance outside 1.5 IQR fences, in ug/m3."
+        }
+      ],
+      "elapsedMs": 1.2168000000000347
+    },
+    {
+      "method": "moving_avg",
+      "config": {
+        "threshold": 3,
+        "windowSize": 3
+      },
+      "engineVersion": "simple-statistics@8.0.0",
+      "policyId": "EXPERIMENT-ONLY/moving_avg/v1",
+      "status": "completed",
+      "results": 19,
+      "message": "3 warmup readings omitted under the explicit policy.",
+      "candidates": [
+        {
+          "readingId": "integration-reading-21",
+          "datasetId": "SYNTHETIC-INTEGRATION-ONLY",
+          "sensorId": "station-A",
+          "ts": "2026-11-15T00:00:21.000Z",
+          "value": 100,
+          "unit": "ug/m3",
+          "location": {
+            "type": "Point",
+            "coordinates": [
+              106,
+              10
+            ]
+          },
+          "score": 120.02499739637572,
+          "reason": "EXPERIMENT-ONLY: absolute library z-score above threshold."
+        }
+      ],
+      "elapsedMs": 0.8932999999999538
+    }
+  ],
+  "ml": {
+    "manifest": {
+      "id": "sklearn-docs-anomaly-detection-8689ffa",
+      "purpose": "integration-only-synthetic-two-feature-model-not-PM25",
+      "source": "https://huggingface.co/sklearn-docs/anomaly-detection",
+      "revision": "8689ffabbcd62a83317502891610d4dee4f6201e",
+      "filename": "isolation_forest.pkl",
+      "sha256": "054900c4e2e933bd5768981f6ed6f871936bf2d218ea9a1a5581f7d508fb45f0",
+      "bytes": 432745,
+      "license": "MIT",
+      "features": [
+        "x0",
+        "x1"
+      ],
+      "sklearnVersion": "1.2.2",
+      "runtime": {
+        "numpy": "1.24.4",
+        "scipy": "1.10.1",
+        "joblib": "1.2.0"
+      }
+    },
+    "engineVersion": "scikit-learn@1.2.2",
+    "featureOrigin": "Explicit synthetic upstream model vectors, NOT extracted from PM2.5 readings",
+    "policyId": "EXPERIMENT-ONLY/negative-decision",
+    "normalExample": {
+      "readingId": "integration-reading-0",
+      "prediction": 1,
+      "decisionFunction": 0.11303433389747941,
+      "scoreSamples": -0.3869656661025206
+    },
+    "outlierExample": {
+      "readingId": "integration-reading-21",
+      "prediction": -1,
+      "decisionFunction": -0.23539738528445997,
+      "scoreSamples": -0.73539738528446
+    },
+    "candidates": [
+      {
+        "readingId": "integration-reading-21",
+        "datasetId": "SYNTHETIC-INTEGRATION-ONLY",
+        "sensorId": "station-A",
+        "ts": "2026-11-15T00:00:21.000Z",
+        "value": 100,
+        "unit": "ug/m3",
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            106,
+            10
+          ]
+        },
+        "score": 0.23539738528445997
+      }
+    ],
+    "elapsedMs": 2094.1957
+  },
+  "persistedAnalysisRuns": false,
+  "persistedAnomalies": false,
+  "addedApiOperations": 0
+}

@@ -154,3 +154,7 @@ test-results/
 
 # Persistent local import sources / temporary intake files (never commit user data)
 .local/
+
+# Python integration caches (virtual environments live under .local)
+__pycache__/
+*.py[cod]

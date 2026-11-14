@@ -16,6 +16,7 @@
 | D011 | User/JWT/scrypt B2 và login rate limiting | Người dùng chốt trong lượt triển khai B2; chi tiết bên dưới |
 | D012 | Import B3, giới hạn đầu vào, durable idempotency và recovery | Chủ dự án xác nhận trong chat B3; không thay OpenAPI |
 | D013 | Query B4: parent/sensor 422, thời gian đóng và bbox tọa độ đóng | Chủ dự án xác nhận ba đề xuất B4; không đổi OpenAPI |
+| D014 | Tích hợp thư viện trước B5, policy thử nghiệm tường minh và artifact demo có provenance | Chủ dự án yêu cầu dùng thư viện, chưa triển khai B5 |
 
 ## Quyết định chưa hoàn tất
 
@@ -34,6 +35,15 @@
 - Lý do:
 - Ảnh hưởng:
 - Người thống nhất:
+
+## D014 — Tích hợp thư viện trước B5 (15/11/2026)
+
+- Chủ dự án yêu cầu ưu tiên implementation có sẵn: Z-score/IQR/Moving Average qua simple-statistics; Isolation Forest qua scikit-learn Python. Moving Average được xác nhận dùng mean() của thư viện trên cửa sổ do glue code chuẩn bị, vì simple-statistics không có hàm Moving Average riêng. Không viết lại mean/std/quantile/z-score hoặc cây Isolation Forest.
+- Chủ dự án chọn **giữ mở production policy**, chỉ dùng profile thử nghiệm tường minh; không tự chốt grouping/reference/minSamples/window/default/score/severity cho B5. Adapter không có policy mặc định; profile có nhãn EXPERIMENT-ONLY ở tests, không được export như production preset.
+- Chủ dự án ban đầu muốn artifact có sẵn, sau đó giao agent tự tìm/chọn và không yêu cầu chất lượng cao. Đã chọn artifact demo sklearn-docs/anomaly-detection, revision 8689ffabbcd62a83317502891610d4dee4f6201e, checksum/feature order/runtime trong server/ml/artifact-manifest.json. Đây là pipeline StandardScaler + IsolationForest trên hai features mô phỏng x0/x1, **không phải model PM2.5 production**; không tự gán ý nghĩa PM2.5 cho hai features.
+- simple-statistics khóa 8.0.0. Artifact được load/infer bằng môi trường riêng scikit-learn 1.2.2 để khớp metadata upstream; đây không phải quyết định khóa runtime ML production. Không tự load artifact cũ bằng sklearn mới, không tự train/fallback khi thiếu model. Có CLI tải đúng revision/hash; không có training trong Backend.
+- Backend adapters chỉ xác minh input/output và liên kết candidate trong bộ nhớ với readingId/datasetId/sensorId/ts/location chuẩn. Candidate chưa có Anomaly ID/run/severity/review state. B5 chưa được triển khai: không thêm route, job/queue, run/anomaly persistence hoặc production feature extraction; không sửa OpenAPI/Shared Data Contract/FE.
+- Bằng chứng, provenance, giới hạn model và cách tái lập trong [detector integration verification](backend/detector-integration-verification.md). Khải tiếp tục review policy/features/model dùng thật; Khiêm tích hợp nghiệp vụ B5 khi được yêu cầu, Cường review runtime/packaging/load trước triển khai.
 
 ## D013 — Semantics Query B4
 

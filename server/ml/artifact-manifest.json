@@ -1,0 +1,13 @@
+{
+  "id": "sklearn-docs-anomaly-detection-8689ffa",
+  "purpose": "integration-only-synthetic-two-feature-model-not-PM25",
+  "source": "https://huggingface.co/sklearn-docs/anomaly-detection",
+  "revision": "8689ffabbcd62a83317502891610d4dee4f6201e",
+  "filename": "isolation_forest.pkl",
+  "sha256": "054900c4e2e933bd5768981f6ed6f871936bf2d218ea9a1a5581f7d508fb45f0",
+  "bytes": 432745,
+  "license": "MIT",
+  "features": ["x0", "x1"],
+  "sklearnVersion": "1.2.2",
+  "runtime": {"numpy": "1.24.4", "scipy": "1.10.1", "joblib": "1.2.0"}
+}

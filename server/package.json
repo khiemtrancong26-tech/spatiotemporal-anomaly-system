@@ -21,7 +21,14 @@
     "check": "npm run typecheck && npm run lint && npm test && npm run build",
     "test:e2e:b3": "playwright test --config playwright.config.ts b3.spec.ts",
     "test:e2e:b4": "playwright test --config playwright.config.ts b4.spec.ts",
-    "benchmark:query": "node --expose-gc --import tsx scripts/benchmark-query.ts"
+    "benchmark:query": "node --expose-gc --import tsx scripts/benchmark-query.ts",
+    "pretypecheck": "npm run build --workspace @pm25/shared-core",
+    "prebuild": "npm run build --workspace @pm25/shared-core",
+    "pretest": "npm run build --workspace @pm25/shared-core",
+    "pretest:integration": "npm run build --workspace @pm25/shared-core",
+    "pretest:coverage": "npm run build --workspace @pm25/shared-core",
+    "verify:detectors": "tsx scripts/verify-detector-integration.ts",
+    "preverify:detectors": "npm run build --workspace @pm25/shared-core"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -46,6 +53,7 @@
     "fastify": "5.12.8",
     "fastify-plugin": "6.0.1",
     "jose": "6.2.17",
-    "mongodb": "7.9.0"
+    "mongodb": "7.9.0",
+    "@pm25/shared-core": "0.1.0"
   }
 }

@@ -227,11 +227,13 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 ### B5 — Analysis online: thống kê, ML và lịch sử
 
+**Tiền đề bổ sung 15/11/2026 (chưa phải B5):** [D014](decisions.md#d014--tích-hợp-thư-viện-trước-b5-15112026) và [báo cáo tích hợp](backend/detector-integration-verification.md) ghi nhận statistical adapters qua simple-statistics và load/infer Isolation Forest thật qua Python. Profile chỉ thử nghiệm tường minh; artifact ML demo x0/x1 không phải model PM2.5. Production policy/features/model/API method/score/severity và toàn bộ workflow B5 bên dưới vẫn mở/chưa triển khai; không đánh dấu checkbox B5 hoàn tất từ tiền đề này.
+
 **Mục tiêu:** Backend điều phối và lưu analysis đúng phạm vi; Khải cung cấp engine/model thật, không dùng kết quả fixture để tuyên bố detector đã chạy.
 
 **Endpoint:** `POST /analysis-runs` → `202 {data: AnalysisRun}` (snapshot queued), `GET /analysis-runs/{id}` → `200 {data: AnalysisRun}`, `GET /analysis-runs` → `200 AnalysisRunPage`. Cả statistical/ml dùng async; kết quả lấy qua anomalies của B6 sau completed.
 
-- [ ] Khiêm/Khải/Tài xác nhận method/config/default, điều kiện dữ liệu, ordering/grouping theo trạm, input/output, model/features và mapping score → severity. Danh sách zscore/iqr/moving_avg trong draft chưa chứng minh các method đã implement; D009 chọn thuật toán Isolation Forest, chưa chốt model artifact/version/features hoặc method/config API. FE dùng presets cố định zscore threshold=3 và iqr multiplier=1.5 đã được người dùng xác nhận; Server vẫn phải validate điều kiện dữ liệu.
+- [ ] Khiêm/Khải/Tài xác nhận method/config/default, điều kiện dữ liệu, ordering/grouping theo trạm, input/output, model/features và mapping score → severity. D014 đã có adapters thư viện và thử profile có nhãn, chưa phải production policy/engine đã được duyệt cho B5; D009 chọn thuật toán Isolation Forest, chưa chốt model artifact/version/features hoặc method/config API. FE dùng presets cố định zscore threshold=3 và iqr multiplier=1.5 đã được người dùng xác nhận; Server vẫn phải validate điều kiện dữ liệu.
 - [ ] Validation theo family/method và config được duyệt dù HTTP config là object mở; scope chỉ sensorIds/from/to. Xác minh dataset imported, sensor thuộc dataset; lấy đầy đủ phạm vi phân tích tại Server, không dùng trang readings đang render làm toàn bộ input.
 - [ ] Tài/Khiêm chốt cách bbox → danh sách sensorIds đầy đủ và semantics tập rỗng/giới hạn. Không nhận bbox ngoài schema, không bỏ filter ngầm hoặc dùng trang sensors đầu tiên làm toàn bộ vùng.
 - [ ] Service gọi statistical engine của shared-core qua adapter; Khải chịu công thức, edge cases và tests engine. Sau đó tích hợp ML adapter Server với model đã train, load/predict và version; không train trong upload/request.
