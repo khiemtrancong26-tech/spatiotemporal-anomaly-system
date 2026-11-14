@@ -295,7 +295,7 @@ Redis là **tùy chọn**, không phải yêu cầu bắt buộc trong MVP. Côn
 | ID | Nội dung cần quyết định | Mức ảnh hưởng | Nguyên tắc tạm thời |
 |---|---|---|---|
 | **OPEN-02** | Timestamp nguồn thiếu timezone được chấp nhận sau xác nhận hay từ chối? | Mapping, validation, normalize | Không tự gán timezone không có căn cứ |
-| **OPEN-03** | Thuật toán/model ML cuối cùng, feature và định dạng lưu model | ML, integration, analysis output | Isolation Forest chỉ là ứng viên; phải kiểm chứng train → load → predict |
+| **OPEN-03** | Thuật toán/model ML cuối cùng, feature và định dạng lưu model | ML, integration, analysis output | D009 chọn thuật toán Isolation Forest; method/config API, model artifact/features/version và train → load → predict còn cần chốt/kiểm chứng |
 | **OPEN-04** | Các ngưỡng cụ thể để ánh xạ score sang severity, cấu hình mặc định của detector | Engine, Shared Schema, UI | Không tự coi ngưỡng minh họa là ngưỡng đã được duyệt |
 | **OPEN-05** | Giới hạn file upload, kích thước batch và chính sách báo cáo lỗi quá nhiều dòng | Import, performance | Phải có giới hạn an toàn; thông số trong SDD |
 | **OPEN-06 / D008** | Đã chốt Analysis online async cho statistical/ml; còn mở cơ chế nền, concurrency, recovery/retention và chính sách tải | Analysis API, FE | ML chỉ Server; queue technology chưa chọn. Upload/Import không chuyển async. Cần benchmark, không suy ra hệ thống cũ quá tải |

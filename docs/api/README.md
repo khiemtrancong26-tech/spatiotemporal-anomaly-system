@@ -102,4 +102,4 @@ Xem [quyết định D008](../decisions.md#d008--analysis-online-bất-đồng-b
 
 Run bắt buộc scope snapshot; failed có error an toàn, completedAt khi terminal. Anomalies chỉ công bố khi completed; GET anomalies chỉ định run chưa completed trả 409, list tổng loại partial, detail partial 404. Query kết quả lỗi không đồng nghĩa zero anomalies.
 
-**Chỉ contract tài liệu được cập nhật ở đợt này.** Client generated types/adapter/mock, shared-core Zod và tests chưa migrate; không coi `npm run check` hiện tại là kiểm chứng v0.3. Fixtures trong docs là mẫu mục tiêu. `verify_m0.py` là công cụ lịch sử còn guard 19 operations; follow-up M1 cần đổi sang 20 và bổ sung tests lifecycle. Không thay các báo cáo lịch sử thành nghiệm thu async.
+**Migration 14/11/2026:** client generated types/adapter/mock và shared-core đã migrate D008; `verify_m0.py` kiểm tra 20 operations. Xem [M5 verification](../frontend/m5-verification.md). Test FE/mock không chứng minh worker/Backend thật. Presets M5 theo [D009](../decisions.md#d009--cấu-hình-m5-được-người-dùng-chốt-ngày-14112026); ML method/config và retention thật còn mở.

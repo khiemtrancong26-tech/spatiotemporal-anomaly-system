@@ -46,24 +46,38 @@
       },
       "AnalysisCreateResponse": {
         "type": "object",
+        "description": "Envelope một run; POST trả snapshot tiếp nhận, GET detail trả trạng thái hiện tại. Không chứa anomalies.",
         "properties": {
           "data": {
             "$ref": "#/components/schemas/AnalysisRun"
-          },
-          "anomalies": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Anomaly"
-            }
           }
         },
         "additionalProperties": false,
         "required": [
-          "data",
-          "anomalies"
+          "data"
         ]
       },
+      "AnalysisFailure": {
+        "type": "object",
+        "description": "Lỗi job an toàn để hiển thị; không chứa stack trace/model path/secrets. Danh mục code theo detector contract cần chốt.",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
       "AnalysisRun": {
+        "description": "queued -> running -> completed hoặc failed; queued có thể failed trước khi chạy. Terminal không tự quay lại running. completed chỉ sau khi toàn bộ kết quả đã lưu và đọc được; failed không công bố partial. scope là snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại. completedAt có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng khi trạng thái khác.",
         "type": "object",
         "properties": {
           "id": {
@@ -90,9 +104,16 @@
             "type": "object",
             "additionalProperties": true
           },
+          "scope": {
+            "$ref": "#/components/schemas/AnalysisScope"
+          },
+          "error": {
+            "$ref": "#/components/schemas/AnalysisFailure"
+          },
           "status": {
             "type": "string",
             "enum": [
+              "queued",
               "running",
               "completed",
               "failed"
@@ -123,7 +144,68 @@
           "method",
           "config",
           "status",
-          "createdAt"
+          "createdAt",
+          "scope"
+        ],
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "queued",
+                      "running"
+                    ]
+                  }
+                },
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "completedAt"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "error"
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "completed"
+                    ]
+                  }
+                },
+                "required": [
+                  "completedAt"
+                ],
+                "not": {
+                  "required": [
+                    "error"
+                  ]
+                }
+              },
+              {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "failed"
+                    ]
+                  }
+                },
+                "required": [
+                  "completedAt",
+                  "error"
+                ]
+              }
+            ]
+          }
         ]
       },
       "AnalysisRunPage": {
@@ -144,6 +226,31 @@
           "data",
           "page"
         ]
+      },
+      "AnalysisScope": {
+        "description": "Phạm vi tiếp nhận; thiếu scope tương đương object rỗng (toàn dataset). sensorIds rỗng và biên from/to cần chốt trước triển khai, không tự suy ra.",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sensorIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Opaque ID string; do not assume MongoDB _id format",
+              "minLength": 1
+            }
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC ISO 8601 with Z; payload normalized by server"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC ISO 8601 with Z; payload normalized by server"
+          }
+        }
       },
       "Anomaly": {
         "type": "object",
@@ -374,28 +481,7 @@
             "additionalProperties": true
           },
           "scope": {
-            "type": "object",
-            "properties": {
-              "sensorIds": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "description": "Opaque ID string; do not assume MongoDB _id format",
-                  "minLength": 1
-                }
-              },
-              "from": {
-                "type": "string",
-                "format": "date-time",
-                "description": "UTC ISO 8601 with Z; payload normalized by server"
-              },
-              "to": {
-                "type": "string",
-                "format": "date-time",
-                "description": "UTC ISO 8601 with Z; payload normalized by server"
-              }
-            },
-            "additionalProperties": false
+            "$ref": "#/components/schemas/AnalysisScope"
           }
         },
         "additionalProperties": false,
@@ -1785,7 +1871,7 @@
         }
       },
       "responses": {
-        "201": {
+        "202": {
           "$ref": "#/components/schemas/AnalysisCreateResponse"
         },
         "400": {
@@ -1877,6 +1963,62 @@
           "$ref": "#/components/schemas/Error"
         },
         "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "get_api_v1_analysis_runs_id": {
+      "method": "GET",
+      "path": "/api/v1/analysis-runs/{id}",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": null,
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/AnalysisCreateResponse"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "404": {
           "$ref": "#/components/schemas/Error"
         },
         "405": {
@@ -1989,6 +2131,9 @@
           "$ref": "#/components/schemas/Error"
         },
         "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "409": {
           "$ref": "#/components/schemas/Error"
         },
         "422": {

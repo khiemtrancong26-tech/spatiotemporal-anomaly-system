@@ -27,6 +27,7 @@ export function createOnlineDataSource(options: OnlineAdapterOptions): OnlineDat
     sensors: { list: (query, opts) => request<W.SensorPage>('get_api_v1_sensors', { ...opts, query: { ...query, bbox: bbox(query.bbox) } }) },
     readings: { list: (query, opts) => request<W.ReadingPage>('get_api_v1_readings', { ...opts, query: { ...query, bbox: bbox(query.bbox) } }) },
     analysis: {
+      get: async (id, opts) => (await request<W.AnalysisCreateResponse>('get_api_v1_analysis_runs_id', { ...opts, path: { id } })).data,
       list: (query, opts) => request<W.AnalysisRunPage>('get_api_v1_analysis_runs', { ...opts, query }),
       create: (body, opts) => request<W.AnalysisCreateResponse>('post_api_v1_analysis_runs', { ...opts, body }),
     },

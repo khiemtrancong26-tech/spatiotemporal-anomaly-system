@@ -72,3 +72,21 @@ test('register handles duplicate usernames, returns to login and never auto-auth
   await expect(page.getByRole('heading', { name: 'Dữ liệu của bạn' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Quản lý tài khoản' })).toHaveCount(0);
 });
+
+test('M5 demo submits one immutable intent, follows async lifecycle and clears context on logout', async ({ page }) => {
+  await page.goto('/workspace/dataset-001');
+  await login(page);
+  await page.getByRole('button', { name: 'Analysis', exact: true }).click();
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Gửi analysis', exact: true }).click();
+  await expect(page.getByTestId('run-status')).toContainText('queued');
+  await expect(page.getByRole('button', { name: 'Thử lại cùng key', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Đọc lại run' }).click();
+  await expect(page.getByTestId('run-status')).toContainText('running');
+  await page.getByRole('button', { name: 'Đọc lại run' }).click();
+  await expect(page.getByTestId('run-status')).toContainText('completed');
+  await expect(page.getByRole('button', { name: 'Xem reading-002', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => Object.keys(sessionStorage).filter(k => k.startsWith('pm25.analysis.')).length)).toBe(1);
+  await page.getByRole('button', { name: 'Đăng xuất', exact: true }).click();
+  expect(await page.evaluate(() => Object.keys(sessionStorage).filter(k => k.startsWith('pm25.analysis.')).length)).toBe(0);
+});

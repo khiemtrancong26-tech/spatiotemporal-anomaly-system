@@ -91,3 +91,5 @@ Chi tiết nằm trong [SRS](#1-danh-mục-tài-liệu), [API Contract](api/READ
 **Nguyên tắc:** `docs/README.md` là **trang mục lục và hướng dẫn đọc**, không thay thế SRS, SDD, OpenAPI hoặc các đặc tả kỹ thuật chi tiết.
 
 **13/11/2026 — D008:** [Analysis async](decisions.md#d008--analysis-online-bất-đồng-bộ), OpenAPI v0.3.0-draft (25 operations / 20 online), FE M5 và BE B5/B8 đã cập nhật tài liệu. Runtime/shared-core/generated contract chưa migrate; báo cáo test cũ giữ tính lịch sử.
+
+**Cập nhật 14/11/2026:** migration client/shared-core D008 và FE M5 đã triển khai theo D009; ghi chú “chưa migrate” ở phần lịch sử mô tả đợt docs trước. Backend/ML thật vẫn chờ; xem `docs/frontend/m5-verification.md`.

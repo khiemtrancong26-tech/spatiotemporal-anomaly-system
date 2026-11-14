@@ -1,3 +1,4 @@
+import type { AnalysisRun, DetectionRequest } from '../shared/api/generated/wire';
 import fixtures from '../../../docs/fixtures/frontend-online-examples.json';
 
 export type MockScenario = 'success' | 'empty' | 'server-error' | 'network-error' | 'malformed';
@@ -29,6 +30,8 @@ function delay(ms: number, signal?: AbortSignal | null): Promise<void> {
 
 /** Fixture transport only: no service worker, network fallback, storage or background sync. */
 export function createMockTransport(controls: MockControls): typeof globalThis.fetch {
+  const runs = new Map<string, { run: AnalysisRun; acceptedAt: number; reads: number }>();
+  const receipts = new Map<string, { body: string; response: { data: AnalysisRun } }>();
   // Demo accounts only. New mock accounts live in RAM until reload.
   const accounts = new Map<string, { username: string; digest: string }>();
   async function digest(password: string) { return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password)))).join(','); }
@@ -39,7 +42,7 @@ export function createMockTransport(controls: MockControls): typeof globalThis.f
     if (controls.scenario === 'network-error') throw new TypeError('Synthetic network error');
     if (controls.scenario === 'malformed') return json({ unexpected: true });
     if (controls.scenario === 'server-error') return error(503, 'MOCK_UNAVAILABLE');
-    const candidate = successCases.find((item) => item.method === method && matches(item.path, url.pathname));
+    const candidate = successCases.find((item) => item.method === method && !['analysis-detail-queued', 'analysis-detail-running', 'analysis-detail-failed'].includes(item.id) && matches(item.path, url.pathname));
     if (!candidate) return error(404, 'MOCK_ROUTE_NOT_FOUND');
     const bearer = new Headers(init?.headers).get('Authorization') ?? '';
     const mockToken = bearer.replace(/^Bearer /, '');
@@ -50,10 +53,38 @@ export function createMockTransport(controls: MockControls): typeof globalThis.f
     const selected: Fixture = overrideId ? fixtures.cases.find((item) => item.id === overrideId) ?? candidate : candidate;
     if (selected !== candidate) return json(selected.response, selected.status);
 
+    if (url.pathname === '/api/v1/analysis-runs' && method === 'POST') {
+      const body = JSON.parse(String(init?.body)) as DetectionRequest;
+      const key = `${mockToken}:${new Headers(init?.headers).get('Idempotency-Key')}`;
+      const prior = receipts.get(key);
+      if (prior) return prior.body === JSON.stringify(body) ? json(prior.response, 202) : error(422, 'KEY_PAYLOAD_MISMATCH');
+      const run: AnalysisRun = { id: `demo-${crypto.randomUUID()}`, datasetId: body.datasetId, family: body.family, method: body.method, config: body.config, scope: body.scope ?? {}, status: 'queued', createdAt: new Date().toISOString() };
+      const response = { data: structuredClone(run) };
+      receipts.set(key, { body: JSON.stringify(body), response });
+      runs.set(run.id, { run, acceptedAt: Date.now(), reads: 0 });
+      return json(response, 202);
+    }
+    if (url.pathname.startsWith('/api/v1/analysis-runs/') && method === 'GET') {
+      const id = decodeURIComponent(url.pathname.split('/').at(-1)!);
+      const record = runs.get(id);
+      if (record) {
+        record.reads++;
+        const status = record.reads === 1 ? 'queued' : record.reads === 2 ? 'running' : 'completed';
+        record.run = { ...record.run, status, ...(status === 'completed' ? { completedAt: new Date().toISOString(), engineVersion: 'mock-only' } : {}) };
+        return json({ data: record.run });
+      }
+    }
     const payload = structuredClone(candidate.response) as Record<string, unknown>;
     const id = candidate.path.includes('{id}') ? decodeURIComponent(url.pathname.split('/')[candidate.path.split('/').indexOf('{id}')]) : undefined;
     const pathParams = candidate.request as { pathParams?: { id: string } };
     if (id && id !== pathParams.pathParams?.id) return error(404, 'NOT_FOUND');
+    if (candidate.id === 'analysis-list') payload.data = [...(payload.data as object[]), ...[...runs.values()].map(record => record.run)];
+    if (candidate.id === 'anomalies' && url.searchParams.get('analysisRunId')?.startsWith('demo-')) {
+      const record = runs.get(url.searchParams.get('analysisRunId')!);
+      if (!record) return error(404, 'NOT_FOUND');
+      if (record.run.status !== 'completed') return error(409, 'RESULTS_NOT_READY');
+      payload.data = controls.scenario === 'empty' ? [] : (payload.data as Record<string, unknown>[]).map(item => ({ ...item, datasetId: record.run.datasetId, analysisRunId: record.run.id, family: record.run.family, method: record.run.method }));
+    }
     if (candidate.id === 'me') payload.data = { ...(payload.data as object), role: sessionRole, username: mockToken.startsWith('mock-registered:') ? decodeURIComponent(mockToken.slice('mock-registered:'.length)) : sessionRole === 'admin' ? 'admin01' : 'analyst01' };
     if (candidate.id === 'register') {
       const credentials = JSON.parse(String(init?.body));

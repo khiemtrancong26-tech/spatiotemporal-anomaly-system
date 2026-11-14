@@ -36,6 +36,7 @@ export interface OnlineDataSource {
     list(query: ReadingsQuery, options?: RequestOptions): Promise<Wire.ReadingPage>;
   };
   analysis: {
+    get(id: string, options?: RequestOptions): Promise<Wire.AnalysisRun>;
     create(input: Wire.DetectionRequest, options: IdempotentOptions): Promise<Wire.AnalysisCreateResponse>;
     list(query: Wire.AnalysisRunsQuery, options?: RequestOptions): Promise<Wire.AnalysisRunPage>;
   };

@@ -148,7 +148,7 @@ export interface paths {
         put?: never;
         /**
          * Thực hiện import Dataset theo BR-08
-         * @description Profile synchronous draft: 200 khi imported hoàn tất, trả Dataset hiện tại. Cùng key retry không chạy lại; dataset importing => 409 cho request khác; imported => không import lại. Một file thất bại cần cleanup và thao tác retry có chủ đích/key mới. Path /imports thể hiện yêu cầu nhập dữ liệu; chưa có Import resource ID độc lập. OPEN-06 chưa quyết định async.
+         * @description Profile synchronous draft: 200 khi imported hoàn tất, trả Dataset hiện tại. Cùng key retry không chạy lại; dataset importing => 409 cho request khác; imported => không import lại. Một file thất bại cần cleanup và thao tác retry có chủ đích/key mới. Path /imports thể hiện yêu cầu nhập dữ liệu; chưa có Import resource ID độc lập. Import giữ đồng bộ; quyết định Analysis async không áp dụng cho Import.
          */
         post: operations["post_api_v1_datasets_by_id_imports"];
         delete?: never;
@@ -246,9 +246,29 @@ export interface paths {
         put?: never;
         /**
          * Tạo và chạy AnalysisRun phía Server
-         * @description Profile synchronous bounded work (OPEN-06): 201 khi AnalysisRun/anomalies persisted. Retry cùng key trả lại same run, không chạy detector lại. OPEN-06 có thể đổi thành 202 + polling sau benchmark; chưa khóa job queue. ML inference only Server.
+         * @description Async cho cả statistical và ml (D008). 202 chỉ sau khi run và công việc được tiếp nhận bền vững, trả snapshot queued trong data, không anomalies. Cùng user/operation/key/payload replay cùng 202/body và cùng run ID, không enqueue lại; GET detail lấy trạng thái mới nhất. 409 chỉ khi tiếp nhận cùng key chưa hoàn tất, không phải vì job đang running; key khác payload trả 422. Retention/recovery khi key hết hạn phải chốt trước triển khai. Lỗi HTTP trước tiếp nhận khác với run failed sau tiếp nhận. ML inference chỉ phía Server.
          */
         post: operations["post_api_v1_analysis_runs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analysis-runs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Đọc trạng thái và metadata AnalysisRun
+         * @description Trả trạng thái mới nhất của run thuộc quyền truy cập hiện tại; dùng để polling và phục hồi. 404 không suy ra job bị hủy.
+         */
+        get: operations["get_api_v1_analysis_runs_id"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -262,7 +282,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Truy vấn anomalies */
+        /**
+         * Truy vấn anomalies
+         * @description Chỉ công bố anomalies của run completed. Với analysisRunId cụ thể chưa completed trả 409; list không chỉ định run bỏ qua kết quả chưa công bố. Completed với zero anomalies trả page rỗng.
+         */
         get: operations["get_api_v1_anomalies"];
         put?: never;
         post?: never;
@@ -279,7 +302,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Chi tiết anomaly */
+        /**
+         * Chi tiết anomaly
+         * @description Chỉ đọc anomaly đã công bố của run completed; kết quả partial/chưa công bố trả 404.
+         */
         get: operations["get_api_v1_anomalies_id"];
         put?: never;
         post?: never;
@@ -492,6 +518,7 @@ export interface components {
             /** @enum {string} */
             unit: "ug/m3";
         };
+        /** @description queued -> running -> completed hoặc failed; queued có thể failed trước khi chạy. Terminal không tự quay lại running. completed chỉ sau khi toàn bộ kết quả đã lưu và đọc được; failed không công bố partial. scope là snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại. completedAt có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng khi trạng thái khác. */
         AnalysisRun: {
             /** @description Opaque ID string; do not assume MongoDB _id format */
             id: string;
@@ -503,8 +530,10 @@ export interface components {
             config: {
                 [key: string]: unknown;
             };
+            scope: components["schemas"]["AnalysisScope"];
+            error?: components["schemas"]["AnalysisFailure"];
             /** @enum {string} */
-            status: "running" | "completed" | "failed";
+            status: "queued" | "running" | "completed" | "failed";
             /**
              * Format: date-time
              * @description UTC ISO 8601 with Z; payload normalized by server
@@ -517,7 +546,16 @@ export interface components {
             completedAt?: string;
             engineVersion?: string;
             modelVersion?: string;
-        };
+        } & ({
+            /** @enum {unknown} */
+            status?: "queued" | "running";
+        } | {
+            /** @enum {unknown} */
+            status?: "completed";
+        } | {
+            /** @enum {unknown} */
+            status?: "failed";
+        });
         Anomaly: {
             /** @description Opaque ID string; do not assume MongoDB _id format */
             id: string;
@@ -623,6 +661,25 @@ export interface components {
             };
             issues: components["schemas"]["ImportIssue"][];
         };
+        /** @description Lỗi job an toàn để hiển thị; không chứa stack trace/model path/secrets. Danh mục code theo detector contract cần chốt. */
+        AnalysisFailure: {
+            code: string;
+            message: string;
+        };
+        /** @description Phạm vi tiếp nhận; thiếu scope tương đương object rỗng (toàn dataset). sensorIds rỗng và biên from/to cần chốt trước triển khai, không tự suy ra. */
+        AnalysisScope: {
+            sensorIds?: string[];
+            /**
+             * Format: date-time
+             * @description UTC ISO 8601 with Z; payload normalized by server
+             */
+            from?: string;
+            /**
+             * Format: date-time
+             * @description UTC ISO 8601 with Z; payload normalized by server
+             */
+            to?: string;
+        };
         DetectionRequest: {
             /** @description Opaque ID string; do not assume MongoDB _id format */
             datasetId: string;
@@ -632,19 +689,7 @@ export interface components {
             config: {
                 [key: string]: unknown;
             };
-            scope?: {
-                sensorIds?: string[];
-                /**
-                 * Format: date-time
-                 * @description UTC ISO 8601 with Z; payload normalized by server
-                 */
-                from?: string;
-                /**
-                 * Format: date-time
-                 * @description UTC ISO 8601 with Z; payload normalized by server
-                 */
-                to?: string;
-            };
+            scope?: components["schemas"]["AnalysisScope"];
         };
         ReviewPatchRequest: {
             baseVersion: number;
@@ -714,9 +759,9 @@ export interface components {
             duplicates: number;
             conflicts: number;
         };
+        /** @description Envelope một run; POST trả snapshot tiếp nhận, GET detail trả trạng thái hiện tại. Không chứa anomalies. */
         AnalysisCreateResponse: {
             data: components["schemas"]["AnalysisRun"];
-            anomalies: components["schemas"]["Anomaly"][];
         };
         UserResponse: {
             data: components["schemas"]["UserPublic"];
@@ -2009,8 +2054,8 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Created */
-            201: {
+            /** @description Accepted durably; not completed */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2108,6 +2153,90 @@ export interface operations {
             };
         };
     };
+    get_api_v1_analysis_runs_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID opaque; API không yêu cầu Client giải mã ObjectId. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisCreateResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    /**
+                     * @description Bearer challenge cho API được bảo vệ.
+                     * @example Bearer realm="pm25-api"
+                     */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Method Not Allowed */
+            405: {
+                headers: {
+                    /** @description Danh sách HTTP methods được hỗ trợ tại path. */
+                    Allow?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     get_api_v1_anomalies: {
         parameters: {
             query: {
@@ -2179,6 +2308,15 @@ export interface operations {
                 headers: {
                     /** @description Danh sách HTTP methods được hỗ trợ tại path. */
                     Allow?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description AnalysisRun chưa completed; kết quả chưa sẵn sàng */
+            409: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content: {

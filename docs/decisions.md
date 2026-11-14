@@ -41,3 +41,12 @@
 - Server: thực thi nền có giới hạn concurrency, tiếp nhận durable và restart recovery. Không chọn Redis/BullMQ/Kafka/Spark, process/thread topology hay con số concurrency khi chưa có benchmark. Async không tự giảm CPU/RAM và không chứng minh server hiện tại quá tải.
 - Còn mở trước B5/M5: queue/execution mechanism, atomicity receipt/run/enqueue, claim/lease/restart và cleanup, retention/replay window, admission/overload semantics, polling interval/tab nền, quyền đọc theo policy hiện có, detector error codes/config/model/severity, scope sensorIds rỗng/giới hạn và from/to. Không tự thêm status HTTP cho overload trước review.
 - Migration: OpenAPI v0.3.0-draft là contract tài liệu mục tiêu (25 operations, 20 online/health). Runtime client/generated types, shared-core Zod và mock/tests còn theo v0.2; phải cập nhật có phối hợp trong M1 follow-up/B0 trước M5. Không chạy generator để sửa runtime trong lượt chỉ sửa tài liệu. Các báo cáo M0–M4 là bằng chứng lịch sử, không chứng minh async đã chạy.
+
+## D009 — Cấu hình M5 được người dùng chốt ngày 14/11/2026
+
+- UI gửi hai cấu hình cố định: statistical/zscore `{threshold:3}` và statistical/iqr `{multiplier:1.5}`; không cho chỉnh tham số.
+- Thuật toán ML chọn Isolation Forest, nhưng chưa có chuỗi method/config API hoặc model artifact/version/features. Khóa gửi riêng ML ở M5; không đoán tên method, contamination/seed/version. Hiển thị version từ Server khi có.
+- Điều kiện số mẫu, phương sai 0/thiếu dữ liệu và mã lỗi chưa chốt: Server chịu trách nhiệm kiểm tra, FE hiển thị HTTP/run.error, không tự dựng ngưỡng.
+- Poll 3 giây khi tab hiện; lỗi exponential backoff tối đa 30 giây kèm jitter, tab ẩn dừng phát request, tab hiện đọc ngay. Request theo dõi/tiếp nhận timeout 20 giây chỉ dừng chờ, không hủy job. HTTP 401/403/404 dừng poll tự động; có đọc lại chủ động.
+- Retention idempotency thật còn mở: không cho retry POST chưa nhận ID trên API thật. Mock cho retry trong 15 phút; không tự resend. Bbox chưa có scope policy thì chặn gửi, yêu cầu bỏ bbox và chọn trạm/thời gian rõ ràng.
+- D008 migration code hoàn tất; chi tiết bằng chứng và phần Backend/ML còn chờ trong [M5 verification](frontend/m5-verification.md).

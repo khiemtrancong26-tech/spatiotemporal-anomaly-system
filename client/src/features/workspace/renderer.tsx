@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Reading } from '../../shared/api/generated/wire';
 import { color, cubePoints, latestPerSensor } from './geometry';
 import { Button } from '../../shared/ui/primitives';
-export default function Renderer({ rows, mode, selected, onSelect }: { rows: Reading[]; mode: 'map' | 'cube'; selected?: string; onSelect: (id: string) => void }) {
+export default function Renderer({ rows, mode, selected, onSelect, marked }: { rows: Reading[]; mode: 'map' | 'cube'; selected?: string; onSelect: (id: string) => void; marked: Set<string> }) {
   const host = useRef<HTMLDivElement>(null);
   const reset = useRef<() => void>(() => {});
   const [error, setError] = useState('');
@@ -31,8 +31,8 @@ export default function Renderer({ rows, mode, selected, onSelect }: { rows: Rea
         map.on('error', () => { if (!cancelled) setError('Không tải được bản đồ/token/tiles. Bảng dữ liệu và Cube vẫn dùng được.'); });
         map.on('load', () => {
           if (cancelled) return;
-          map.addSource('readings', { type: 'geojson', data: { type: 'FeatureCollection', features: points.map(r => ({ type: 'Feature', geometry: { type: 'Point', coordinates: r.location.coordinates }, properties: { id: r.id, color: color(r.value, min, max), selected: r.id === selected } })) } });
-          map.addLayer({ id: 'readings', type: 'circle', source: 'readings', paint: { 'circle-color': ['get', 'color'], 'circle-radius': ['case', ['get', 'selected'], 10, 6], 'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff' } });
+          map.addSource('readings', { type: 'geojson', data: { type: 'FeatureCollection', features: points.map(r => ({ type: 'Feature', geometry: { type: 'Point', coordinates: r.location.coordinates }, properties: { id: r.id, color: color(r.value, min, max), selected: r.id === selected, anomaly: marked.has(r.id) } })) } });
+          map.addLayer({ id: 'readings', type: 'circle', source: 'readings', paint: { 'circle-color': ['get', 'color'], 'circle-radius': ['case', ['get', 'selected'], 10, 6], 'circle-stroke-width': 2, 'circle-stroke-color': ['case', ['get', 'anomaly'], '#8b00b5', '#ffffff'] } });
           map.on('click', 'readings', event => { const id = event.features?.[0]?.properties?.id; if (typeof id === 'string') onSelect(id); });
           reset.current();
         });
@@ -47,7 +47,7 @@ export default function Renderer({ rows, mode, selected, onSelect }: { rows: Rea
         const camera = new T.PerspectiveCamera(50, 1, 0.01, 100); camera.up.set(0, 0, 1);
         const controls = new OrbitControls(camera, renderer.domElement);
         const geometry = new T.BufferGeometry(); geometry.setAttribute('position', new T.Float32BufferAttribute(cubePoints(rows).flat(), 3));
-        geometry.setAttribute('color', new T.Float32BufferAttribute(rows.flatMap(r => { const c = new T.Color(r.id === selected ? '#000000' : color(r.value, min, max)); return [c.r, c.g, c.b]; }), 3));
+        geometry.setAttribute('color', new T.Float32BufferAttribute(rows.flatMap(r => { const c = new T.Color(r.id === selected ? '#000000' : marked.has(r.id) ? '#8b00b5' : color(r.value, min, max)); return [c.r, c.g, c.b]; }), 3));
         const material = new T.PointsMaterial({ size: 0.13, vertexColors: true });
         const points = new T.Points(geometry, material); scene.add(points);
         const axes = new T.AxesHelper(2.2); axes.position.set(-1, -1, -1); scene.add(axes);
@@ -64,6 +64,6 @@ export default function Renderer({ rows, mode, selected, onSelect }: { rows: Rea
     }
     void start().catch(cause => { cleanup(); if (!cancelled) setError(cause instanceof Error ? cause.message : 'Không khởi tạo được WebGL; dùng bảng dữ liệu.'); });
     return () => { cancelled = true; cleanup(); reset.current = () => {}; };
-  }, [rows, mode, selected, onSelect]);
+  }, [rows, mode, selected, onSelect, marked]);
   return <><Button variant="secondary" onClick={() => reset.current()}>Reset camera</Button>{error && <p role="alert">{error}</p>}<div ref={host} className="visualization-canvas" aria-label={mode === 'map' ? 'Mapbox 3D' : 'Space–Time Cube'} />{mode === 'cube' && <p>X đỏ: Đông (kinh độ) · Y xanh lá: Bắc (vĩ độ) · Z xanh dương: thời gian tăng từ dưới lên. Kéo để xoay, cuộn để zoom, chuột phải để pan.</p>}</>;
 }

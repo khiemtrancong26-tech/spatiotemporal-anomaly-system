@@ -218,3 +218,83 @@ test('M4 shares selection across views, paginates and applies UTC filters with f
   expect(requests.filter(url => url.pathname.endsWith('/readings') && url.searchParams.has('cursor'))).toHaveLength(1);
   expect(requests.filter(url => url.pathname.endsWith('/readings')).every(url => url.searchParams.get('limit') === '100')).toBe(true);
 });
+
+test('M5 restores run, distinguishes tracking failure and loads results only after completed', async ({ page }) => {
+  let status = 'queued', disconnected = false, detailCalls = 0, resultCalls = 0, posts = 0;
+  await page.route('http://localhost:3001/api/v1/**', async route => {
+    const url = new URL(route.request().url());
+    if (route.request().method() === 'POST' && !url.pathname.endsWith('/auth/tokens')) posts++;
+    let response = fixture(url.pathname.endsWith('/auth/tokens') ? 'login' : url.pathname.endsWith('/users/me') ? 'me' : url.pathname.endsWith('/analysis-runs') ? 'analysis-list' : url.pathname.endsWith('/sensors') ? 'sensors' : 'readings');
+    if (url.pathname.endsWith('/analysis-runs/run-001')) {
+      detailCalls++;
+      if (disconnected) return route.abort();
+      response = fixture(status === 'completed' ? 'analysis-detail' : `analysis-detail-${status}`);
+    }
+    if (url.pathname.endsWith('/anomalies')) { resultCalls++; expect(status).toBe('completed'); response = fixture('anomalies'); }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response) });
+  });
+  await page.goto('/workspace/dataset-001?runId=run-001');
+  await page.getByLabel('Tên đăng nhập', { exact: true }).fill('analyst01');
+  await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password');
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  // Login whitelist may retain only the workspace path; explicit URL also verifies authenticated deep-link recovery.
+  await page.goto('/workspace/dataset-001?runId=run-001');
+  await expect(page.getByTestId('run-status')).toContainText('queued'); expect(resultCalls).toBe(0);
+  await page.getByLabel('Phương pháp', { exact: true }).selectOption('ml');
+  await expect(page.getByRole('button', { name: 'Gửi analysis', exact: true })).toBeDisabled();
+  await page.getByLabel('Phương pháp', { exact: true }).selectOption('zscore');
+  status = 'running'; await page.getByRole('button', { name: 'Đọc lại run' }).click(); await expect(page.getByTestId('run-status')).toContainText('running');
+  disconnected = true; await page.getByRole('button', { name: 'Đọc lại run' }).click(); await expect(page.getByRole('alert')).toContainText('Chưa cập nhật'); await expect(page.getByTestId('run-status')).toContainText('running');
+  disconnected = false; await page.reload(); await expect(page.getByTestId('run-status')).toContainText('running'); expect(posts).toBe(0);
+  status = 'completed'; await page.getByRole('button', { name: 'Đọc lại run' }).click(); await expect(page.getByRole('button', { name: 'Xem reading-002', exact: true })).toBeVisible();
+  const terminalCalls = detailCalls; await page.waitForTimeout(3200); expect(detailCalls).toBe(terminalCalls);
+  await page.screenshot({ path: 'test-results/m5-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true); await page.screenshot({ path: 'test-results/m5-mobile.png', fullPage: true });
+  await page.getByRole('button', { name: 'Xem reading-002', exact: true }).click(); await expect(page.getByText('Reading: reading-002', { exact: true })).toBeVisible();
+});
+
+test('M5 failed run never requests results and completed empty results are explicit', async ({ page }) => {
+  let failed = true, results = 0;
+  await page.route('http://localhost:3001/api/v1/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    let response = fixture(path.endsWith('/auth/tokens') ? 'login' : path.endsWith('/users/me') ? 'me' : 'analysis-list');
+    if (path.endsWith('/analysis-runs/run-001')) response = fixture(failed ? 'analysis-detail-failed' : 'analysis-detail');
+    if (path.endsWith('/anomalies')) { results++; response = { data: [], page: { limit: 100, nextCursor: null } } as typeof response; }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response) });
+  });
+  await page.goto('/workspace/dataset-001?runId=run-001');
+  await page.getByLabel('Tên đăng nhập', { exact: true }).fill('analyst01');
+  await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password');
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await expect(page.getByTestId('run-status')).toContainText('failed');
+  await expect(page.getByRole('alert')).toContainText('INFERENCE_FAILED'); expect(results).toBe(0);
+  failed = false; await page.reload();
+  await expect(page.getByText('Run hoàn tất, không phát hiện anomaly.')).toBeVisible(); expect(results).toBe(1);
+});
+
+test('M5 sends fixed statistical payloads and never retries unknown online acceptance after reload', async ({ page }) => {
+  const sent: { key?: string; body: Record<string, unknown> }[] = [];
+  await page.route('http://localhost:3001/api/v1/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith('/analysis-runs') && route.request().method() === 'POST') {
+      sent.push({ key: route.request().headers()['idempotency-key'], body: route.request().postDataJSON() });
+      if (sent.length > 1) return route.abort();
+      return route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify(fixture('analysis-create')) });
+    }
+    const id = path.endsWith('/auth/tokens') ? 'login' : path.endsWith('/users/me') ? 'me' : path.endsWith('/analysis-runs/run-001') ? 'analysis-detail' : path.endsWith('/anomalies') ? 'anomalies' : path.endsWith('/analysis-runs') ? 'analysis-list' : path.endsWith('/sensors') ? 'sensors' : 'readings';
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fixture(id)) });
+  });
+  await page.goto('/workspace/dataset-001');
+  await page.getByLabel('Tên đăng nhập', { exact: true }).fill('analyst01'); await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password'); await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await page.getByRole('button', { name: 'Analysis', exact: true }).click();
+  await page.getByRole('checkbox').check(); await page.getByRole('button', { name: 'Gửi analysis', exact: true }).click();
+  await expect(page.getByTestId('run-status')).toContainText('completed');
+  expect(sent[0].body).toEqual({ datasetId: 'dataset-001', family: 'statistical', method: 'zscore', config: { threshold: 3 }, scope: {} }); expect(sent[0].key).toBeTruthy();
+  page.on('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Chuẩn bị lần chạy mới' }).click();
+  await page.getByLabel('Phương pháp', { exact: true }).selectOption('iqr'); await page.getByRole('checkbox').check(); await page.getByRole('button', { name: 'Gửi analysis', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Thử lại cùng key', exact: true })).toBeDisabled();
+  expect(sent[1].body.config).toEqual({ multiplier: 1.5 }); expect(sent[1].key).not.toBe(sent[0].key);
+  await page.reload(); await page.getByRole('button', { name: 'Analysis', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Thử lại cùng key', exact: true })).toBeDisabled(); expect(sent).toHaveLength(2);
+});

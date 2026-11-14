@@ -63,9 +63,9 @@ src/shared/ui/              # primitives/loading/empty/error/retry
 src/mocks/                  # injectable fetch transport; không service worker
 ```
 
-Nguồn contract duy nhất là `docs/api/openapi.yaml`. Trong bước migration code có phối hợp (không phải đợt docs D008), chạy `npm run generate --workspace @pm25/client` sau khi contract thay đổi: `openapi-typescript` tạo kiểu HTTP, script hiện trích 19 operations online trước D008; cần bổ sung GET detail để đạt 20 và schemas liên quan để AJV kiểm tra request/response. `routeTree.gen.ts` được TanStack sinh; khi thêm routes, plugin Vite cũng cập nhật cây route.
+Nguồn contract duy nhất là `docs/api/openapi.yaml`. Trong bước migration code có phối hợp (không phải đợt docs D008), chạy `npm run generate --workspace @pm25/client` sau khi contract thay đổi: `openapi-typescript` tạo kiểu HTTP, script trích 20 operations online và 33 schemas liên quan để AJV kiểm tra request/response. `routeTree.gen.ts` được TanStack sinh; khi thêm routes, plugin Vite cũng cập nhật cây route.
 
-Pipeline: page/hook → `OnlineDataSource` → online adapter → HTTP client → fetch thật hoặc fixture transport. Single-resource được unwrap thành DTO; page giữ `{data,page}`; validation/login/health giữ envelope riêng; analysis runtime trước D008 giữ `{data,anomalies}` (mục tiêu mới `{data}`; chưa migrate). Không import source Zod chưa khởi tạo của shared-core để áp validator chặt hơn OpenAPI.
+Pipeline: page/hook → `OnlineDataSource` → online adapter → HTTP client → fetch thật hoặc fixture transport. Single-resource được unwrap thành DTO; page giữ `{data,page}`; validation/login/health giữ envelope riêng; analysis create giữ `{data}`, get unwrap AnalysisRun theo D008. Không import source Zod chưa khởi tạo của shared-core để áp validator chặt hơn OpenAPI.
 
 HTTP client hỗ trợ Bearer từ token getter, JSON/multipart, cancellation, phân loại http/network/aborted/invalid-response, schema validation và query defaults. Không log token/password, không tự hiển thị raw error details, không tự retry mutation.
 
@@ -99,6 +99,6 @@ Xem [M3 verification](../docs/frontend/m3-verification.md). Import Wizard giữ 
 
 Xem [M4 verification](../docs/frontend/m4-verification.md). Workspace tải readings/sensors từng trang 100, giới hạn phiên 2.000; Cube và Mapbox chia sẻ selection. Mapbox cần public `VITE_MAPBOX_TOKEN` tại build, thiếu token vẫn dùng Cube/bảng. Chưa nghiệm thu tiles thật hoặc API Backend thật.
 
-## Contract Analysis mục tiêu — D008
+## D008 / M5 đã migrate (14/11/2026)
 
-Tài liệu OpenAPI v0.3.0-draft chuyển cả statistical/ml sang POST 202 và GET `/analysis-runs/{id}`, không anomalies trong response POST. Xem [D008](../docs/decisions.md#d008--analysis-online-bất-đồng-bộ). Đợt này chỉ cập nhật tài liệu: runtime/generated types/shared-core Zod/mock/tests chưa migrate; các số liệu kiểm thử trước D008 không chứng minh async hoạt động. Cập nhật đồng bộ tại follow-up M1/B0 trước M5/B5; Import giữ nguyên.
+Generated types/schema, adapter create/get/list, mock và shared-core đã cập nhật D008. Xem [M5 verification](../docs/frontend/m5-verification.md). Form thật gửi zscore `{threshold:3}` hoặc iqr `{multiplier:1.5}`; ML Isolation Forest khóa chờ method/config API. History và run deep-link dùng `?runId=...`, poll có backoff/visibility, kết quả chỉ tải sau completed. Bbox chặn gửi; retry unknown POST thật khóa vì retention chưa chốt. Mock mô phỏng lifecycle/replay trong RAM, không engine/database; reload mất run demo mới, fixture lịch sử vẫn có. Backend thật/ML chưa nghiệm thu.

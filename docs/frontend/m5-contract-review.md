@@ -25,3 +25,5 @@ Ngày 13/11/2026; branch khiem/backend-database. Chỉ tài liệu/contract và 
 2. Cập nhật whitelist/generator/runtime adapter `analysis.create/get/list`, generated TS/schema, mock và tests theo 20 operations. Fixtures tài liệu đã đổi nhưng mock runtime/validator cũ còn lệch; không coi các báo cáo test M1–M4 cũ là kiểm chứng contract mới. Không regenerate riêng lẻ rồi coi migration đã xong.
 3. Chốt các operating policies D008 (retention/recovery/claim/concurrency/admission/poll interval), detector contract và scope trước code B5/M5 phụ thuộc.
 4. Triển khai/kiểm thử runtime theo M5/B5, nghiệm thu thật theo M8/B8. Không dùng schema fixtures để chứng minh Server durable hoặc chống trùng đã hoạt động.
+
+**Cập nhật 14/11/2026:** migration client/shared-core D008 và FE M5 đã triển khai theo D009; ghi chú “chưa migrate” ở phần lịch sử mô tả đợt docs trước. Backend/ML thật vẫn chờ; xem `docs/frontend/m5-verification.md`.

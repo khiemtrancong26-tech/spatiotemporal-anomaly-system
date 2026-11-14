@@ -1,3 +1,4 @@
+import type { AnalysisRun, Anomaly } from '../../shared/api/generated/wire';
 import { createStore } from 'zustand/vanilla';
 import type { Bbox } from '../../shared/data-source/types';
 
@@ -13,6 +14,9 @@ export interface WorkspaceState {
   filters: WorkspaceFilters;
   tab: WorkspaceTab;
   selectedReadingId?: string;
+  resultRun?: AnalysisRun;
+  anomalies: Anomaly[];
+  setResults: (run?: AnalysisRun, anomalies?: Anomaly[]) => void;
   openDataset: (id: string) => void;
   applyFilters: (filters: WorkspaceFilters) => void;
   selectTab: (tab: WorkspaceTab) => void;
@@ -25,16 +29,18 @@ export function createWorkspaceStore() {
   return createStore<WorkspaceState>((set, get) => ({
     filters: {},
     tab: 'visualization',
+    anomalies: [],
+    setResults: (resultRun, anomalies = []) => set({ resultRun, anomalies }),
     openDataset(id) {
       if (!id.trim()) throw new TypeError('Dataset ID is required.');
       if (get().datasetId === id) return;
-      set({ datasetId: id, filters: {}, selectedReadingId: undefined, tab: 'visualization' });
+      set({ datasetId: id, filters: {}, selectedReadingId: undefined, tab: 'visualization', resultRun: undefined, anomalies: [] });
     },
     applyFilters(filters) {
       set({ filters: { ...filters, bbox: filters.bbox ? [...filters.bbox] as Bbox : undefined }, selectedReadingId: undefined });
     },
     selectTab: (tab) => set({ tab }),
     selectReading: (selectedReadingId) => set({ selectedReadingId }),
-    clear: () => set({ datasetId: undefined, filters: {}, tab: 'visualization', selectedReadingId: undefined }),
+    clear: () => set({ datasetId: undefined, filters: {}, tab: 'visualization', selectedReadingId: undefined, resultRun: undefined, anomalies: [] }),
   }));
 }

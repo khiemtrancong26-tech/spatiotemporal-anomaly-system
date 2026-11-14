@@ -784,3 +784,7 @@ main:focus {
 .visualization-canvas canvas { display: block; }
 .visualization .field { max-width: 400px; }
 .visualization tr[aria-selected="true"] { background: #e5edff; }
+.analysis-page { padding: 24px; min-width: 0; overflow-wrap: anywhere; }
+.analysis-page .field { max-width: 440px; }
+.analysis-page section { margin-top: 24px; border-top: 1px solid #dce5f1; padding-top: 16px; }
+.analysis-page table { min-width: 720px; overflow-wrap: normal; }

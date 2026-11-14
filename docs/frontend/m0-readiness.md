@@ -133,3 +133,5 @@ Kết quả thực hiện ngày 13/11/2026:
 - PASS: `git diff --check` cho thay đổi tracked. Chưa chạy build ứng dụng/E2E vì M1 chưa được triển khai.
 
 **Cập nhật D008 (13/11/2026):** ma trận Analysis/fixtures mục tiêu đã đổi async; contract hiện 20 online operations. Số liệu M0 gốc là lịch sử. Runtime/shared-core/guard số operation của verify_m0.py chưa migrate; theo follow-up M1 trước M5.
+
+**Cập nhật 14/11/2026:** migration client/shared-core D008 và FE M5 đã triển khai theo D009; ghi chú “chưa migrate” ở phần lịch sử mô tả đợt docs trước. Backend/ML thật vẫn chờ; xem `docs/frontend/m5-verification.md`.
