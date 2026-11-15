@@ -1,0 +1,140 @@
+{
+  "recordedAt": "2026-11-14T18:51:39.319Z",
+  "node": "v24.14.1",
+  "mongo": "9.0.4",
+  "cpu": "AMD Ryzen 5 5500U with Radeon Graphics         ",
+  "logicalCpus": 12,
+  "totalRamMiB": 15706.55859375,
+  "backend": "compiled server/dist/app.js and compiled statistical worker; actual HTTP; disposable single-node replica set",
+  "dataset": {
+    "seededReadings": 500000,
+    "sensors": 1000,
+    "readingsPerSensor": 500,
+    "scopeSensors": 60,
+    "scopeReadings": 30000
+  },
+  "settings": {
+    "concurrency": 1,
+    "timeoutMs": 120000,
+    "maxReadings": 50000,
+    "leaseMs": 30000,
+    "heartbeatMs": 10000,
+    "pollMs": 1000
+  },
+  "results": [
+    {
+      "method": "zscore",
+      "status": "completed",
+      "inputReadings": 30000,
+      "anomalyCount": 60,
+      "elapsedMs": 3610.336800000001,
+      "nodeCpuMs": 3031,
+      "nodeBaselineRssMiB": 172.5625,
+      "nodePeakRssMiB": 380.69140625,
+      "eventLoopDelayMaxMs": 198.574079,
+      "eventLoopDelayP99Ms": 22.659071,
+      "concurrentReadingsHttpMs": {
+        "count": 75,
+        "min": 3.4540999999990163,
+        "p50": 5.109999999996944,
+        "p95": 13.107600000003004,
+        "max": 54.82500000000073
+      },
+      "concurrentHealthHttpMs": {
+        "count": 75,
+        "min": 1.328799999999319,
+        "p50": 2.0892000000021653,
+        "p95": 7.3311999999968975,
+        "max": 49.467500000000655
+      },
+      "httpErrors": []
+    },
+    {
+      "method": "iqr",
+      "status": "completed",
+      "inputReadings": 30000,
+      "anomalyCount": 60,
+      "elapsedMs": 3899.7547000000013,
+      "nodeCpuMs": 2563,
+      "nodeBaselineRssMiB": 376.29296875,
+      "nodePeakRssMiB": 393.82421875,
+      "eventLoopDelayMaxMs": 162.529279,
+      "eventLoopDelayP99Ms": 24.887295,
+      "concurrentReadingsHttpMs": {
+        "count": 84,
+        "min": 3.366699999998673,
+        "p50": 4.70600000000195,
+        "p95": 8.078199999999924,
+        "max": 9.716499999998632
+      },
+      "concurrentHealthHttpMs": {
+        "count": 84,
+        "min": 1.2249999999985448,
+        "p50": 2.042200000003504,
+        "p95": 3.513299999998708,
+        "max": 6.7062000000005355
+      },
+      "httpErrors": []
+    },
+    {
+      "method": "moving_avg",
+      "status": "completed",
+      "inputReadings": 30000,
+      "anomalyCount": 60,
+      "elapsedMs": 2901.888500000001,
+      "nodeCpuMs": 2218,
+      "nodeBaselineRssMiB": 375.2578125,
+      "nodePeakRssMiB": 393.64453125,
+      "eventLoopDelayMaxMs": 178.126847,
+      "eventLoopDelayP99Ms": 25.853951,
+      "concurrentReadingsHttpMs": {
+        "count": 61,
+        "min": 3.4035000000003492,
+        "p50": 4.8893000000025495,
+        "p95": 8.186399999998685,
+        "max": 10.25119999999879
+      },
+      "concurrentHealthHttpMs": {
+        "count": 61,
+        "min": 1.2851000000009662,
+        "p50": 2.0106999999989057,
+        "p95": 5.436999999998079,
+        "max": 8.594300000000658
+      },
+      "httpErrors": []
+    },
+    {
+      "method": "isolation_forest",
+      "status": "completed",
+      "inputReadings": 30000,
+      "anomalyCount": 30000,
+      "elapsedMs": 9784.721000000001,
+      "nodeCpuMs": 3298,
+      "nodeBaselineRssMiB": 374.7421875,
+      "nodePeakRssMiB": 384.96484375,
+      "eventLoopDelayMaxMs": 366.477311,
+      "eventLoopDelayP99Ms": 23.101439,
+      "concurrentReadingsHttpMs": {
+        "count": 206,
+        "min": 3.0508000000008906,
+        "p50": 4.845799999995506,
+        "p95": 7.499499999998079,
+        "max": 10.076700000001438
+      },
+      "concurrentHealthHttpMs": {
+        "count": 206,
+        "min": 1.0973999999987427,
+        "p50": 1.988600000000588,
+        "p95": 4.665600000000268,
+        "max": 13.691599999998289
+      },
+      "httpErrors": []
+    }
+  ],
+  "limitations": [
+    "Single local sequential run per method, not a 100-user/SRS SLA benchmark.",
+    "Node RSS/CPU includes statistical worker threads, excludes MongoDB and Python subprocess RSS/CPU.",
+    "Compiled Backend correctness/performance smoke; no ML accuracy labels or domain-quality claim.",
+    "Synthetic seeded workload, not B3 import benchmark; all detector engines and persisted results are real."
+  ]
+}

@@ -1,0 +1,532 @@
+{
+  "measuredAt": "2026-11-14T15:59:58.476Z",
+  "node": "v24.14.1",
+  "mongodb": "9.0.4",
+  "topology": "temporary single-node replica set",
+  "platform": "win32 10.0.26300",
+  "cpu": "AMD Ryzen 5 5500U with Radeon Graphics         ",
+  "logicalCpus": 12,
+  "physicalRamBytes": 16469520384,
+  "scope": "Synthetic seed, not a B3 import or detector evaluation. One localhost HTTP client, 1 warmup + 10 sequential requests/case, no TLS. Memory samples include Backend and fetch harness in the same Node process, exclude mongod, and are not an isolated Server peak or a bounded-memory proof. No 100-VU/10-minute stress or SLA claim.",
+  "results": [
+    {
+      "readings": 100000,
+      "stations": 200,
+      "seedMs": 2465,
+      "measurements": [
+        {
+          "name": "sensors_default",
+          "pageSize": 100,
+          "actualRows": 100,
+          "responseBytes": 20974,
+          "samples": 10,
+          "httpMedianMs": 10.18,
+          "httpP95Ms": 12.57,
+          "explain": {
+            "nReturned": 101,
+            "totalKeysExamined": 200,
+            "totalDocsExamined": 200,
+            "executionTimeMillis": 1,
+            "indexes": [
+              "uq_sensors_dataset_external"
+            ],
+            "stages": [
+              "PROJECTION_SIMPLE",
+              "SORT",
+              "FETCH",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 10706944,
+          "sampledProcessHeapGrowthBytes": 13516848
+        },
+        {
+          "name": "sensors_bbox",
+          "pageSize": 100,
+          "actualRows": 9,
+          "responseBytes": 1915,
+          "samples": 10,
+          "httpMedianMs": 5.92,
+          "httpP95Ms": 9.77,
+          "explain": {
+            "nReturned": 9,
+            "totalKeysExamined": 200,
+            "totalDocsExamined": 200,
+            "executionTimeMillis": 1,
+            "indexes": [
+              "uq_sensors_dataset_external"
+            ],
+            "stages": [
+              "PROJECTION_SIMPLE",
+              "SORT",
+              "FETCH",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 1597440,
+          "sampledProcessHeapGrowthBytes": 3949664
+        },
+        {
+          "name": "readings_default",
+          "pageSize": 100,
+          "actualRows": 100,
+          "responseBytes": 22511,
+          "samples": 10,
+          "httpMedianMs": 6.93,
+          "httpP95Ms": 9.55,
+          "explain": {
+            "nReturned": 101,
+            "totalKeysExamined": 101,
+            "totalDocsExamined": 101,
+            "executionTimeMillis": 1,
+            "indexes": [
+              "ix_readings_dataset_ts_id"
+            ],
+            "stages": [
+              "LIMIT",
+              "PROJECTION_SIMPLE",
+              "FETCH",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 2281472,
+          "sampledProcessHeapGrowthBytes": 10921448
+        },
+        {
+          "name": "readings_time",
+          "pageSize": 100,
+          "actualRows": 100,
+          "responseBytes": 22621,
+          "samples": 10,
+          "httpMedianMs": 6.58,
+          "httpP95Ms": 10.25,
+          "explain": {
+            "nReturned": 101,
+            "totalKeysExamined": 101,
+            "totalDocsExamined": 101,
+            "executionTimeMillis": 1,
+            "indexes": [
+              "ix_readings_dataset_ts_id"
+            ],
+            "stages": [
+              "LIMIT",
+              "PROJECTION_SIMPLE",
+              "FETCH",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 0,
+          "sampledProcessHeapGrowthBytes": 12022568
+        },
+        {
+          "name": "readings_sensor_time_bbox",
+          "pageSize": 100,
+          "actualRows": 11,
+          "responseBytes": 2510,
+          "samples": 10,
+          "httpMedianMs": 7.08,
+          "httpP95Ms": 10.38,
+          "explain": {
+            "nReturned": 11,
+            "totalKeysExamined": 11,
+            "totalDocsExamined": 11,
+            "executionTimeMillis": 1,
+            "indexes": [
+              "uq_readings_dataset_sensor_ts"
+            ],
+            "stages": [
+              "PROJECTION_SIMPLE",
+              "SORT",
+              "FETCH",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 0,
+          "sampledProcessHeapGrowthBytes": 4535744
+        },
+        {
+          "name": "readings_bbox",
+          "pageSize": 100,
+          "actualRows": 100,
+          "responseBytes": 22647,
+          "samples": 10,
+          "httpMedianMs": 9.81,
+          "httpP95Ms": 26.59,
+          "explain": {
+            "nReturned": 101,
+            "totalKeysExamined": 2254,
+            "totalDocsExamined": 2254,
+            "executionTimeMillis": 13,
+            "indexes": [
+              "ix_readings_dataset_ts_id"
+            ],
+            "stages": [
+              "LIMIT",
+              "PROJECTION_SIMPLE",
+              "FETCH",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 0,
+          "sampledProcessHeapGrowthBytes": 11081760
+        },
+        {
+          "name": "readings_bbox_empty",
+          "pageSize": 100,
+          "actualRows": 0,
+          "responseBytes": 50,
+          "samples": 10,
+          "httpMedianMs": 182.07,
+          "httpP95Ms": 232.53,
+          "explain": {
+            "nReturned": 0,
+            "totalKeysExamined": 100000,
+            "totalDocsExamined": 100000,
+            "executionTimeMillis": 253,
+            "indexes": [
+              "ix_readings_dataset_ts_id"
+            ],
+            "stages": [
+              "LIMIT",
+              "PROJECTION_SIMPLE",
+              "FETCH",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 45056,
+          "sampledProcessHeapGrowthBytes": 3153424
+        },
+        {
+          "name": "readings_deep_cursor",
+          "pageSize": 100,
+          "actualRows": 100,
+          "responseBytes": 22621,
+          "samples": 10,
+          "httpMedianMs": 6,
+          "httpP95Ms": 13.73,
+          "explain": {
+            "nReturned": 101,
+            "totalKeysExamined": 102,
+            "totalDocsExamined": 101,
+            "executionTimeMillis": 6,
+            "indexes": [
+              "ix_readings_dataset_ts_id"
+            ],
+            "stages": [
+              "LIMIT",
+              "PROJECTION_SIMPLE",
+              "FETCH",
+              "SORT_MERGE",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 593920,
+          "sampledProcessHeapGrowthBytes": 11865240
+        }
+      ],
+      "planarCandidateOnly": [
+        {
+          "name": "readings_bbox",
+          "nReturned": 101,
+          "totalKeysExamined": 4505,
+          "totalDocsExamined": 4500,
+          "executionTimeMillis": 26,
+          "indexes": [
+            "b4_experiment_only_coordinates_2d"
+          ],
+          "stages": [
+            "PROJECTION_SIMPLE",
+            "SORT",
+            "FETCH",
+            "IXSCAN"
+          ]
+        },
+        {
+          "name": "readings_bbox_empty",
+          "nReturned": 0,
+          "totalKeysExamined": 1,
+          "totalDocsExamined": 0,
+          "executionTimeMillis": 0,
+          "indexes": [
+            "b4_experiment_only_coordinates_2d"
+          ],
+          "stages": [
+            "PROJECTION_SIMPLE",
+            "SORT",
+            "FETCH",
+            "IXSCAN"
+          ]
+        }
+      ],
+      "geoIndexDiagnosticOnly": {
+        "indexes": [
+          "ix_readings_dataset_geo"
+        ],
+        "nReturned": 101,
+        "totalKeysExamined": 103,
+        "totalDocsExamined": 101,
+        "executionTimeMillis": 1
+      }
+    },
+    {
+      "readings": 500000,
+      "stations": 500,
+      "seedMs": 18220,
+      "measurements": [
+        {
+          "name": "sensors_default",
+          "pageSize": 100,
+          "actualRows": 100,
+          "responseBytes": 20974,
+          "samples": 10,
+          "httpMedianMs": 8.02,
+          "httpP95Ms": 12.15,
+          "explain": {
+            "nReturned": 101,
+            "totalKeysExamined": 500,
+            "totalDocsExamined": 500,
+            "executionTimeMillis": 2,
+            "indexes": [
+              "uq_sensors_dataset_external"
+            ],
+            "stages": [
+              "PROJECTION_SIMPLE",
+              "SORT",
+              "FETCH",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 0,
+          "sampledProcessHeapGrowthBytes": 12391304
+        },
+        {
+          "name": "sensors_bbox",
+          "pageSize": 100,
+          "actualRows": 9,
+          "responseBytes": 1915,
+          "samples": 10,
+          "httpMedianMs": 7.22,
+          "httpP95Ms": 9.11,
+          "explain": {
+            "nReturned": 9,
+            "totalKeysExamined": 500,
+            "totalDocsExamined": 500,
+            "executionTimeMillis": 2,
+            "indexes": [
+              "uq_sensors_dataset_external"
+            ],
+            "stages": [
+              "PROJECTION_SIMPLE",
+              "SORT",
+              "FETCH",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 450560,
+          "sampledProcessHeapGrowthBytes": 3887312
+        },
+        {
+          "name": "readings_default",
+          "pageSize": 100,
+          "actualRows": 100,
+          "responseBytes": 22511,
+          "samples": 10,
+          "httpMedianMs": 7.21,
+          "httpP95Ms": 9.13,
+          "explain": {
+            "nReturned": 101,
+            "totalKeysExamined": 101,
+            "totalDocsExamined": 101,
+            "executionTimeMillis": 1,
+            "indexes": [
+              "ix_readings_dataset_ts_id"
+            ],
+            "stages": [
+              "LIMIT",
+              "PROJECTION_SIMPLE",
+              "FETCH",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 434176,
+          "sampledProcessHeapGrowthBytes": 11736720
+        },
+        {
+          "name": "readings_time",
+          "pageSize": 100,
+          "actualRows": 100,
+          "responseBytes": 22621,
+          "samples": 10,
+          "httpMedianMs": 6.77,
+          "httpP95Ms": 9.99,
+          "explain": {
+            "nReturned": 101,
+            "totalKeysExamined": 101,
+            "totalDocsExamined": 101,
+            "executionTimeMillis": 1,
+            "indexes": [
+              "ix_readings_dataset_ts_id"
+            ],
+            "stages": [
+              "LIMIT",
+              "PROJECTION_SIMPLE",
+              "FETCH",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 274432,
+          "sampledProcessHeapGrowthBytes": 11787416
+        },
+        {
+          "name": "readings_sensor_time_bbox",
+          "pageSize": 100,
+          "actualRows": 11,
+          "responseBytes": 2510,
+          "samples": 10,
+          "httpMedianMs": 7.19,
+          "httpP95Ms": 9.43,
+          "explain": {
+            "nReturned": 11,
+            "totalKeysExamined": 11,
+            "totalDocsExamined": 11,
+            "executionTimeMillis": 0,
+            "indexes": [
+              "uq_readings_dataset_sensor_ts"
+            ],
+            "stages": [
+              "PROJECTION_SIMPLE",
+              "SORT",
+              "FETCH",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 0,
+          "sampledProcessHeapGrowthBytes": 4425408
+        },
+        {
+          "name": "readings_bbox",
+          "pageSize": 100,
+          "actualRows": 100,
+          "responseBytes": 22647,
+          "samples": 10,
+          "httpMedianMs": 20.96,
+          "httpP95Ms": 48.35,
+          "explain": {
+            "nReturned": 101,
+            "totalKeysExamined": 5554,
+            "totalDocsExamined": 5554,
+            "executionTimeMillis": 39,
+            "indexes": [
+              "ix_readings_dataset_ts_id"
+            ],
+            "stages": [
+              "LIMIT",
+              "PROJECTION_SIMPLE",
+              "FETCH",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 2531328,
+          "sampledProcessHeapGrowthBytes": 11888072
+        },
+        {
+          "name": "readings_bbox_empty",
+          "pageSize": 100,
+          "actualRows": 0,
+          "responseBytes": 50,
+          "samples": 10,
+          "httpMedianMs": 1220.49,
+          "httpP95Ms": 2285.34,
+          "explain": {
+            "nReturned": 0,
+            "totalKeysExamined": 500000,
+            "totalDocsExamined": 500000,
+            "executionTimeMillis": 1176,
+            "indexes": [
+              "ix_readings_dataset_ts_id"
+            ],
+            "stages": [
+              "LIMIT",
+              "PROJECTION_SIMPLE",
+              "FETCH",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 397312,
+          "sampledProcessHeapGrowthBytes": 2766280
+        },
+        {
+          "name": "readings_deep_cursor",
+          "pageSize": 100,
+          "actualRows": 100,
+          "responseBytes": 22623,
+          "samples": 10,
+          "httpMedianMs": 6.62,
+          "httpP95Ms": 15.72,
+          "explain": {
+            "nReturned": 101,
+            "totalKeysExamined": 102,
+            "totalDocsExamined": 101,
+            "executionTimeMillis": 7,
+            "indexes": [
+              "ix_readings_dataset_ts_id"
+            ],
+            "stages": [
+              "LIMIT",
+              "PROJECTION_SIMPLE",
+              "FETCH",
+              "SORT_MERGE",
+              "IXSCAN"
+            ]
+          },
+          "sampledProcessRssGrowthBytes": 4153344,
+          "sampledProcessHeapGrowthBytes": 2128640
+        }
+      ],
+      "planarCandidateOnly": [
+        {
+          "name": "readings_bbox",
+          "nReturned": 101,
+          "totalKeysExamined": 13505,
+          "totalDocsExamined": 9000,
+          "executionTimeMillis": 56,
+          "indexes": [
+            "b4_experiment_only_coordinates_2d"
+          ],
+          "stages": [
+            "PROJECTION_SIMPLE",
+            "SORT",
+            "FETCH",
+            "IXSCAN"
+          ]
+        },
+        {
+          "name": "readings_bbox_empty",
+          "nReturned": 0,
+          "totalKeysExamined": 1,
+          "totalDocsExamined": 0,
+          "executionTimeMillis": 0,
+          "indexes": [
+            "b4_experiment_only_coordinates_2d"
+          ],
+          "stages": [
+            "PROJECTION_SIMPLE",
+            "SORT",
+            "FETCH",
+            "IXSCAN"
+          ]
+        }
+      ],
+      "geoIndexDiagnosticOnly": {
+        "indexes": [
+          "ix_readings_dataset_geo"
+        ],
+        "nReturned": 101,
+        "totalKeysExamined": 103,
+        "totalDocsExamined": 101,
+        "executionTimeMillis": 1
+      }
+    }
+  ],
+  "strategy": "Baseline: exact scalar coordinate rectangle, before conservative sphere prefilter; existing 13 production indexes. Planar candidate exists only inside disposable diagnostic DB."
+}
