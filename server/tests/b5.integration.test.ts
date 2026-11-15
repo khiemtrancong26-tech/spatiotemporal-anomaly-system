@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { fork, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { mkdtemp, rm, copyFile, unlink } from 'node:fs/promises';
+import { mkdtemp, rm, copyFile, unlink, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, sep } from 'node:path';
 import type { FastifyInstance } from 'fastify';
@@ -21,6 +21,7 @@ import { EngineError } from '../src/engines/python-runner.js';
 let mongo: MongoMemoryReplSet, client: MongoClient, directory: string;
 const apps: FastifyInstance[] = [];
 const children: ChildProcess[] = [];
+const multistationSource = await readFile(new URL('./fixtures/multistation-timeseries.csv', import.meta.url), 'utf8');
 beforeAll(async () => {
   directory = await mkdtemp(resolve(tmpdir(), 'pm25-b5-'));
   mongo = await MongoMemoryReplSet.create({ binary: { version: '8.2.6' }, replSet: { count: 1 } });
@@ -36,7 +37,7 @@ afterAll(async () => {
   if (!directory.startsWith(resolve(tmpdir()) + sep) || !directory.includes('pm25-b5-')) throw new Error('Unsafe test cleanup');
   await rm(directory, { recursive: true, force: true });
 });
-async function fixture(options: { enabled?: boolean; engine?: AnalysisEngine; hooks?: AnalysisTestHooks; env?: NodeJS.ProcessEnv; actualImport?: boolean } = {}) {
+async function fixture(options: { enabled?: boolean; engine?: AnalysisEngine; hooks?: AnalysisTestHooks; env?: NodeJS.ProcessEnv; actualImport?: boolean; csv?: string } = {}) {
   const database = `b5_${randomUUID().replaceAll('-', '')}`;
   const config = loadTestConfig({ MONGODB_URI: mongo.getUri(database), LOG_LEVEL: 'silent', IMPORT_STORAGE_DIR: directory,
     ANALYSIS_POLL_MS: '20', ANALYSIS_LEASE_MS: '2000', ANALYSIS_HEARTBEAT_MS: '300', ANALYSIS_TIMEOUT_MS: '15000', ...options.env });
@@ -47,9 +48,9 @@ async function fixture(options: { enabled?: boolean; engine?: AnalysisEngine; ho
   let datasetId = new ObjectId(), sensorId = new ObjectId();
   await db.collection('users').insertOne({ _id: userId, username: 'B5 real JWT fixture', role: 'analyst', isActive: true });
   const headers = { authorization: `Bearer ${await createTokens(config.jwtSecret).issue(userId.toHexString())}` };
-  if (options.actualImport) {
+  if (options.actualImport || options.csv) {
     const values = [...Array.from({ length: 149 }, (_, i) => i % 3 + 1), 100], boundary = `b5-${randomUUID()}`;
-    const csv = `sensorId,latitude,longitude,timestamp,value\n${values.map((value, i) => `A,10,106,${new Date(Date.UTC(2026, 0, 1) + i * 1000).toISOString()},${value}`).join('\n')}\n`;
+    const csv = options.csv ?? `sensorId,latitude,longitude,timestamp,value\n${values.map((value, i) => `A,10,106,${new Date(Date.UTC(2026, 0, 1) + i * 1000).toISOString()},${value}`).join('\n')}\n`;
     const upload = await app.inject({ method: 'POST', url: '/api/v1/datasets', headers: { ...headers, 'idempotency-key': randomUUID(), 'content-type': `multipart/form-data; boundary=${boundary}` },
       payload: Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="b5.csv"\r\nContent-Type: text/csv\r\n\r\n${csv}\r\n--${boundary}--\r\n`) });
     expect(upload.statusCode, upload.body).toBe(201); datasetId = new ObjectId(upload.json().data.id);
@@ -98,6 +99,44 @@ function message(child: ChildProcess, event: string): Promise<{ event: string; u
 }
 
 describe('B5 actual HTTP/MongoDB and real library engines', () => {
+  it('analyzes imported multistation time series per sensor, links the spike beyond page one and respects station/time scope', async () => {
+    const f = await fixture({ csv: multistationSource });
+    const sensors = await f.db.collection('sensors').find({ datasetId: f.datasetId }).toArray();
+    expect(sensors).toHaveLength(5);
+    const sensor = (name: string) => sensors.find(row => row.externalId === name)!._id;
+    const spike = await f.db.collection('readings').findOne({ datasetId: f.datasetId, sensorId: sensor('SYN-B'), ts: new Date('2026-11-15T12:00:00Z') });
+    expect(spike?.value).toBe(200);
+    const page = await f.app.inject({ url: `/api/v1/readings?datasetId=${f.datasetId}&limit=100`, headers: f.headers });
+    expect(page.statusCode).toBe(200); expect(page.json().data).toHaveLength(100);
+    expect(page.json().page.nextCursor).toBeTruthy();
+    expect(page.json().data.some((row: { id: string }) => row.id === spike!._id.toHexString())).toBe(false);
+    for (const method of ['zscore', 'iqr']) {
+      const input = { ...f.input, method, config: method === 'iqr' ? { multiplier: 1.5 } : { threshold: 3 } };
+      const accepted = await f.post(input); expect(accepted.statusCode, accepted.body).toBe(202);
+      const run = await f.terminal(accepted.json().data.id); expect(run.status, JSON.stringify(run)).toBe('completed');
+      const anomalies = await f.db.collection('anomalies').find({ analysisRunId: new ObjectId(run.id) }).toArray();
+      expect(anomalies).toHaveLength(1);
+      expect(anomalies[0]).toMatchObject({ datasetId: f.datasetId, sensorId: sensor('SYN-B'), readingId: spike!._id, ts: new Date('2026-11-15T12:00:00Z'), method });
+      const filtered = await f.post({ ...input, scope: { sensorIds: [sensor('SYN-C').toHexString(), sensor('SYN-D').toHexString()] } });
+      expect(filtered.statusCode, filtered.body).toBe(202);
+      const quiet = await f.terminal(filtered.json().data.id); expect(quiet.status, JSON.stringify(quiet)).toBe('completed');
+      expect(await f.db.collection('anomalies').countDocuments({ analysisRunId: new ObjectId(quiet.id) })).toBe(0);
+      const earlier = await f.post({ ...input, scope: { sensorIds: [sensor('SYN-B').toHexString()], from: '2026-11-14T00:00:00Z', to: '2026-11-14T23:00:00Z' } });
+      expect(earlier.statusCode, earlier.body).toBe(202);
+      const cleanWindow = await f.terminal(earlier.json().data.id); expect(cleanWindow.status, JSON.stringify(cleanWindow)).toBe('completed');
+      expect(await f.db.collection('anomalies').countDocuments({ analysisRunId: new ObjectId(cleanWindow.id) })).toBe(0);
+    }
+  }, 60000);
+  it('rejects an insufficient multistation scope without filling gaps or publishing partial statistical results', async () => {
+    const f = await fixture({ csv: multistationSource });
+    // At this exact instant only A/B/C have samples; each has one, not enough for IQR.
+    const response = await f.post({ ...f.input, method: 'iqr', config: { multiplier: 1.5 },
+      scope: { from: '2026-11-15T12:00:00Z', to: '2026-11-15T12:00:00Z' } });
+    expect(response.statusCode, response.body).toBe(202);
+    const run = await f.terminal(response.json().data.id);
+    expect(run.status).toBe('failed'); expect(run.error?.code).toBe('INSUFFICIENT_DATA');
+    expect(await f.db.collection('anomalies').countDocuments({ analysisRunId: new ObjectId(run.id) })).toBe(0);
+  }, 60000);
   it('accepts immutable queued snapshots, runs all statistics over >one page, persists only flagged anomalies and replays after terminal', async () => {
     const f = await fixture({ actualImport: true });
     const page = await f.app.inject({ url: `/api/v1/readings?datasetId=${f.datasetId}`, headers: f.headers });

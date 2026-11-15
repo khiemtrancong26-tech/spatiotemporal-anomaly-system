@@ -2,6 +2,8 @@
 
 Ngày: 2026-11-13.
 
+**Cập nhật 15/11:** chính sách Mapbox latest-per-station/selected override trong ghi nhận lịch sử bên dưới đã được thay bằng các trạm cùng thời điểm. Camera/renderer cập nhật tại chỗ; xem [Workspace v2](workspace-v2.md).
+
 ## Đã triển khai
 
 - Sensors/readings đi qua online adapter, 100 bản ghi/trang; tải thêm do người dùng yêu cầu, reset cursor và hủy/bỏ response cũ khi đổi dataset/filter/sort. Bbox và UTC+07 dùng validation M2. Sensors chỉ lọc dataset/bbox theo contract; không giả lọc thời gian.

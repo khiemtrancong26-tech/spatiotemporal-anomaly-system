@@ -278,3 +278,13 @@ Các mục này là phụ thuộc khi triển khai, không phải yêu cầu ng�
 - [ ] Có README, cấu hình mẫu, script chạy/test và interface để Duy nối module sau.
 
 Đạt các tiêu chí trên nghĩa là **hoàn tất frontend P0 online trong phạm vi này**, không đồng nghĩa hoàn tất toàn bộ MVP có PWA/Offline/Sync của SRS.
+
+
+## UI/UX redesign — 15/11/2026
+
+Đã triển khai diện mạo Modern Geospatial Analytics Dashboard và hai heatmap theo yêu cầu bổ sung của chủ dự án. Thay đổi thuộc presentation/derived visualization; không đổi contract, nghiệp vụ hay phạm vi PWA/Offline/Sync. Audit, danh sách file, ảnh 1440px/390px và kết quả kiểm tra tại [UI redesign](frontend/ui-redesign/README.md).
+
+
+### Điều chỉnh Workspace theo phản hồi demo — 15/11/2026
+
+Mapbox chuyển sang hiển thị các trạm cùng một thời điểm T bằng API readings hiện có (`from=to`); snapshot đọc cursor riêng tối đa 2.000, báo rõ khi còn trang. Selection chỉ inspect, không thay thời điểm/phép đo của trạm; không tự carry-forward/interpolate. Bố cục map-first, bộ lọc thu gọn, panel nổi, bảng bounded và nút nạp thêm ở đầu. Tham khảo local Toronto Pulse. [Báo cáo](frontend/workspace-v2.md).

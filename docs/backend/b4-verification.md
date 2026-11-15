@@ -70,6 +70,8 @@ Response 100 readings trong các case đã đo khoảng 22,5–22,6 KB. Memory s
 
 ## Fixture bàn giao Tài
 
+Đã bổ sung bộ [multistation-timeseries.csv](../../server/tests/fixtures/multistation-timeseries.csv): **5 trạm, 239 readings trong 48 giờ**, có đủ trạm cùng thời điểm, biến động, điểm tăng đột ngột, số đo 0, thiếu mẫu và lệch giờ. Đây là dữ liệu mô phỏng kiểm thử, không phải quan trắc thật. Xem [ma trận nhu cầu/kết quả mong đợi và tests B4–B5](../../server/tests/fixtures/README.md). Bộ biên dưới đây vẫn giữ nguyên để hồi quy, không đại diện toàn bộ nhu cầu phân tích chuỗi thời gian.
+
 File [b4-boundaries.csv](../../server/tests/fixtures/b4-boundaries.csv) là dữ liệu mô phỏng nhỏ để upload qua wizard B3. Mapping năm cột cùng tên, unit ug/m3; nếu dùng REST có thể map thêm name/region/unit. Wizard hiện chỉ map năm cột nên tên trạm mặc định là externalId; không thêm UI/field ngoài contract để có tên khác.
 
 | Truy vấn | Kết quả mong đợi từ fixture |

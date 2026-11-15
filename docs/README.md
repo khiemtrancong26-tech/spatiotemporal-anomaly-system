@@ -42,6 +42,7 @@ File `.drawio` là **bản gốc có thể chỉnh sửa**; file `.png` dùng đ
 | [api/README.md](api/README.md) | Quy ước API, danh sách nhóm endpoint, vấn đề chưa chốt |
 | [fixtures/contract-example.json](fixtures/contract-example.json) | Dữ liệu mẫu **DTO** cho Frontend / Offline / Engine |
 | [fixtures/http-contract-examples.json](fixtures/http-contract-examples.json) | Ví dụ request/response để mock API và viết contract test |
+| [Backend test fixtures và ma trận tình huống](../server/tests/fixtures/README.md) | CSV mô phỏng nhiều trạm qua thời gian; kết quả mong đợi cho import, truy vấn cùng thời điểm, missing samples và phân tích thống kê |
 | [`../shared-core/src/contracts/schemas.ts`](../shared-core/src/contracts/schemas.ts) | Bản khởi tạo TypeScript/Zod schema dùng chung (**cần review và chạy test**) |
 | [`../infra/mongo/indexes.js`](../infra/mongo/indexes.js) | Script tạo MongoDB indexes đề xuất (**chưa có nghĩa đã chạy trong DB**) |
 

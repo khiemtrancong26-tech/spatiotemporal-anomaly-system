@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { Link, Navigate, useLocation } from '@tanstack/react-router';
 import { useStore } from 'zustand';
 import { useServices } from '../../app/services';
-import { Button, Field, ErrorState, LoadingState, EmptyState } from '../../shared/ui/primitives';
+import { AuthFrame, Button, Field, ErrorState, LoadingState, EmptyState } from '../../shared/ui/primitives';
 import { errorMessage, DataSourceError } from '../../shared/api/errors';
 export function safeDestination(value?: string) { return value && /^\/(datasets(?:\/import)?|workspace\/[^/?#]+|admin\/users)(?:\?.*)?$/.test(value) ? value : '/datasets'; }
 export function AuthGate({ children }: { children: React.ReactNode }) {
@@ -36,5 +36,5 @@ export function LoginPage({ destination, registered }: { destination?: string; r
   }
   if (state.status === 'authenticated') return <Navigate to={safeDestination(destination)} replace />;
   if (state.status === 'checking') return <LoadingState label="Đang kiểm tra phiên đăng nhập…" />;
-  return <section className="card login-card"><h1>Đăng nhập</h1>{registered && <p role="status" className="success-message">Đăng ký thành công. Vui lòng đăng nhập.</p>}<p className="muted">Phiên được giữ trong tab này. Không lưu mật khẩu.</p>{mock && <p className="mock-help">Mock: analyst01 hoặc admin01 / demo-password</p>}<form onSubmit={(event) => { void submit(event); }}><Field label="Tên đăng nhập" autoComplete="username" required value={username} onChange={(e) => setUsername(e.target.value)} disabled={pending} /><Field label="Mật khẩu" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={pending} />{error && <p role="alert" className="text-error">{error}</p>}<Button type="submit" disabled={pending}>{pending ? 'Đang đăng nhập…' : 'Đăng nhập'}</Button></form><p className="auth-link"><Link to="/register" className="text-link">Chưa có tài khoản? Đăng ký</Link></p></section>;
+  return <AuthFrame><section className="card login-card"><h1>Đăng nhập</h1>{registered && <p role="status" className="success-message">Đăng ký thành công. Vui lòng đăng nhập.</p>}<p className="muted">Phiên được giữ trong tab này. Không lưu mật khẩu.</p>{mock && <p className="mock-help">Mock: analyst01 hoặc admin01 / demo-password</p>}<form onSubmit={(event) => { void submit(event); }}><Field label="Tên đăng nhập" autoComplete="username" required value={username} onChange={(e) => setUsername(e.target.value)} disabled={pending} /><Field label="Mật khẩu" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={pending} />{error && <p role="alert" className="text-error">{error}</p>}<Button type="submit" disabled={pending}>{pending ? 'Đang đăng nhập…' : 'Đăng nhập'}</Button></form><p className="auth-link"><Link to="/register" className="text-link">Chưa có tài khoản? Đăng ký</Link></p></section></AuthFrame>;
 }

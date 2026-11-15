@@ -14,6 +14,7 @@ import type { ImportTestHooks } from '../src/modules/datasets/import.types.js';
 let mongo: MongoMemoryReplSet, client: MongoClient;
 const apps: FastifyInstance[] = [], directories: string[] = [];
 const source = await readFile(new URL('./fixtures/b4-boundaries.csv', import.meta.url), 'utf8');
+const multistationSource = await readFile(new URL('./fixtures/multistation-timeseries.csv', import.meta.url), 'utf8');
 beforeAll(async () => {
   mongo = await MongoMemoryReplSet.create({ binary: { version: '8.2.6' }, replSet: { count: 1 } });
   client = await new MongoClient(mongo.getUri()).connect();
@@ -63,6 +64,46 @@ async function fixture(hooks: ImportTestHooks = {}) {
   return { app, config, db, userId, headers, get, map, run, upload, ready, all };
 }
 describe('B4 Query HTTP on actual B3 imports and MongoDB replica set', () => {
+  it('imports multistation time series and returns complete exact-time snapshots across cursor pages without filling missing/off-hour stations', async () => {
+    const f = await fixture(), datasetId = await f.ready(multistationSource);
+    const sensors = await f.all('sensors', { datasetId, limit: 2 });
+    expect(sensors.map(sensor => sensor.externalId)).toEqual(['SYN-A', 'SYN-B', 'SYN-C', 'SYN-D', 'SYN-E']);
+    expect(new Set(sensors.map(sensor => JSON.stringify(sensor.location))).size).toBe(5);
+    const ids = Object.fromEntries(sensors.map(sensor => [String(sensor.externalId), String(sensor.id)]));
+    const readings = await f.all('readings', { datasetId, limit: 100 });
+    expect(readings).toHaveLength(239);
+    expect(new Set(readings.map(row => `${row.sensorId}/${row.ts}`)).size).toBe(239);
+    expect(Object.fromEntries(Object.entries(ids).map(([name, id]) => [name, readings.filter(row => row.sensorId === id).length])))
+      .toEqual({ 'SYN-A': 48, 'SYN-B': 48, 'SYN-C': 48, 'SYN-D': 47, 'SYN-E': 48 });
+    const snapshot = (ts: string) => f.all('readings', { datasetId, from: ts, to: ts, limit: 2 });
+    const before = await snapshot('2026-11-14T10:00:00Z'), after = await snapshot('2026-11-14T11:00:00Z');
+    for (const rows of [before, after]) expect(rows.map(row => row.sensorId).sort()).toEqual(Object.values(ids).sort());
+    expect(Object.fromEntries(before.map(row => [row.sensorId, row.value]))).toEqual({ [ids['SYN-A']!]: 21, [ids['SYN-B']!]: 40, [ids['SYN-C']!]: 46, [ids['SYN-D']!]: 0, [ids['SYN-E']!]: 59 });
+    expect(Object.fromEntries(after.map(row => [row.sensorId, row.value]))).toEqual({ [ids['SYN-A']!]: 22, [ids['SYN-B']!]: 41, [ids['SYN-C']!]: 47, [ids['SYN-D']!]: 0, [ids['SYN-E']!]: 61 });
+    const missing = await snapshot('2026-11-15T12:00:00Z');
+    expect(missing).toHaveLength(3);
+    expect(missing.map(row => row.sensorId).sort()).toEqual(['SYN-A', 'SYN-B', 'SYN-C'].map(name => ids[name]).sort());
+    expect(missing.find(row => row.sensorId === ids['SYN-B'])?.value).toBe(200);
+    const offHour = await snapshot('2026-11-15T12:30:00Z');
+    expect(offHour).toHaveLength(1); expect(offHour[0]).toMatchObject({ sensorId: ids['SYN-E'], value: 55 });
+    expect(await snapshot('2026-11-15T13:30:00Z')).toEqual([]);
+  });
+  it('filters multistation history by selected station, closed time interval and bbox without mixing other stations or losing pagination rows', async () => {
+    const f = await fixture(), datasetId = await f.ready(multistationSource);
+    const sensors = await f.all('sensors', { datasetId });
+    const sensor = sensors.find(row => row.externalId === 'SYN-B')!;
+    const query = { datasetId, from: '2026-11-15T11:00:00Z', to: '2026-11-15T13:00:00Z', limit: 2 };
+    expect(await f.all('readings', query)).toHaveLength(14);
+    const selected = await f.all('readings', { ...query, sensorId: String(sensor.id) });
+    expect(selected.map(row => row.value)).toEqual([41, 200, 40]);
+    expect(selected.every(row => row.sensorId === sensor.id)).toBe(true);
+    const bbox = '106.64,10.74,106.72,10.80';
+    const inBox = await f.all('readings', { ...query, bbox });
+    expect(inBox).toHaveLength(9);
+    expect(new Set(inBox.map(row => row.sensorId))).toEqual(new Set(sensors.filter(row => ['SYN-A', 'SYN-B', 'SYN-C'].includes(String(row.externalId))).map(row => row.id)));
+    const desc = await f.all('readings', { ...query, bbox, sort: 'ts:desc' });
+    expect(desc.map(row => row.id)).toEqual(inBox.map(row => row.id).reverse());
+  });
   it('queries actual import with inclusive bbox/time, point/line/world rectangles and canonical UTC DTOs', async () => {
     const f = await fixture(), datasetId = await f.ready();
     const sensors = await f.all('sensors', { datasetId, bbox: '106,10,107,11', limit: 2 });

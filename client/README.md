@@ -110,3 +110,19 @@ Tab Anomalies có list/filter/detail và review CAS; 409 giữ draft để đố
 ## M7
 
 Admin có list cursor/sort, create với idempotency key và PATCH role/isActive. Tự đổi quyền đọc lại `/users/me`; inactive thoát phiên. Create unknown trên API thật khóa retry, mock giữ intent trong RAM tối đa 15 phút. Xem [M7 verification](../docs/frontend/m7-verification.md); Backend thật và chính sách admin cuối cùng/retention chưa nghiệm thu.
+
+
+## UI redesign / heatmaps — 15/11/2026
+
+Light dashboard với design tokens, SVG icons nội bộ, form/table/status và responsive shell thống nhất; không thêm UI dependency. Workspace có panel bộ lọc thu gọn, Cube/Mapbox, inspector và trợ giúp phụ. Heatmap ngày × giờ gộp readings đã tải theo UTC+07; heatmap Mapbox là các ô 0,02° có mẫu từ điểm trạm đang hiển thị, không nội suy hoặc gán ngưỡng sức khỏe. Cùng thang màu PM2.5 đang có. Xem [audit, ảnh trước/sau và bằng chứng](../docs/frontend/ui-redesign/README.md).
+
+Chụp UI mock tại 1440px/390px: chạy `npm run dev:mock`, sau đó từ root `node client/scripts/capture-ui.mjs docs/frontend/ui-redesign/after`. Tùy chọn `--map` thử thêm Mapbox bằng token môi trường hiện tại; có canvas chưa chứng minh tiles/layer tải thành công.
+
+
+## Workspace v2 — cùng thời điểm và bố cục map-first
+
+Mapbox tự tải các trang readings có `from=to=T` trong phạm vi sensor/bbox đang áp dụng, tối đa 2.000 trạm và ghi rõ nếu chưa đầy đủ. Không dùng latest-per-station lẫn thời điểm. Chọn điểm/dòng chỉ mở chi tiết, giữ các trạm khác và camera. Trước/Sau theo các thời điểm đã tải, hoặc nhập ngày giờ UTC+07 để đọc thời điểm khác; không dùng số đo gần nhất để lấp mẫu thiếu.
+
+Bảng readings có cuộn riêng/sticky header, nút tải tiếp ở đầu và ngay toolbar bảng, cùng tabs Heatmap/Trạm/Hướng dẫn. Bộ lọc mặc định đóng, tự đóng sau áp dụng; Escape/click ngoài để đóng. Import có tên trường tiếng Việt/hint và báo cáo lỗi thu gọn. Tham khảo bố cục từ `C:/torontopulse`, không đổi dependency/Backend/API. [Bằng chứng v2](../docs/frontend/workspace-v2.md).
+
+E2E có thể đổi cổng qua `PM25_E2E_MOCK_PORT` và `PM25_E2E_ONLINE_PORT` để không chiếm/dừng dev server đang dùng; mặc định vẫn 5173/4173. Các biến này chỉ dành cho test runner.

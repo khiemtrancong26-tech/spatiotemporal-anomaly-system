@@ -17,6 +17,7 @@ test('login, session restoration, workspace filters, logout and admin guard', as
   await expect(page.getByRole('link', { name: 'Mở dữ liệu' })).toBeVisible();
   await page.getByRole('link', { name: 'Mở dữ liệu' }).click();
   await expect(page.getByRole('heading', { name: 'PM2.5 Sample Dataset' })).toBeVisible();
+  await page.locator('summary.filter-heading').click();
   await page.getByLabel('Trạm (Sensor ID)').fill('sensor-001');
   await page.getByRole('button', { name: 'Áp dụng bộ lọc' }).click();
   await page.getByRole('button', { name: 'Analysis', exact: true }).click();
@@ -114,4 +115,35 @@ test('M7 admin creates, edits and loses admin access after self downgrade', asyn
   await page.getByLabel('Role', { exact: true }).selectOption('analyst');
   await page.getByRole('button', { name: 'Lưu tài khoản' }).click();
   await expect(page.getByRole('heading', { name: 'Không có quyền truy cập' })).toBeVisible();
+});
+
+test('redesign keeps the visual canvas mounted when folding filters and exposes both heatmap views', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/workspace/dataset-001');
+  await login(page);
+  const canvas = page.locator('canvas').first();
+  await expect(canvas).toBeVisible();
+  await canvas.evaluate(el => { el.dataset.stableCanvas = 'true'; });
+  await page.locator('summary.filter-heading').click();
+  await expect(canvas).toHaveAttribute('data-stable-canvas','true');
+  await page.locator('summary.filter-heading').click();
+  await expect(canvas).toHaveAttribute('data-stable-canvas','true');
+  await page.getByRole('button',{name:'Heatmap thời gian',exact:true}).click();
+  await expect(page.getByRole('table', {name:/PM2.5 trung bình theo ngày/})).toBeVisible();
+  const heatmap = page.locator('.heatmap');
+  await expect(heatmap.getByRole('cell', {name:/25.50 µg\/m³, 1 mẫu/})).toBeVisible();
+  await page.getByRole('button',{name:'Mapbox 3D',exact:true}).click();
+  await page.getByLabel('Heatmap không gian',{exact:true}).check();
+  await expect(page.getByLabel('Heatmap không gian',{exact:true})).toBeChecked();
+  await page.getByRole('button',{name:'Chi tiết & lớp',exact:true}).click();
+  await expect(page.getByText('Ô 0,02° × 0,02°', {exact:false})).toBeVisible();
+  await page.getByRole('button',{name:'Cube',exact:true}).click();
+  await expect(page.locator('canvas').first()).toBeVisible();
+  await page.setViewportSize({width:390,height:844});
+  await page.reload();
+  await expect(page.getByLabel('Trạm (Sensor ID)',{exact:true})).toBeHidden();
+  await expect(page.locator('canvas').first()).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.locator('summary.filter-heading').click();
+  await expect(page.getByLabel('Trạm (Sensor ID)',{exact:true})).toBeVisible();
 });

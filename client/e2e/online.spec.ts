@@ -185,6 +185,7 @@ test('M4 shares selection across views, paginates and applies UTC filters with f
     let body = fixture(id);
     if (id === 'readings') {
       const original = fixture('readings') as { data: Record<string, unknown>[] };
+      if (url.searchParams.has('from') && url.searchParams.get('from') === url.searchParams.get('to')) return route.fulfill({ json: {data: original.data.filter(row => Date.parse(String(row.ts)) === Date.parse(url.searchParams.get('from')!)),page:{limit:100,nextCursor:null}} });
       body = { data: url.searchParams.has('sensorId') ? [] : url.searchParams.has('cursor') ? [{ ...original.data[0], id: 'reading-next' }] : original.data, page: { limit: 100, nextCursor: url.searchParams.has('cursor') || url.searchParams.has('sensorId') ? null : 'next' } } as typeof body;
     }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
@@ -207,6 +208,7 @@ test('M4 shares selection across views, paginates and applies UTC filters with f
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: 'test-results/m4-mobile.png', fullPage: true });
+  await page.locator('summary.filter-heading').click();
   await page.getByLabel('Trạm (Sensor ID)').fill('no-data');
   await page.getByLabel('Từ · UTC+07', { exact: true }).fill('2026-01-01T07:00:00');
   await page.getByRole('button', { name: 'Áp dụng bộ lọc' }).click();
@@ -483,3 +485,44 @@ for (const terminal of ['completed', 'failed'] as const) {
     else { await expect(page.getByRole('alert')).toContainText('MODEL_UNAVAILABLE'); expect(results).toBe(0); }
   });
 }
+
+test('workspace uses a common-time frame for all stations and keeps details separate', async ({ page }) => {
+  const base = (fixture('readings') as {data:Record<string,unknown>[]}).data[0];
+  const t0='2026-11-11T01:00:00.000Z', t1='2026-11-11T02:00:00.000Z';
+  const row=(id:string,sensorId:string,ts:string)=>({...base,id,sensorId,ts,datasetId:'dataset-001'});
+  const a0=row('a0','A',t0), a1=row('a1','A',t1), b0=row('b0','B',t0), b1=row('b1','B',t1);
+  const frames:URL[]=[];
+  await page.route('http://localhost:3001/api/v1/**',async route=>{
+    const url=new URL(route.request().url()), path=url.pathname;
+    if(path.endsWith('/readings')) {
+      if(url.searchParams.get('from')===url.searchParams.get('to') && url.searchParams.has('from')) {
+        frames.push(url);const first=url.searchParams.get('from')===t0;
+        return route.fulfill({json:{data:url.searchParams.has('cursor')?[first?b0:b1]:[first?a0:a1],page:{limit:100,nextCursor:url.searchParams.has('cursor')?null:'frame-page2'}}});
+      }
+      return route.fulfill({json:{data:[a0,a1],page:{limit:100,nextCursor:null}}});
+    }
+    return route.fulfill({json:fixture(path.endsWith('/auth/tokens')?'login':path.endsWith('/users/me')?'me':path.endsWith('/sensors')?'sensors':'health')});
+  });
+  await page.setViewportSize({width:1440,height:1000});
+  await page.goto('/workspace/dataset-001');
+  await page.getByLabel('Tên đăng nhập',{exact:true}).fill('analyst01');await page.getByLabel('Mật khẩu',{exact:true}).fill('demo-password');await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();
+  await page.getByRole('button',{name:'Mapbox 3D',exact:true}).click();
+  await expect(page.getByTestId('snapshot-status')).toContainText('2 trạm có mẫu');
+  expect(frames).toHaveLength(2);expect(frames.every(url=>url.searchParams.get('from')===t0&&url.searchParams.get('to')===t0)).toBe(true);
+  await page.getByRole('button',{name:'Chi tiết & lớp',exact:true}).click();
+  await page.getByLabel('Xem chi tiết trạm tại thời điểm này',{exact:true}).selectOption('b0');
+  await expect(page.getByText('Reading: b0',{exact:true})).toBeVisible();
+  await expect(page.getByTestId('snapshot-status')).toContainText('2 trạm có mẫu');expect(frames).toHaveLength(2);
+  await page.getByRole('button',{name:'Chọn a1',exact:true}).click();
+  await expect(page.getByText('Reading: a1',{exact:true})).toBeVisible();
+  await expect(page.getByText('Phép đo đang xem chi tiết khác thời điểm bản đồ.',{exact:false})).toBeVisible();
+  await expect(page.getByLabel('Thời điểm đã tải',{exact:true})).toHaveValue(t0);expect(frames).toHaveLength(2);
+  await page.getByRole('button',{name:'Sau',exact:true}).click();
+  await expect(page.getByLabel('Thời điểm đã tải',{exact:true})).toHaveValue(t1);
+  await expect(page.getByTestId('snapshot-status')).toContainText('2 trạm có mẫu');expect(frames).toHaveLength(4);
+  const box=await page.getByRole('region',{name:'Bảng readings',exact:true}).boundingBox();expect(box!.height).toBeLessThanOrEqual(340);
+  await page.getByRole('button',{name:'Cube',exact:true}).click();await expect(page.locator('canvas').first()).toBeVisible();
+  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/workspace-v2-desktop.png',fullPage:true});
+  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/workspace-v2-mobile.png',fullPage:true});
+});
