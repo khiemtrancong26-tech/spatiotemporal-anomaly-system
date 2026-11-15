@@ -1,5 +1,7 @@
 # Workspace v2 — bản đồ cùng thời điểm và sửa UX
 
+> Cập nhật theo yêu cầu mới: chính sách `from=to` bên dưới là lịch sử, đã được thay bằng latest ≤ T có maxAge và heatmap mềm. Xem [Heatmap timeline](heatmap-timeline.md).
+
 Ngày 15/11/2026. Theo phản hồi trực tiếp của chủ dự án khi demo file Beijing thật. Thay thế mixed-time latest-per-station và việc selected reading thay thế điểm trạm ở M4 ban đầu. Không đổi Backend/endpoints/OpenAPI/Shared Data Contract, auth, analysis polling hoặc review semantics.
 
 ## Cơ sở tham khảo

@@ -121,8 +121,13 @@ Chụp UI mock tại 1440px/390px: chạy `npm run dev:mock`, sau đó từ root
 
 ## Workspace v2 — cùng thời điểm và bố cục map-first
 
-Mapbox tự tải các trang readings có `from=to=T` trong phạm vi sensor/bbox đang áp dụng, tối đa 2.000 trạm và ghi rõ nếu chưa đầy đủ. Không dùng latest-per-station lẫn thời điểm. Chọn điểm/dòng chỉ mở chi tiết, giữ các trạm khác và camera. Trước/Sau theo các thời điểm đã tải, hoặc nhập ngày giờ UTC+07 để đọc thời điểm khác; không dùng số đo gần nhất để lấp mẫu thiếu.
+Theo xác nhận mới ngày 15/11, Mapbox lấy mỗi trạm tối đa một reading mới nhất có `ts <= T` và tuổi không quá `maxAge` (mặc định 2 giờ, chỉnh tại UI). FE đọc cửa sổ `[T−maxAge,T]` bằng API readings hiện có, tôn trọng from/sensor/bbox của bộ lọc; tối đa 2.000 readings mỗi khung và báo chưa đầy đủ nếu còn trang. Lớp grid đã thay bằng heatmap loang mềm + circles/popup timestamp thực; timeline play/pause và crossfade không tạo readings mới. Heatmap ngày × giờ giữ nguyên. Xem [Heatmap timeline](../docs/frontend/heatmap-timeline.md).
 
 Bảng readings có cuộn riêng/sticky header, nút tải tiếp ở đầu và ngay toolbar bảng, cùng tabs Heatmap/Trạm/Hướng dẫn. Bộ lọc mặc định đóng, tự đóng sau áp dụng; Escape/click ngoài để đóng. Import có tên trường tiếng Việt/hint và báo cáo lỗi thu gọn. Tham khảo bố cục từ `C:/torontopulse`, không đổi dependency/Backend/API. [Bằng chứng v2](../docs/frontend/workspace-v2.md).
 
 E2E có thể đổi cổng qua `PM25_E2E_MOCK_PORT` và `PM25_E2E_ONLINE_PORT` để không chiếm/dừng dev server đang dùng; mặc định vẫn 5173/4173. Các biến này chỉ dành cho test runner.
+
+
+## Bố cục Mapbox gọn — 15/11/2026
+
+Toolbar gộp, legend/layer overlay trong map, viewport map ≥520px, dock readings thu gọn mặc định. Giữ nguyên heatmap/timeline/maxAge đã duyệt. Xem [Mapbox layout](../docs/frontend/map-layout.md) với ảnh desktop/tablet/mobile và kiểm chứng.

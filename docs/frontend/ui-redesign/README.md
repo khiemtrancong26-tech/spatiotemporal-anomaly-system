@@ -65,3 +65,6 @@ Lần thử Mapbox với token môi trường tạo được canvas/control như
 Bố cục đầu tiên phía trên là bằng chứng lịch sử. Workspace hiện đã thay bằng [Workspace v2](../workspace-v2.md): bản đồ lớn, panel nổi đóng/mở, bảng bounded và tabs bổ trợ; mặc định bộ lọc thu gọn cả desktop/mobile. Chính sách mixed-time latest-per-station đã bỏ khỏi renderer; Mapbox đọc riêng các trạm tại đúng một thời điểm. Các ảnh v1 giữ làm đối chiếu, ảnh hiện tại xem báo cáo v2.
 
 Bằng chứng Mapbox v2 ngày 15/11: đã tải được nền/tiles trong phiên QA riêng và chụp ba trạm cùng T ở 1440px/390px; xem báo cáo v2. Giới hạn Mapbox ở bản chụp v1 phía trên là ghi nhận lịch sử.
+
+
+Chính sách snapshot/grid trong các phần lịch sử trên đã được thay bằng [heatmap mềm + latest ≤ T, maxAge 2 giờ](../heatmap-timeline.md) theo xác nhận tiếp theo của người dùng.

@@ -128,6 +128,13 @@ test('redesign keeps the visual canvas mounted when folding filters and exposes 
   await expect(canvas).toHaveAttribute('data-stable-canvas','true');
   await page.locator('summary.filter-heading').click();
   await expect(canvas).toHaveAttribute('data-stable-canvas','true');
+  await expect(page.getByRole('region',{name:'Bảng readings',exact:true})).toBeHidden();
+  const viewport = await page.locator('.visualization-canvas').boundingBox();
+  expect(viewport!.height).toBeGreaterThanOrEqual(520);
+  expect(viewport!.y).toBeLessThan(500);
+  await page.locator('summary.dock-summary').focus();
+  await page.keyboard.press('Enter');
+  await expect(canvas).toHaveAttribute('data-stable-canvas','true');
   await page.getByRole('button',{name:'Heatmap thời gian',exact:true}).click();
   await expect(page.getByRole('table', {name:/PM2.5 trung bình theo ngày/})).toBeVisible();
   const heatmap = page.locator('.heatmap');
@@ -136,7 +143,7 @@ test('redesign keeps the visual canvas mounted when folding filters and exposes 
   await page.getByLabel('Heatmap không gian',{exact:true}).check();
   await expect(page.getByLabel('Heatmap không gian',{exact:true})).toBeChecked();
   await page.getByRole('button',{name:'Chi tiết & lớp',exact:true}).click();
-  await expect(page.getByText('Ô 0,02° × 0,02°', {exact:false})).toBeVisible();
+  await expect(page.getByText('Heatmap loang mềm biểu diễn cường độ thị giác từ các trạm;', {exact:false})).toBeVisible();
   await page.getByRole('button',{name:'Cube',exact:true}).click();
   await expect(page.locator('canvas').first()).toBeVisible();
   await page.setViewportSize({width:390,height:844});

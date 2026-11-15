@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Reading } from '../../shared/api/generated/wire';
-import { spatialCells } from './heatmap-data';
+import { createHeatmapTransition, heatLayer } from './map-heatmap';
 import { color, cubePoints } from './geometry';
 import { Button, LoadingState } from '../../shared/ui/primitives';
 type View = { rows: Reading[]; selected?: string; marked: Set<string>; scale?: {min:number;max:number} };
@@ -41,18 +41,36 @@ export default function Renderer({ rows, mode, selected, onSelect, marked, spati
           if(cancelled)return;
           const empty:GeoJSON.FeatureCollection={type:'FeatureCollection',features:[]};
           if(map.getSource('composite')) map.addLayer({id:'context-buildings',source:'composite','source-layer':'building',type:'fill-extrusion',minzoom:14,filter:['==','extrude','true'],paint:{'fill-extrusion-color':'#d7e0eb','fill-extrusion-height':['coalesce',['get','height'],0],'fill-extrusion-base':['coalesce',['get','min_height'],0],'fill-extrusion-opacity':0.7}});
-          map.addSource('readings',{type:'geojson',data:empty});map.addSource('pm25-grid',{type:'geojson',data:empty});
-          map.addLayer({id:'pm25-grid',type:'fill',source:'pm25-grid',layout:{visibility:heatmap.current?'visible':'none'},paint:{'fill-color':['get','color'],'fill-opacity':.6,'fill-outline-color':'#ffffff'}});
-          map.addLayer({id:'readings',type:'circle',source:'readings',paint:{'circle-color':['get','color'],'circle-radius':['case',['get','selected'],11,7],'circle-stroke-width':['case',['get','selected'],3,2],'circle-stroke-color':['case',['get','anomaly'],'#8b00b5',['get','selected'],'#142e50','#ffffff']}});
-          toggleHeatmap.current=visible=>map.setLayoutProperty('pm25-grid','visibility',visible?'visible':'none');
+          map.addSource('readings',{type:'geojson',data:empty});
+          const duration=window.matchMedia('(prefers-reduced-motion: reduce)').matches?0:700;
+          for (const slot of [0,1]) { const id=`pm25-heat-${slot}`;map.addSource(id,{type:'geojson',data:empty});map.addLayer(heatLayer(id,id,range(input.current).max,duration)); }
+          const blend=createHeatmapTransition(map,duration,heatmap.current);
+          const previousCleanup=cleanup;
+          const popup=new mapbox.Popup({closeButton:true,closeOnClick:true,maxWidth:'280px'});
+          cleanup=()=>{blend.dispose();popup.remove();previousCleanup();};
+          let previousRows:Reading[]|undefined,previousMax:number|undefined;
+          map.addLayer({id:'readings',type:'circle',source:'readings',paint:{'circle-color':['get','color'],'circle-radius':['interpolate',['linear'],['zoom'],5,['case',['get','selected'],7,3],12,['case',['get','selected'],11,6],16,['case',['get','selected'],13,9]],'circle-opacity':['interpolate',['linear'],['zoom'],5,0.5,12,0.9,15,1],'circle-stroke-width':['case',['get','selected'],3,2],'circle-stroke-color':['case',['get','anomaly'],'#8b00b5',['get','selected'],'#142e50','#ffffff']}});
+          map.addLayer({id:'reading-values',type:'symbol',source:'readings',minzoom:13,layout:{'text-field':['concat',['to-string',['get','value']],' µg/m³'],'text-size':12,'text-offset':[0,1.5],'text-anchor':'top'},paint:{'text-color':'#18314c','text-halo-color':'#ffffff','text-halo-width':2}});
+          toggleHeatmap.current=visible=>blend.toggle(visible);
           update.current=view=>{
             const {min,max}=range(view);
-            const data:GeoJSON.FeatureCollection<GeoJSON.Point>={type:'FeatureCollection',features:view.rows.map(r=>({type:'Feature',geometry:{type:'Point',coordinates:r.location.coordinates},properties:{id:r.id,color:color(r.value,min,max),selected:r.id===view.selected,anomaly:view.marked.has(r.id)}}))};
+            const data:GeoJSON.FeatureCollection<GeoJSON.Point>={type:'FeatureCollection',features:view.rows.map(r=>({type:'Feature',geometry:{type:'Point',coordinates:r.location.coordinates},properties:{id:r.id,value:r.value,sensorId:r.sensorId,ts:r.ts,color:color(r.value,min,max),selected:r.id===view.selected,anomaly:view.marked.has(r.id)}}))};
             (map.getSource('readings') as import('mapbox-gl').GeoJSONSource).setData(data);
-            (map.getSource('pm25-grid') as import('mapbox-gl').GeoJSONSource).setData(spatialCells(view.rows,min,max));
+            if(previousRows!==view.rows || previousMax!==max){blend.stage(data,max);popup.remove();previousRows=view.rows;previousMax=max;}
             if(!fitted&&view.rows.length){fitted=true;reset.current();}
           };
-          map.on('click','readings',event=>{const id=event.features?.[0]?.properties?.id;if(typeof id==='string')choose.current(id);});
+          map.on('click','readings',event=>{
+            const id=event.features?.[0]?.properties?.id;
+            const row=input.current.rows.find(r=>r.id===id);if(!row)return;
+            choose.current(row.id);
+            const card=document.createElement('div');card.className='station-popup';
+            const heading=document.createElement('h3');heading.textContent=`Trạm ${row.sensorId}`;
+            const value=document.createElement('strong');value.textContent=`${row.value} µg/m³`;
+            const measured=document.createElement('p');measured.textContent=`Đo thực tế: ${new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',dateStyle:'short',timeStyle:'medium'}).format(new Date(row.ts))} · UTC+07`;
+            const raw=document.createElement('small');raw.textContent=row.ts;
+            card.append(heading,value,measured,raw);
+            popup.setLngLat([row.location.coordinates[0],row.location.coordinates[1]]).setDOMContent(card).addTo(map);
+          });
           map.on('mouseenter','readings',()=>{map.getCanvas().style.cursor='pointer';});map.on('mouseleave','readings',()=>{map.getCanvas().style.cursor='';});
           update.current(input.current);setReady(true);
         });
