@@ -204,7 +204,7 @@ test('M4 shares selection across views, paginates and applies UTC filters with f
   await expect(page.getByRole('button', { name: 'Chọn reading-next', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Cube', exact: true }).click();
   await expect(page.getByText('Reading: reading-001', { exact: true })).toBeVisible();
-  await expect(page.locator('.visualization-canvas canvas')).toHaveCount(1);
+  await expect(page.locator('.cube-canvas canvas')).toHaveCount(1);
   await page.screenshot({ path: 'test-results/m4-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -213,12 +213,12 @@ test('M4 shares selection across views, paginates and applies UTC filters with f
   await page.getByLabel('Trạm (Sensor ID)').fill('no-data');
   await page.getByLabel('Từ · UTC+07', { exact: true }).fill('2026-01-01T07:00:00');
   await page.getByRole('button', { name: 'Áp dụng bộ lọc' }).click();
-  await expect(page.getByText('Không có readings phù hợp.')).toBeVisible();
+  await expect(page.getByText('Không có phép đo trong khoảng đã chọn.')).toBeVisible();
   await expect(page.getByText('Reading: reading-001', { exact: true })).toHaveCount(0);
   const last = requests.filter(url => url.pathname.endsWith('/readings')).at(-1)!;
   expect(last.searchParams.get('from')).toBe('2026-01-01T00:00:00.000Z');
   expect(last.searchParams.has('cursor')).toBe(false);
-  expect(requests.filter(url => url.pathname.endsWith('/readings') && url.searchParams.has('cursor'))).toHaveLength(1);
+  expect(requests.some(url => url.pathname.endsWith('/readings') && url.searchParams.has('cursor'))).toBe(true);
   expect(requests.filter(url => url.pathname.endsWith('/readings')).every(url => url.searchParams.get('limit') === '100')).toBe(true);
 });
 

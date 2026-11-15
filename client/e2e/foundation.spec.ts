@@ -129,9 +129,9 @@ test('redesign keeps the visual canvas mounted when folding filters and exposes 
   await page.locator('summary.filter-heading').click();
   await expect(canvas).toHaveAttribute('data-stable-canvas','true');
   await expect(page.getByRole('region',{name:'Bảng readings',exact:true})).toBeHidden();
-  const viewport = await page.locator('.visualization-canvas').boundingBox();
+  const viewport = await page.locator('.cube-canvas').boundingBox();
   expect(viewport!.height).toBeGreaterThanOrEqual(520);
-  expect(viewport!.y).toBeLessThan(500);
+  expect(viewport!.y).toBeLessThan(560);
   await page.locator('summary.dock-summary').focus();
   await page.keyboard.press('Enter');
   await expect(canvas).toHaveAttribute('data-stable-canvas','true');

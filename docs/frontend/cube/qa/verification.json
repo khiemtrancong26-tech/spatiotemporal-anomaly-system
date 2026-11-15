@@ -1,0 +1,37 @@
+{
+  "source": "../.local/demo-datasets/beijing-12-stations-demo-2015-03.csv",
+  "csvRows": 8782,
+  "stations": 12,
+  "distinctTimestamps": 739,
+  "missingStationHours": 146,
+  "duplicates": 0,
+  "min": 3,
+  "max": 369,
+  "eventA": {
+    "readings": 12,
+    "mean": 315.5
+  },
+  "eventB": {
+    "values": [
+      69,
+      84,
+      84,
+      235,
+      369
+    ],
+    "otherStations": 11,
+    "otherMedian": 80
+  },
+  "positiveZscoreCandidatesFullCsv": 100,
+  "ddof": 0,
+  "uiUsesOfficialAnomaliesOnly": true,
+  "transport": "HTTP interception; CSV values preserved, QA IDs; no database writes",
+  "screenshots": [
+    "overview-1440.png",
+    "station-1440.png",
+    "station-1024.png",
+    "station-390.png",
+    "anomaly-empty-1440.png"
+  ],
+  "pageErrors": []
+}
