@@ -40,7 +40,7 @@ Tất cả ảnh dùng **mock có nhãn**, không phải bằng chứng chạy d
 ## Kiểm chứng
 
 - Typecheck, lint, 80 unit/integration tests (12 files), production build: đạt.
-- Screenshot script kiểm tra overflow toàn trang của 9 màn ở hai kích thước. Đã kiểm tra hình ảnh các bố cục chính, sửa sticky/scroll capture và đưa filters ra khỏi luồng đầu của canvas desktop.
+- Screenshot script kiểm tra overflow toàn trang của 9 màn ở kích thước Desktop. Đã kiểm tra hình ảnh các bố cục chính, sửa sticky/scroll capture và đưa filters ra khỏi luồng đầu của canvas desktop.
 - Unit mới: rollover ngày UTC+07/offset tương đương, mean/count, không có mẫu, ô địa lý có mẫu và biên tọa độ; mock Mapbox kiểm tra source/layer/visibility, bật heatmap không tạo instance mới và unmount gọi cleanup.
 - E2E fallback chạy với `VITE_MAPBOX_TOKEN` rỗng chỉ trong environment của tiến trình test; không ghi đè token local. Build thêm với token môi trường local đạt, gồm nhánh bundling Mapbox/CSS. Còn cảnh báo circular dependency TanStack CLI và Three.js/Mapbox chunks lớn như trước.
 
