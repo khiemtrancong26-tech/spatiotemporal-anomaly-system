@@ -8,4 +8,3 @@ Start with `PM25_Analyst_UX_Handoff.md` and open desktop PNGs in `mockups/` in o
 
 **Sources:** The spec contains direct GitHub links to read-only branch paths. No changes were made to the repository or Backend.
 
-**Images:** `*-desktop.png` 1600 px wide; `*-mobile.png` 390 px wide. HTML/CSS references provided for approximate layout reproduction and precise tokens. They are not interactive apps; buttons are presentational mockups.
