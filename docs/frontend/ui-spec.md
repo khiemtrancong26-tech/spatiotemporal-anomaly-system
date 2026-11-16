@@ -13,7 +13,6 @@
 | Shape | Radius 8px cho card/input/dialog; shadow nhẹ cho panel nổi, không lạm dụng |
 | Điều khiển | Height tối thiểu 40px; vùng bấm chính 44px; focus ring rõ; disabled vẫn có lý do bằng text |
 | Layout | Header 64px, nội dung thường max-width 1440px; workspace tận dụng chiều ngang; context panel khoảng 320px |
-| Responsive | ≥1024px canvas + panel cạnh nhau; 768–1023px panel dạng drawer; <768px filter xếp dọc, panel dưới canvas, bảng cuộn ngang có nhãn |
 | Dữ liệu | PM2.5 có µg/m³; score ghi tên detector, không đổi thành phần trăm; thời gian có nhãn UTC+07:00 |
 
 Màu severity là nhãn detector, không AQI hay mức nguy hiểm sức khỏe. Review status dùng badge riêng có chữ. Kiểm tra contrast/focus thực tế khi M1/M8 có UI; bảng màu là đầu vào thiết kế, chưa phải chứng nhận accessibility.
