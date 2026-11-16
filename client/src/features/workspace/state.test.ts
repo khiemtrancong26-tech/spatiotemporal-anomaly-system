@@ -3,6 +3,16 @@ import { createWorkspaceStore } from './state';
 import { parseWorkspaceFilters, vietnamTimeToUtc } from './filters';
 import { formatWorkspaceTime } from './time';
 
+it('keeps linked visual context independently of focus filtering, and clears it across datasets/sessions',()=>{
+ const s=createWorkspaceStore();s.getState().openDataset('a');
+ s.getState().setVisualTime('2020-01-01T12:00:00.000Z');s.getState().focusSensor('station');s.getState().selectReading('reading');
+ s.getState().setCubeScope({from:'2020-01-01T00:00:00.000Z',to:'2020-01-01T23:59:59.999Z'});
+ s.getState().selectTab('analysis');s.getState().setTimeZone('UTC');s.getState().selectTab('visualization');
+ expect(s.getState()).toMatchObject({filters:{},visualTime:'2020-01-01T12:00:00.000Z',focusedSensorId:'station',selectedReadingId:'reading',cubeWindowMs:86400_000});
+ s.getState().openDataset('b');expect(s.getState().visualTime).toBeUndefined();expect(s.getState().cubeScope).toBeUndefined();expect(s.getState().focusedSensorId).toBeUndefined();
+ s.getState().setVisualTime('2020-01-01T12:00:00.000Z');s.getState().clear();expect(s.getState().visualTime).toBeUndefined();
+});
+
 it('keeps filters across tabs, resets selection on filtering and clears scope on dataset change', () => {
   const store = createWorkspaceStore();
   store.getState().openDataset('dataset-a');

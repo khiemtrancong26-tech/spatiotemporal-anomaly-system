@@ -97,7 +97,7 @@ Xem [M3 verification](../docs/frontend/m3-verification.md). Import Wizard giữ 
 
 ## Bằng chứng M4
 
-Xem [M4 verification](../docs/frontend/m4-verification.md). Workspace tải readings/sensors từng trang 100, giới hạn phiên 2.000; Cube và Mapbox chia sẻ selection. Mapbox cần public `VITE_MAPBOX_TOKEN` tại build, thiếu token vẫn dùng Cube/bảng. Chưa nghiệm thu tiles thật hoặc API Backend thật.
+Xem [M4 verification](../docs/frontend/m4-verification.md) và [liên kết Mapbox–Cube](../docs/frontend/shared-readings-design.md). Mapbox duyệt từng trang 100, thay trang trong RAM, không có giới hạn 2.000 readings cho truy cập dataset. Cube tự tải đầy đủ một phạm vi tối đa 2.000 readings; nếu còn cursor tại ngưỡng thì yêu cầu thu hẹp, không hiển thị chi tiết cắt cụt. Cache RAM chung 50.000 readings theo LRU, chỉ tái sử dụng phạm vi đã chứng minh đầy đủ. Mapbox cần public `VITE_MAPBOX_TOKEN` tại build, thiếu token vẫn dùng Cube/bảng. Chưa nghiệm thu tiles thật hoặc API Backend thật cho thay đổi này.
 
 ## D008 / M5 đã migrate (14/11/2026)
 
@@ -114,14 +114,16 @@ Admin có list cursor/sort, create với idempotency key và PATCH role/isActive
 
 ## UI redesign / heatmaps — 15/11/2026
 
-Light dashboard với design tokens, SVG icons nội bộ, form/table/status và responsive shell thống nhất; không thêm UI dependency. Workspace có panel bộ lọc thu gọn, Cube/Mapbox, inspector và trợ giúp phụ. Heatmap ngày × giờ gộp readings đã tải theo UTC+07; heatmap Mapbox là các ô 0,02° có mẫu từ điểm trạm đang hiển thị, không nội suy hoặc gán ngưỡng sức khỏe. Cùng thang màu PM2.5 đang có. Xem [audit, ảnh trước/sau và bằng chứng](../docs/frontend/ui-redesign/README.md).
+Light dashboard với design tokens, SVG icons nội bộ, form/table/status và responsive shell thống nhất; không thêm UI dependency. Workspace có panel bộ lọc thu gọn, Cube/Mapbox, inspector và trợ giúp phụ. Heatmap ngày × giờ gộp readings đã tải theo UTC+07; heatmap Mapbox là lớp cường độ thị giác loang mềm từ các điểm trạm đang hiển thị, không nội suy hoặc gán ngưỡng sức khỏe. Cùng thang màu PM2.5 đang có. Xem [audit, ảnh trước/sau và bằng chứng](../docs/frontend/ui-redesign/README.md).
 
 Chụp UI mock tại 1440px: chạy `npm run dev:mock`, sau đó từ root `node client/scripts/capture-ui.mjs docs/frontend/ui-redesign/after`. Tùy chọn `--map` thử thêm Mapbox bằng token môi trường hiện tại; có canvas chưa chứng minh tiles/layer tải thành công.
 
 
 ## Workspace v2 — cùng thời điểm và bố cục map-first
 
-Theo xác nhận mới ngày 15/11, Mapbox lấy mỗi trạm tối đa một reading mới nhất có `ts <= T` và tuổi không quá `maxAge` (mặc định 2 giờ, chỉnh tại UI). FE đọc cửa sổ `[T−maxAge,T]` bằng API readings hiện có, tôn trọng from/sensor/bbox của bộ lọc; tối đa 2.000 readings mỗi khung và báo chưa đầy đủ nếu còn trang. Lớp grid đã thay bằng heatmap loang mềm + circles/popup timestamp thực; timeline play/pause và crossfade không tạo readings mới. Heatmap ngày × giờ giữ nguyên. Xem [Heatmap timeline](../docs/frontend/heatmap-timeline.md).
+Theo xác nhận mới ngày 15/11, Mapbox lấy mỗi trạm tối đa một reading mới nhất có `ts <= T` và tuổi không quá `maxAge` (mặc định 2 giờ, chỉnh tại UI). FE đọc hết cửa sổ `[T−maxAge,T]` bằng API readings hiện có, tôn trọng from/sensor/bbox của bộ lọc; giữ một mẫu/trạm, không áp trần 2.000 raw readings (cập nhật 17/11). Lớp grid đã thay bằng heatmap loang mềm + circles/popup timestamp thực; timeline play/pause và crossfade không tạo readings mới. Heatmap ngày × giờ giữ nguyên. Xem [Heatmap timeline](../docs/frontend/heatmap-timeline.md).
+
+T, timezone, reading và trạm focus được giữ khi chuyển Mapbox ↔ Cube; focus không tự lọc các trạm khác. Cube mở mặc định ±12 giờ quanh T, cắt biên Workspace; khoảng do người dùng chọn được giữ khi chứa T, hoặc dịch theo T với độ dài cũ. Histogram số readings dùng Profile/reading-aggregates hiện có cho toàn scope Workspace, chia truy vấn theo giới hạn contract; không đếm raw cache. Refresh hoặc đổi phiên xóa cache. Chỉ kiểm tra giao diện Desktop ≥1024px. Mục tiêu 500.000 readings đã có kiểm thử dữ liệu mô phỏng, chưa benchmark CSV/MongoDB/RAM/FPS thực.
 
 Bảng readings có cuộn riêng/sticky header, nút tải tiếp ở đầu và ngay toolbar bảng, cùng tabs Heatmap/Trạm/Hướng dẫn. Bộ lọc mặc định đóng, tự đóng sau áp dụng; Escape/click ngoài để đóng. Import có tên trường tiếng Việt/hint và báo cáo lỗi thu gọn. Tham khảo bố cục từ `C:/torontopulse`, không đổi dependency/Backend/API. [Bằng chứng v2](../docs/frontend/workspace-v2.md).
 

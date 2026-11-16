@@ -285,4 +285,8 @@ Các mục này là phụ thuộc khi triển khai, không phải yêu cầu ng�
 
 ### Điều chỉnh Workspace theo phản hồi demo — 15/11/2026
 
-Mapbox chuyển sang hiển thị các trạm cùng một thời điểm T bằng API readings hiện có (`from=to`); snapshot đọc cursor riêng tối đa 2.000, báo rõ khi còn trang. Selection chỉ inspect, không thay thời điểm/phép đo của trạm; không tự carry-forward/interpolate. Bố cục map-first, bộ lọc thu gọn, panel nổi, bảng bounded và nút nạp thêm ở đầu. Tham khảo local Toronto Pulse. [Báo cáo](frontend/workspace-v2.md).
+Mapbox hiển thị tối đa một reading/trạm mới nhất `ts <= T`, tuổi không quá maxAge (mặc định 2 giờ), popup ghi timestamp thực. Snapshot đọc hết cursor của cửa sổ maxAge; danh sách/timeline duyệt trang chủ động, không áp trần raw 2.000. Selection Mapbox chỉ inspect, không thay T; không nội suy readings. Bố cục map-first, bộ lọc thu gọn, panel nổi và bảng bounded. [Báo cáo bố cục](frontend/workspace-v2.md).
+
+### Liên kết Mapbox–Cube / Shared Readings — 17/11/2026
+
+Cube tự tải 100/trang đến hết hoặc 2.000; còn cursor tại ngưỡng thì ẩn toàn bộ Cube/thống kê chi tiết và yêu cầu thu hẹp. Cache RAM chung 50.000 readings theo LRU, theo dõi coverage đã hoàn tất và cursor riêng từng query. Giữ T/timezone/selection/focus khi chuyển mode; cửa sổ Cube mặc định ±12h quanh T và giữ/dịch khoảng người dùng đã chọn. Histogram đếm toàn scope Workspace bằng API aggregate hiện có. Không đổi Backend/contract/database; chỉ Desktop. Thiết kế và bằng chứng: [Shared readings](frontend/shared-readings-design.md). 500.000 là mục tiêu, chưa nghiệm thu benchmark thực.
