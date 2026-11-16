@@ -28,7 +28,7 @@ test('login, session restoration, workspace filters, logout and admin guard', as
   await page.getByRole('link', { name: 'Mở dữ liệu' }).click();
   await expect(page.getByLabel('Trạm (Sensor ID)')).toHaveValue('sensor-001');
   await page.reload();
-  await expect(page.getByText('Chưa có metadata dataset.', { exact: false })).toBeVisible();
+  await expect(page.getByText('Chưa đọc được Profile dataset.', { exact: false })).toBeVisible();
   await page.goto('/admin/users');
   await expect(page.getByRole('heading', { name: 'Không có quyền truy cập' })).toBeVisible();
   await page.getByRole('button', { name: 'Đăng xuất' }).click();
@@ -47,7 +47,7 @@ test('mobile layout and deep link survive login without inventing metadata', asy
   await page.goto('/workspace/unknown-dataset');
   await login(page);
   await expect(page.getByText('Dataset ID: unknown-dataset', { exact: true })).toBeVisible();
-  await expect(page.getByText('Chưa có metadata dataset.', { exact: false })).toBeVisible();
+  await expect(page.getByText('Chưa đọc được Profile dataset.', { exact: false })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: 'test-results/m2-mobile.png', fullPage: true });
 });
@@ -79,7 +79,7 @@ test('M5 demo submits one immutable intent, follows async lifecycle and clears c
   await login(page);
   await page.getByRole('button', { name: 'Analysis', exact: true }).click();
   await page.getByRole('checkbox').check();
-  await page.getByRole('button', { name: 'Gửi analysis', exact: true }).click();
+  await page.getByRole('button', { name: 'Chạy phát hiện bất thường', exact: true }).click();
   await expect(page.getByTestId('run-status')).toContainText('queued');
   await expect(page.getByRole('button', { name: 'Thử lại cùng key', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Đọc lại run' }).click();

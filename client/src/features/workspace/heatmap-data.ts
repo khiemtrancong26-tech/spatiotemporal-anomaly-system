@@ -1,10 +1,10 @@
 import type { Reading } from '../../shared/api/generated/wire';
 import { color } from './geometry';
 export const GRID_DEGREES = 0.02;
-export function temporalCells(rows: Reading[]) {
+export function temporalCells(rows: Reading[], offset = 7) {
   const cells = new Map<string, { sum: number; count: number }>();
   for (const row of rows) {
-    const local = new Date(Date.parse(row.ts) + 7 * 3600_000).toISOString();
+    const local = new Date(Date.parse(row.ts) + offset * 3600_000).toISOString();
     const key = local.slice(0, 13);
     const previous = cells.get(key) ?? { sum: 0, count: 0 };
     cells.set(key, { sum: previous.sum + row.value, count: previous.count + 1 });

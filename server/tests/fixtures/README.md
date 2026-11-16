@@ -65,3 +65,13 @@ npx vitest run tests/b4.integration.test.ts tests/b5.integration.test.ts -t mult
 ```
 
 Nguồn kiểm thử: [B4](../b4.integration.test.ts), [B5](../b5.integration.test.ts). Tests tạo JWT, upload và import qua HTTP thật trong app, dùng DB/storage tạm; không dùng DB `.env` hoặc tự seed online. Không thay test biên, crash/recovery hoặc single-sensor đang có: chúng vẫn là hồi quy cần thiết.
+
+## Beijing12 trạm — golden nghiệp vụ do chủ dự án cung cấp
+
+Ngày16/11/2026: copy nguyên bytes từ `.local/demo-datasets/beijing-12-stations-demo-2015-03.csv` sang [fixture](beijing-12-stations-demo-2015-03.csv), không sửa file nguồn. [Manifest](beijing-12-stations-demo-2015-03.manifest.json) pin bytes/SHA256/expected facts; `.gitattributes` tắt EOL normalization riêng fixture này để hash không đổi khi checkout.
+
+Đã tính độc lập bằng [beijing-fixture.test.ts](../beijing-fixture.test.ts):8782 rows,12 trạm,739 timestamps, không duplicate/invalid, min3/max369, offset+08,146 station–hours thiếu trên lưới12×31×24. Mốc16/03 19h+08 có12 trạm/mean315,5; Nongzhanguan26/03 21h có369, median11 trạm khác80 và không có mẫu22h/23h. Đây là thống kê mô tả, không phải labels anomaly hoặc định nghĩa spatial_delta.
+
+[B6 integration](../b6.integration.test.ts) import CSV qua B3 thật, chạy Z-score B5 rồi list/detail/review qua B6; [browser E2E](../../e2e/b6.spec.ts) kiểm conflict/rebase/reload với API/DB thật. Không phụ thuộc file `.local` để chạy lại test. Không train ML v2 hoặc dùng golden này làm fit.
+
+Provenance hiện là file do chủ dự án cung cấp, với cột sourceFile/sourceRowNo tham chiếu PRSA_Data. Upstream extraction và độ chính xác nguồn tọa độ chưa được kiểm định độc lập; không tự tuyên bố toàn bộ G01/G04/G05 đã đóng hoặc dataset có anomaly ground truth. Fixture synthetic ở trên tiếp tục dùng cho lỗi/gaps/edge cases có chủ đích.

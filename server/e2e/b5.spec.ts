@@ -40,7 +40,7 @@ test.afterAll(async () => {
   if (storage?.startsWith(resolve(tmpdir()) + sep) && storage.includes('pm25-b5-browser-')) await rm(storage, { recursive: true, force: true });
 });
 
-test('actual B3 import → M5 statistical submission, polling, history and reload; B6 remains unavailable', async ({ page }) => {
+test('actual B3 import → M5 statistical submission, polling, history, B6 results and reload', async ({ page }) => {
   const analysisErrors: number[] = [];
   page.on('response', response => { if (response.url().includes('/api/v1/analysis-runs') && response.status() >= 400) analysisErrors.push(response.status()); });
   await page.goto(`${frontendUrl}/login`);
@@ -60,25 +60,28 @@ test('actual B3 import → M5 statistical submission, polling, history and reloa
   await page.getByRole('button', { name: 'Lưu mapping', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Import', exact: true }).click();
+  const firstReadingsPage = page.waitForResponse(response => response.url().includes('/api/v1/readings?') && !new URL(response.url()).searchParams.has('from'));
   await page.getByRole('link', { name: 'Mở workspace', exact: true }).click();
-  await expect(page.getByText('Đã tải 100 readings', { exact: false })).toBeVisible();
+  const firstPage = await firstReadingsPage; expect(firstPage.status()).toBe(200);
+  expect((await firstPage.json()).data).toHaveLength(100); expect((await firstPage.json()).page.nextCursor).toBeTruthy();
+  // Current Cube auto-pages this 150-reading window; initial API page remains bounded100.
+  await expect(page.getByTestId('cube-coverage').locator('strong').first()).toHaveText('150');
   await page.getByRole('button', { name: 'Analysis', exact: true }).click();
-  await page.getByLabel('Phương pháp', { exact: true }).selectOption('zscore');
+  await page.getByRole('radio', {name: /Z-score/}).check();
   await page.getByRole('checkbox').check();
   const accepted = page.waitForResponse(response => response.url() === `${backendUrl}/api/v1/analysis-runs` && response.request().method() === 'POST');
-  await page.getByRole('button', { name: 'Gửi analysis', exact: true }).click();
+  await page.getByRole('button', { name: 'Chạy phát hiện bất thường', exact: true }).click();
   const response = await accepted; expect(response.status()).toBe(202); const runId = (await response.json()).data.id;
   expect(response.request().postDataJSON()).toMatchObject({ datasetId, family: 'statistical', method: 'zscore', config: { threshold: 3 }, scope: {} });
-  await expect(page.getByTestId('run-status')).toHaveText('Trạng thái Server: completed', { timeout: 20000 });
+  await expect(page.getByTestId('run-status')).toHaveText('completed', { timeout: 20000 });
   await expect.poll(() => backend.mongo.db.collection('anomalies').countDocuments({ analysisRunId: new ObjectId(runId) })).toBe(1);
   await page.getByRole('button', { name: 'Làm mới lịch sử', exact: true }).click();
   await expect(page.getByRole('button', { name: `Xem run ${runId}`, exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByTestId('run-status')).toHaveText('Trạng thái Server: completed');
+  await expect(page.getByTestId('run-status')).toHaveText('completed');
   await expect(page.getByRole('button', { name: `Xem run ${runId}`, exact: true })).toBeVisible();
   expect(await backend.mongo.db.collection('analysisRuns').countDocuments()).toBe(1);
   expect(analysisErrors).toEqual([]);
-  // No route interception/mock responses. Results call correctly sees B6's current 404,
-  // so this test does not claim anomaly list/detail/review or FE ML enablement.
+  // B6 results are now real. Full review/CAS flow has its own b6.spec.ts.
   await expect(page.getByText('Run hoàn tất, không phát hiện anomaly.', { exact: true })).not.toBeVisible();
 });

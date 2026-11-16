@@ -7,6 +7,8 @@ export interface IdempotentOptions extends RequestOptions { idempotencyKey: stri
 export interface UploadInput { file: File; name?: string }
 export type SensorsQuery = Omit<Wire.SensorsQuery, 'bbox'> & { bbox?: Bbox };
 export type ReadingsQuery = Omit<Wire.ReadingsQuery, 'bbox'> & { bbox?: Bbox };
+export type DatasetProfileQuery = Omit<Wire.DatasetProfileQuery, 'bbox'> & { bbox?: Bbox };
+export type ReadingAggregatesQuery = Omit<Wire.ReadingAggregatesQuery, 'bbox'> & { bbox?: Bbox };
 
 /** Error shape to be implemented/normalized in M1. Promise rejection types are not enforced by TS. */
 export type DataSourceError =
@@ -23,6 +25,7 @@ export interface OnlineDataSource {
     me(options?: RequestOptions): Promise<Wire.UserPublic>;
   };
   datasets: {
+    profile(id: string, query: DatasetProfileQuery, options?: RequestOptions): Promise<Wire.DatasetProfile>;
     list(query: Wire.DatasetsQuery, options?: RequestOptions): Promise<Wire.DatasetPage>;
     upload(input: UploadInput, options: IdempotentOptions): Promise<Wire.Dataset>;
     validation(id: string, options?: RequestOptions): Promise<Wire.ValidationReport>;
@@ -35,6 +38,7 @@ export interface OnlineDataSource {
   readings: {
     list(query: ReadingsQuery, options?: RequestOptions): Promise<Wire.ReadingPage>;
   };
+  aggregates: { get(query: ReadingAggregatesQuery, options?: RequestOptions): Promise<Wire.ReadingAggregation> };
   analysis: {
     get(id: string, options?: RequestOptions): Promise<Wire.AnalysisRun>;
     create(input: Wire.DetectionRequest, options: IdempotentOptions): Promise<Wire.AnalysisCreateResponse>;

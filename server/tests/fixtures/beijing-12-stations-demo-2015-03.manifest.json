@@ -1,0 +1,27 @@
+{
+  "filename": "beijing-12-stations-demo-2015-03.csv",
+  "receivedAt": "2026-11-16",
+  "suppliedBy": "project owner",
+  "suppliedPath": ".local/demo-datasets/beijing-12-stations-demo-2015-03.csv",
+  "bytes": 949343,
+  "sha256": "189c1f773f11294d66b06a0097bccfba653496cf08554a733caaf8afdbdd6ff0",
+  "purpose": "Business correctness golden fixture; not anomaly ground truth or ML v2 training approval",
+  "lineage": "CSV includes sourceFile/sourceRowNo referencing PRSA_Data station files. Upstream extraction and coordinate-source accuracy have not been independently verified.",
+  "columns": ["sensorId", "latitude", "longitude", "timestamp", "value", "unit", "sourceFile", "sourceRowNo"],
+  "expected": {
+    "readings": 8782,
+    "sensors": ["Aotizhongxin", "Changping", "Dingling", "Dongsi", "Guanyuan", "Gucheng", "Huairou", "Nongzhanguan", "Shunyi", "Tiantan", "Wanliu", "Wanshouxigong"],
+    "timestamps": 739,
+    "duplicateStationInstants": 0,
+    "minValue": 3,
+    "maxValue": 369,
+    "utcFrom": "2015-02-28T16:00:00.000Z",
+    "utcTo": "2015-03-31T15:00:00.000Z",
+    "sourceOffset": "+08:00",
+    "cadenceSecondsForThisFixture": 3600,
+    "expectedStationHoursForThisMonth": 8928,
+    "missingStationHours": 146,
+    "eventA": { "sourceTime": "2015-03-16T19:00:00+08:00", "stations": 12, "mean": 315.5 },
+    "eventB": { "sourceTime": "2015-03-26T21:00:00+08:00", "station": "Nongzhanguan", "value": 369, "otherStations": 11, "otherStationMedian": 80 }
+  }
+}

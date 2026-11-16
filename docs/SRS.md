@@ -6,6 +6,8 @@
 **Người chủ trì yêu cầu:** Người 1 (Nhóm trưởng, Backend/Database)  
 **Trạng thái:** Bản đầu vào cho SDD, API Contract và Shared Schema; cần review các mục **[CHƯA CHỐT]** trước khi khóa thiết kế liên quan.
 
+**Bổ sung phạm vi 16/11/2026 — D016:** Chủ dự án duyệt hướng ưu tiên Visual Analytics cho Data Analyst và [Backend Change Plan](backend-change-plan.md). v0.5 bên dưới giữ baseline truy vết; phần nâng cấp được mô tả trong mục1.2 và các CR của Change Plan, chưa tự khóa API/DTO hoặc công thức ML mới. B1–B5 và các quyết định D010–D015 tiếp tục áp dụng cho phần không được thay cụ thể.
+
 > **Mục đích:** Tài liệu này trả lời **“Hệ thống phải làm gì, đối với dữ liệu nào và theo quy tắc nào?”**. Không quy định chi tiết cấu trúc class, folder, collection/index vật lý, endpoint, thư viện hay cách triển khai nội bộ; các nội dung đó nằm trong SDD/API Contract.
 
 ---
@@ -33,6 +35,12 @@ Phát hiện bất thường là **kết quả nghi vấn từ thuật toán**, 
 **Ưu tiên sau P0 (P1):** Tổng hợp dữ liệu theo bucket/vùng và mức độ chi tiết (LOD) nhằm cải thiện khả năng tương tác với dữ liệu lớn.
 
 **Chỉ mở rộng nếu còn thời gian (P2):** DBSCAN/LOF và so sánh thuật toán nâng cao, sau khi luồng cốt lõi ổn định.
+
+**Đợt nâng cấp online đã duyệt về hướng/ưu tiên (D016, 16/11/2026):** Hoàn thành xem/điều tra/review anomaly trước; bổ sung Profile/chất lượng dữ liệu, khám phá chuỗi thời gian và so sánh trạm trong cùng phạm vi; tiếp đó tích hợp Isolation Forest có ngữ cảnh thời gian/không gian. FE và kiểm thử bàn giao từng phần. Dataset Profile và chính sách timezone theo dataset là requirements bổ sung, không mặc định đã có trong baseline.
+
+Một phần FR-13/P1 phục vụ tổng hợp thời gian/so sánh trạm được nâng ưu tiên cho đợt này; spatial aggregation/LOD tổng quát vẫn hoãn. Phải phân biệt thiếu giá trị nguồn, thiếu phép đo theo chu kỳ kỳ vọng và dữ liệu chưa tải; giờ hiển thị không thay đổi instant UTC đã lưu. Dataset chuẩn, cadence/anchor/timezone, nghĩa các thống kê/coverage và Feature Contract còn phải chốt theo G01–G05 của Change Plan trước phần triển khai phụ thuộc. CSV demo ngoài tập fit khi được dùng làm test độc lập; giá trị PM2.5 cao không tự là nhãn anomaly đúng.
+
+Thay đổi này không xóa yêu cầu PWA/Offline/Sync của MVP; chúng tiếp tục ngoài phạm vi đợt online. B7/Admin vẫn cần hoàn thiện, đánh giá chất lượng ML/tải triển khai phải ghi bằng chứng riêng; chưa tuyên bố toàn bộ P0/SRS đã hoàn tất.
 
 **Ngoài phạm vi MVP:** GPS trajectory; LLM/chatbot; crawler hoặc streaming dữ liệu Internet; dự báo chất lượng không khí; kết luận nguyên nhân ô nhiễm; microservices và hệ thống phân quyền tổ chức phức tạp.
 
@@ -316,3 +324,6 @@ Các mục còn lại **không được AI tự xem là đã chốt**. Nhóm tr�
 | `0.3` | 11/11/2026 | Làm rõ auto-cache khi online, sử dụng khi mất mạng đột ngột, tải trước tùy chọn, phạm vi dữ liệu offline, nghiệm thu UC-06; cập nhật FR-11, BR-20–22, NFR-04 |
 | `0.4` | 11/11/2026 | Chốt BR-08 phương án B: giữ bản ghi hợp lệ đầu tiên; báo cáo trùng hoàn toàn/xung đột, loại OPEN-01 khỏi danh sách chưa chốt; cập nhật UC-02 |
 | `0.5` | 12/11/2026 | Ưu tiên khôi phục ngữ cảnh làm việc, bảo toàn outbox/đồng bộ khi gián đoạn, tiêu chí AT-06E/F; giữ mở thông số thời gian và chu kỳ dataset |
+## C2 / D018 — Bổ sung yêu cầu Exploration đã khóa (16/11/2026)
+
+CR-02–05 của [Change Plan](backend-change-plan.md) được cụ thể hóa tại [C2 contract](backend/c2-contract-proposal.md): Analyst xem Profile toàn dataset/scoped, phân biệt source-quality/thiếu station–time/chưa tải, so sánh trạm trên hour/day buckets và đổi timezone hiển thị mà giữ instant UTC. Chỉ subset aggregation này được nâng online; không nâng spatial LOD, Offline/Sync hay ML v2. API đọc chỉ imported, kết quả đầy đủ trong ngân sách hoặc lỗi; sampling phải có cadence/anchor/expected interval tường minh. Nghiệm thu phần mềm qua CSV golden và API/DB thật, không coi spike/flag là ground truth hay xác nhận chất lượng ML.

@@ -103,3 +103,6 @@ Xem [quyết định D008](../decisions.md#d008--analysis-online-bất-đồng-b
 Run bắt buộc scope snapshot; failed có error an toàn, completedAt khi terminal. Anomalies chỉ công bố khi completed; GET anomalies chỉ định run chưa completed trả 409, list tổng loại partial, detail partial 404. Query kết quả lỗi không đồng nghĩa zero anomalies.
 
 **Migration 14/11/2026:** client generated types/adapter/mock và shared-core đã migrate D008; `verify_m0.py` kiểm tra 20 operations. Xem [M5 verification](../frontend/m5-verification.md). Test FE/mock không chứng minh worker/Backend thật. Presets M5 theo [D009](../decisions.md#d009--cấu-hình-m5-được-người-dùng-chốt-ngày-14112026); ML method/config và retention thật còn mở.
+## C2/D018 — cập nhật contract online
+
+Ngày16/11/2026: thêm GET `/api/v1/datasets/{id}/profile`, nâng GET `/api/v1/reading-aggregates` từ draft P1 chưa triển khai sang per-station hour/day aggregation. Tổng26 operations,22 online/health;19 có Backend thật (B1–B6+C2),3 Admin B7 còn chờ. Các số cũ bên dưới là baseline lịch sử. [Contract C2 đã duyệt](../backend/c2-contract-proposal.md), [bằng chứng/runbook](../backend/c2-verification.md). Timezone/coverage/budgets và response migration có chủ đích; DTO cũ giữ nguyên. Mock Exploration trả503 `C2_MOCK_NOT_IMPLEMENTED`, không giả số liệu Backend.

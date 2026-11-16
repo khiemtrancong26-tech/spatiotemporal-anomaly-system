@@ -48,6 +48,9 @@ Phần này cập nhật các đề xuất import/receipt cũ bên dưới theo 
 - Không trả passwordHash trong bất kỳ response.
 
 ### `datasets`
+
+**D018/C2:** field nội bộ tùy chọn `explorationMetadata: {version: positive integer, source:'configured', timeZone:'UTC'|'+07:00'|'+08:00', provenance:string, sampling:null|{cadenceSeconds,anchor,expectedFrom,expectedTo}}`. Các timestamp metadata là UTC ISO strings đã validate; readings.ts tiếp tục BSON Date. CLI chỉ cập nhật imported dataset bằng atomic update pipeline tăng version; `$literal` cho input. Chưa có metadata thì không backfill/đoán cadence, Profile trả source=fallback/+07:00/version=null/sampling=null. Metadata không xuất qua Dataset DTO cũ, chỉ Profile và metadataVersion của Aggregates. Không thêm collection/index C2; giữ14 indexes online, unique(datasetId,sensorId,ts) bảo đảm observedSlots không đếm trùng. Explain/số đo pipeline production ở [C2 measurements](backend/c2-query-measurements.json); không phải load/SLA hoặc nguồn tọa độ đã kiểm định.
+
 ```js
 { _id: ObjectId('...'), name: 'PM2.5 Example', sourceFilename: 'demo.csv',
   status: 'imported', createdBy: ObjectId('...'), createdAt: ISODate('2026-11-11T01:00:00Z'),
@@ -111,6 +114,14 @@ Phần này cập nhật các đề xuất import/receipt cũ bên dưới theo 
 - Unique `(analysisRunId,readingId)` ngăn tạo 2 anomaly cho cùng reading trong **một lần chạy**; vẫn cho một reading xuất hiện ở các lần chạy khác nhau.
 - `score` và `severity` không đổi khi analyst sửa review; `status/note/version/updatedAt` có thể đổi.
 - D015/B5 tạm severity=low cho mọi anomaly; chưa có ngưỡng medium/high được kiểm chứng. Ví dụ `score 3.8/high` phía trên là lịch sử thiết kế, không phải rule của baseline. Khởi tạo review open/note rỗng/version1/updatedAt, snapshot location từ Reading.
+
+**D017/B6 — publication và PATCH online:**
+
+- List/detail aggregate join run completed và dataset imported/cùng parent IDs; visibility trước limit+1. Chỉ chiếu fields DTO, không trả lookup arrays/value hoặc private fields. Sort/cursor theo ts+_id;14 online indexes hiện tại giữ nguyên, không tạo collection/index mới.
+- Review transaction snapshot/majority: đọc anomaly, conditional `$inc:{reviewFence:1}` lên dataset còn imported rồi run còn completed/cùng dataset/family/method; CAS update anomaly theo ID/version, chỉ `$set` status/note, `$inc` version, `$currentDate` updatedAt. Các thao tác tuần tự; commit atomic hoặc rollback cả fences.
+- `reviewFence` là số nội bộ optional của documents Dataset/AnalysisRun, khởi tạo bằng $inc khi review đầu tiên. Không đổi status lifecycle/createdAt/config/model; không phải review version của anomaly và không xuất ra DTO. Giữ thứ tự lock dataset→run→anomaly, tránh check-before-write race khi parent visibility thay đổi.
+- Đổi review cùng dataset có thể bị serialize ở parent guard; Cường đo contention khi mở rộng tải. Không suy ra throughput/SLA từ correctness tests. Không reset fences hoặc nâng field này thành endpoint.
+- Public review service chưa kèm processedMutations/Sync ledger. Future Sync phải thiết kế unit-of-work/receipt atomic, không ghi ledger sau một review đã commit riêng rồi coi là an toàn.
 
 ### `processedMutations`
 ```js

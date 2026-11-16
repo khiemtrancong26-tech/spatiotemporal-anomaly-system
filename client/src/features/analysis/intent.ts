@@ -1,6 +1,8 @@
 import { conforms } from '../../shared/api/validation';
 import type { DetectionRequest } from '../../shared/api/generated/wire';
 export interface Intent { key: string; body: DetectionRequest; createdAt: number; runId?: string }
+// B5 durable acceptance policy, server/config.ts. Expired keys never create a new run.
+export const ANALYSIS_REPLAY_MS = 24 * 60 * 60 * 1000;
 export function readIntent(storage: Pick<Storage, 'getItem'>, key: string): Intent | undefined {
   try {
     const value = JSON.parse(storage.getItem(key) ?? 'null');

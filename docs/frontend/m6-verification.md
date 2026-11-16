@@ -1,5 +1,7 @@
 # M6 — Anomaly list/detail/review
 
+**16/11/2026 — B6/C1 tích hợp Backend thật:** đã có3 APIs Anomaly giữ contract. [B6 verification](../backend/b6-verification.md) ghi E2E import CSV Beijing8782 rows/12 trạm → B5 detector thật → list/detail → hai-client conflict409 → giữ draft/rebase/lưuv3 → reload. Không intercept HTTP; không cần sửa source FE. Các kết quả mock/interception bên dưới là lịch sử kiểm thử FE, không bị đổi thành bằng chứng DB thật. Mapbox/Cube render/tải/GPU có nghiệm thu riêng.
+
 Ngày 14/11/2026. Frontend online; chưa triển khai Backend hoặc offline review.
 
 - Tab Anomalies đọc list qua adapter với dataset/run/family/method/severity/status/from/to, sort/cursor; không gửi sensorId/bbox. Giới hạn phiên 2.000, trạng thái loading/error/empty và tải thêm có kiểm soát.

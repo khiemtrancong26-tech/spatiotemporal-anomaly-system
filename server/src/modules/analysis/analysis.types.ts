@@ -6,6 +6,9 @@ export interface DetectionRequest {
   config: Record<string, unknown>; scope?: AnalysisRun['scope'];
 }
 export interface HistoryQuery { datasetId: string; sort?: string; limit?: number; cursor?: string }
+export interface AnalysisReadAccess {
+  getState: (id: string) => Promise<{ id: string; datasetId: string; status: AnalysisRun['status'] } | null>;
+}
 export interface RunGuard { id: string; owner: string; attempt: number; run: AnalysisRun; policyId: string; modelHash?: string }
 export interface EngineResult { candidates: Candidate[]; engineVersion: string; modelVersion?: string }
 export interface AnalysisEngine {

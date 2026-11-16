@@ -52,7 +52,10 @@ export function createHttpClient(options: HttpOptions) {
 
     const suffix = operation.path.slice('/api/v1'.length).replace(/\{(\w+)\}/g, (_, name: string) => encodeURIComponent(pathParams[name]));
     const url = new URL(baseUrl + suffix);
-    for (const [key, value] of Object.entries(query)) url.searchParams.set(key, String(value));
+    for (const [key, value] of Object.entries(query)) {
+      if (Array.isArray(value)) value.forEach(item => url.searchParams.append(key, String(item)));
+      else url.searchParams.set(key, String(value));
+    }
     let response: Response;
     let payload: unknown;
     try {

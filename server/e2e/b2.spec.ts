@@ -83,7 +83,7 @@ test('Register → Login → reload/me → datasets/workspace → admin/401 uses
   // B4 now serves Query; this metadata-only B2 seed has no readings.
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Dataset Workspace', exact: true })).toBeVisible();
-  await expect(page.getByText('Chưa có metadata dataset.', { exact: false })).toBeVisible();
+  await expect(page.getByTestId('server-profile-summary')).toContainText('Scope Server: 0 readings'); // C2 confirms imported state after reload.
   await page.getByRole('button', { name: 'Đăng xuất', exact: true }).click();
   expect(await page.evaluate(() => sessionStorage.getItem('pm25.auth.online'))).toBeNull();
   await page.goto(`${frontendUrl}/register`);

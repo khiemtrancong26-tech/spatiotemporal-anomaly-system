@@ -9,7 +9,7 @@ import { AnalysisStoreError } from './analysis.errors.js';
 import type { IdempotencyIntent, StoredResponse } from '../../shared/idempotency.js';
 import { keysetPredicate } from '../../shared/persistence/keyset.js';
 import { toObjectId, toPublicId, toReadingDto, type ReadingDocument } from '../../shared/persistence/mapping.js';
-import type { DetectionRequest, RunGuard } from './analysis.types.js';
+import type { DetectionRequest, RunGuard, AnalysisReadAccess } from './analysis.types.js';
 
 interface RunDocument {
   _id: ObjectId; datasetId: ObjectId; createdBy: ObjectId; family: AnalysisRun['family']; method: string;
@@ -186,3 +186,15 @@ export function createAnalysisRepository(client: MongoClient, db: Db, config: An
   };
 }
 export type AnalysisRepository = ReturnType<typeof createAnalysisRepository>;
+
+/** Public read boundary for Anomalies; no driver/BSON in its consuming Service. */
+export function createAnalysisReadRepository(db: Db): AnalysisReadAccess {
+  return {
+    async getState(id) {
+      if (!validId(id)) return null;
+      const run = await db.collection<RunDocument>('analysisRuns').findOne({ _id: toObjectId(id) },
+        { projection: { _id: 1, datasetId: 1, status: 1 }, readPreference: 'primary' });
+      return run ? { id: toPublicId(run._id), datasetId: toPublicId(run.datasetId), status: run.status } : null;
+    },
+  };
+}

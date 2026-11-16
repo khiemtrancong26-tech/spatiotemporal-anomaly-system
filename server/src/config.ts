@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import type { ExplorationConfig } from './modules/exploration/exploration.types.js';
 
 export interface ImportConfig {
   storageDir: string; maxFileBytes: number; maxRecordBytes: number; batchSize: number;
@@ -27,6 +28,7 @@ export interface ServerConfig {
   loginRateWindowMs: number;
   imports: ImportConfig;
   analysis: AnalysisConfig;
+  exploration: ExplorationConfig;
   logLevel: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent';
 }
 
@@ -73,6 +75,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     cursorSecret: createHmac('sha256', jwtSecret).update('pm25:cursor:v1').digest('hex'),
     loginRateMax: integer(env.LOGIN_RATE_LIMIT_MAX, 10, 'LOGIN_RATE_LIMIT_MAX', 100_000),
     loginRateWindowMs: integer(env.LOGIN_RATE_LIMIT_WINDOW_MS, 60_000, 'LOGIN_RATE_LIMIT_WINDOW_MS', 86_400_000),
+    exploration: {
+      maxReadings: integer(env.EXPLORATION_MAX_READINGS, 500000, 'EXPLORATION_MAX_READINGS', 500000),
+      maxSeries: integer(env.EXPLORATION_MAX_SERIES, 20, 'EXPLORATION_MAX_SERIES', 20),
+      maxCells: integer(env.EXPLORATION_MAX_CELLS, 20000, 'EXPLORATION_MAX_CELLS', 20000),
+      maxResponseBytes: integer(env.EXPLORATION_MAX_RESPONSE_BYTES, 5 * 1024 * 1024, 'EXPLORATION_MAX_RESPONSE_BYTES', 5 * 1024 * 1024),
+      timeoutMs: integer(env.EXPLORATION_TIMEOUT_MS, 5000, 'EXPLORATION_TIMEOUT_MS', 5000),
+      concurrency: integer(env.EXPLORATION_CONCURRENCY, 2, 'EXPLORATION_CONCURRENCY', 2),
+    },
     analysis: {
       concurrency: integer(env.ANALYSIS_CONCURRENCY, 1, 'ANALYSIS_CONCURRENCY', 32),
       leaseMs, heartbeatMs,

@@ -938,107 +938,198 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /api/v1/datasets/{id}/profile:
+    get:
+      tags:
+        - Datasets
+      summary: Authoritative dataset/scoped profile (C2)
+      operationId: get_api_v1_datasets_by_id_profile
+      x-roles:
+        - analyst
+        - admin
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - &a1
+          in: query
+          name: sensorIds
+          style: form
+          explode: true
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 10000
+            uniqueItems: true
+            items:
+              type: string
+              minLength: 1
+        - &a2
+          in: query
+          name: bbox
+          schema:
+            type: string
+        - in: query
+          name: from
+          schema: &a3
+            type: string
+            format: date-time
+          description: Closed UTC interval; Z and at most 3 fractional digits (D018).
+        - in: query
+          name: to
+          schema: &a4
+            type: string
+            format: date-time
+          description: Closed UTC interval; Z and at most 3 fractional digits (D018).
+      responses:
+        "200":
+          description: Complete bounded result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetProfileResponse"
+        "400":
+          description: Error; no partial result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Error; no partial result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Error; no partial result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "405":
+          description: Error; no partial result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Error; no partial result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error; no partial result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Error; no partial result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/v1/reading-aggregates:
     get:
       tags:
-      - Query
-      summary: Tổng hợp PM2.5 theo thời gian/vùng (P1)
+        - Query
+      summary: Bounded per-station hourly/daily comparison (C2)
       operationId: get_api_v1_reading_aggregates
-      description: 'P1 draft: bucket hours/days, derived readings; không biểu diễn giá trị trung bình như reading
-        quan sát thực.'
       x-roles:
-      - analyst
-      - admin
+        - analyst
+        - admin
+      description: D018 replaces the unimplemented P1 response draft. Fixed-offset
+        calendar buckets [start,end), closed query interval; empty buckets
+        explicit. See docs/backend/c2-contract-proposal.md for limits and
+        coverage.
       parameters:
-      - in: query
-        name: datasetId
-        required: true
-        schema:
-          type: string
-          minLength: 1
-      - in: query
-        name: bbox
-        required: false
-        schema:
-          type: string
-          example: 106.60,10.70,106.80,10.90
-        description: minLon,minLat,maxLon,maxLat (WGS84).
-      - in: query
-        name: bucket
-        required: false
-        schema:
-          type: string
-          enum:
-          - hour
-          - day
-      - in: query
-        name: from
-        required: false
-        schema:
-          type: string
-          format: date-time
-        description: UTC ISO 8601 with Z; range áp dụng cho readings/anomalies.
-      - in: query
-        name: to
-        required: false
-        schema:
-          type: string
-          format: date-time
-        description: UTC ISO 8601 with Z; range áp dụng cho readings/anomalies.
+        - in: query
+          name: datasetId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - *a1
+        - *a2
+        - in: query
+          name: from
+          schema: *a3
+          description: Closed UTC interval; Z and at most 3 fractional digits (D018).
+          required: true
+        - in: query
+          name: to
+          schema: *a4
+          description: Closed UTC interval; Z and at most 3 fractional digits (D018).
+          required: true
+        - in: query
+          name: bucket
+          required: true
+          schema:
+            type: string
+            enum:
+              - hour
+              - day
+        - in: query
+          name: timeZone
+          schema:
+            type: string
+            enum:
+              - UTC
+              - +07:00
+              - +08:00
       responses:
-        '200':
-          description: OK
+        "200":
+          description: Complete bounded result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AggregatePage'
-        '400':
-          description: Bad Request
+                $ref: "#/components/schemas/ReadingAggregationResponse"
+        "400":
+          description: Error; no partial result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Unprocessable Content
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Error; no partial result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Error; no partial result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-          headers:
-            WWW-Authenticate:
-              description: Bearer challenge cho API được bảo vệ.
-              schema:
-                type: string
-              example: Bearer realm="pm25-api"
-        '403':
-          description: Forbidden
+                $ref: "#/components/schemas/Error"
+        "405":
+          description: Error; no partial result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '405':
-          description: Method Not Allowed
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Error; no partial result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-          headers:
-            Allow:
-              description: Danh sách HTTP methods được hỗ trợ tại path.
-              schema:
-                type: string
-        '500':
-          description: Internal Server Error
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error; no partial result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Error; no partial result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/v1/reading-batches:
     post:
       tags:
@@ -3215,3 +3306,366 @@ components:
           - admin
       additionalProperties: false
       minProperties: 1
+
+    ExplorationScope:
+      type: object
+      properties:
+        sensorIds:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          nullable: true
+        bbox:
+          type: array
+          items:
+            type: number
+          minItems: 4
+          maxItems: 4
+          nullable: true
+        from:
+          type: string
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$
+          nullable: true
+        to:
+          type: string
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$
+          nullable: true
+      required:
+        - sensorIds
+        - bbox
+        - from
+        - to
+      additionalProperties: false
+    ExplorationMetadata:
+      type: object
+      properties:
+        version:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+          nullable: true
+        timeZone:
+          type: string
+          enum:
+            - UTC
+            - +07:00
+            - +08:00
+        source:
+          type: string
+          enum:
+            - configured
+            - fallback
+        provenance:
+          type:
+            - string
+            - "null"
+        sampling:
+          type: object
+          properties:
+            cadenceSeconds:
+              type: integer
+              minimum: 1
+              maximum: 9007199254740
+            anchor:
+              type: string
+              pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$
+            expectedFrom:
+              type: string
+              pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$
+            expectedTo:
+              type: string
+              pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$
+          required:
+            - cadenceSeconds
+            - anchor
+            - expectedFrom
+            - expectedTo
+          additionalProperties: false
+          nullable: true
+      required:
+        - version
+        - timeZone
+        - source
+        - provenance
+        - sampling
+      additionalProperties: false
+    Coverage:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - known
+            - unknown
+            - not_applicable
+        expectedSlots:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+          nullable: true
+        observedSlots:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+          nullable: true
+        missingSlots:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+          nullable: true
+        unexpectedReadings:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+          nullable: true
+        ratio:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+        reason:
+          type:
+            - string
+            - "null"
+      required:
+        - status
+        - expectedSlots
+        - observedSlots
+        - missingSlots
+        - unexpectedReadings
+        - ratio
+        - reason
+      additionalProperties: false
+    ExplorationSummary:
+      type: object
+      properties:
+        readingCount:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        sensorCount:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        sensorsWithReadings:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        observedFrom:
+          type: string
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$
+          nullable: true
+        observedTo:
+          type: string
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$
+          nullable: true
+        min:
+          type:
+            - number
+            - "null"
+        max:
+          type:
+            - number
+            - "null"
+        mean:
+          type:
+            - number
+            - "null"
+        coverage:
+          $ref: "#/components/schemas/Coverage"
+      required:
+        - readingCount
+        - sensorCount
+        - sensorsWithReadings
+        - observedFrom
+        - observedTo
+        - min
+        - max
+        - mean
+        - coverage
+      additionalProperties: false
+    SourceQuality:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - known
+            - unknown
+        totalRows:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+          nullable: true
+        importedRows:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+          nullable: true
+        invalidRows:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+          nullable: true
+        duplicateRows:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+          nullable: true
+        conflictingRows:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+          nullable: true
+        missingValueRows:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+          nullable: true
+        reason:
+          type: string
+      required:
+        - status
+        - totalRows
+        - importedRows
+        - invalidRows
+        - duplicateRows
+        - conflictingRows
+        - missingValueRows
+        - reason
+      additionalProperties: false
+    DatasetProfile:
+      type: object
+      properties:
+        datasetId:
+          type: string
+          minLength: 1
+        scope:
+          $ref: "#/components/schemas/ExplorationScope"
+        metadata:
+          $ref: "#/components/schemas/ExplorationMetadata"
+        dataset:
+          $ref: "#/components/schemas/ExplorationSummary"
+        scoped:
+          $ref: "#/components/schemas/ExplorationSummary"
+        sourceQuality:
+          $ref: "#/components/schemas/SourceQuality"
+        complete:
+          type: boolean
+          enum:
+            - true
+      required:
+        - datasetId
+        - scope
+        - metadata
+        - dataset
+        - scoped
+        - sourceQuality
+        - complete
+      additionalProperties: false
+    ReadingBucket:
+      type: object
+      properties:
+        start:
+          type: string
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$
+        end:
+          type: string
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$
+        count:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        min:
+          type:
+            - number
+            - "null"
+        max:
+          type:
+            - number
+            - "null"
+        mean:
+          type:
+            - number
+            - "null"
+        coverage:
+          $ref: "#/components/schemas/Coverage"
+      required:
+        - start
+        - end
+        - count
+        - min
+        - max
+        - mean
+        - coverage
+      additionalProperties: false
+    ReadingAggregation:
+      type: object
+      properties:
+        datasetId:
+          type: string
+          minLength: 1
+        scope:
+          $ref: "#/components/schemas/ExplorationScope"
+        bucket:
+          type: string
+          enum:
+            - hour
+            - day
+        timeZone:
+          type: string
+          enum:
+            - UTC
+            - +07:00
+            - +08:00
+        metadataVersion:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+          nullable: true
+        series:
+          type: array
+          items:
+            type: object
+            properties:
+              sensorId:
+                type: string
+                minLength: 1
+              buckets:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReadingBucket"
+            required:
+              - sensorId
+              - buckets
+            additionalProperties: false
+        complete:
+          type: boolean
+          enum:
+            - true
+      required:
+        - datasetId
+        - scope
+        - bucket
+        - timeZone
+        - metadataVersion
+        - series
+        - complete
+      additionalProperties: false
+    DatasetProfileResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/DatasetProfile"
+    ReadingAggregationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/ReadingAggregation"

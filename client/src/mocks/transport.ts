@@ -45,6 +45,10 @@ export function createMockTransport(controls: MockControls): typeof globalThis.f
     if (controls.scenario === 'network-error') throw new TypeError('Synthetic network error');
     if (controls.scenario === 'malformed') return json({ unexpected: true });
     if (controls.scenario === 'server-error') return error(503, 'MOCK_UNAVAILABLE');
+    if (method === 'GET' && (url.pathname === '/api/v1/reading-aggregates' || /^\/api\/v1\/datasets\/[^/]+\/profile$/.test(url.pathname))) {
+      if (!new Headers(init?.headers).get('Authorization')) return error(401, 'UNAUTHORIZED');
+      return error(503, 'C2_MOCK_NOT_IMPLEMENTED');
+    }
     const candidate = successCases.find((item) => item.method === method && !['analysis-detail-queued', 'analysis-detail-running', 'analysis-detail-failed'].includes(item.id) && matches(item.path, url.pathname));
     if (!candidate) return error(404, 'MOCK_ROUTE_NOT_FOUND');
     const bearer = new Headers(init?.headers).get('Authorization') ?? '';

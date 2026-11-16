@@ -194,6 +194,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/datasets/{id}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Authoritative dataset/scoped profile (C2) */
+        get: operations["get_api_v1_datasets_by_id_profile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reading-aggregates": {
         parameters: {
             query?: never;
@@ -202,8 +219,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Tổng hợp PM2.5 theo thời gian/vùng (P1)
-         * @description P1 draft: bucket hours/days, derived readings; không biểu diễn giá trị trung bình như reading quan sát thực.
+         * Bounded per-station hourly/daily comparison (C2)
+         * @description D018 replaces the unimplemented P1 response draft. Fixed-offset calendar buckets [start,end), closed query interval; empty buckets explicit. See docs/backend/c2-contract-proposal.md for limits and coverage.
          */
         get: operations["get_api_v1_reading_aggregates"];
         put?: never;
@@ -803,6 +820,98 @@ export interface components {
             isActive?: boolean;
             /** @enum {string} */
             role?: "analyst" | "admin";
+        };
+        ExplorationScope: {
+            sensorIds: string[] | null;
+            bbox: number[] | null;
+            from: string | null;
+            to: string | null;
+        };
+        ExplorationMetadata: {
+            version: number | null;
+            /** @enum {string} */
+            timeZone: "UTC" | "+07:00" | "+08:00";
+            /** @enum {string} */
+            source: "configured" | "fallback";
+            provenance: string | null;
+            sampling: {
+                cadenceSeconds: number;
+                anchor: string;
+                expectedFrom: string;
+                expectedTo: string;
+            } | null;
+        };
+        Coverage: {
+            /** @enum {string} */
+            status: "known" | "unknown" | "not_applicable";
+            expectedSlots: number | null;
+            observedSlots: number | null;
+            missingSlots: number | null;
+            unexpectedReadings: number | null;
+            ratio: number | null;
+            reason: string | null;
+        };
+        ExplorationSummary: {
+            readingCount: number;
+            sensorCount: number;
+            sensorsWithReadings: number;
+            observedFrom: string | null;
+            observedTo: string | null;
+            min: number | null;
+            max: number | null;
+            mean: number | null;
+            coverage: components["schemas"]["Coverage"];
+        };
+        SourceQuality: {
+            /** @enum {string} */
+            status: "known" | "unknown";
+            totalRows: number | null;
+            importedRows: number | null;
+            invalidRows: number | null;
+            duplicateRows: number | null;
+            conflictingRows: number | null;
+            missingValueRows: number | null;
+            reason: string;
+        };
+        DatasetProfile: {
+            datasetId: string;
+            scope: components["schemas"]["ExplorationScope"];
+            metadata: components["schemas"]["ExplorationMetadata"];
+            dataset: components["schemas"]["ExplorationSummary"];
+            scoped: components["schemas"]["ExplorationSummary"];
+            sourceQuality: components["schemas"]["SourceQuality"];
+            /** @enum {boolean} */
+            complete: true;
+        };
+        ReadingBucket: {
+            start: string;
+            end: string;
+            count: number;
+            min: number | null;
+            max: number | null;
+            mean: number | null;
+            coverage: components["schemas"]["Coverage"];
+        };
+        ReadingAggregation: {
+            datasetId: string;
+            scope: components["schemas"]["ExplorationScope"];
+            /** @enum {string} */
+            bucket: "hour" | "day";
+            /** @enum {string} */
+            timeZone: "UTC" | "+07:00" | "+08:00";
+            metadataVersion: number | null;
+            series: {
+                sensorId: string;
+                buckets: components["schemas"]["ReadingBucket"][];
+            }[];
+            /** @enum {boolean} */
+            complete: true;
+        };
+        DatasetProfileResponse: {
+            data: components["schemas"]["DatasetProfile"];
+        };
+        ReadingAggregationResponse: {
+            data: components["schemas"]["ReadingAggregation"];
         };
     };
     responses: never;
@@ -1775,34 +1884,34 @@ export interface operations {
             };
         };
     };
-    get_api_v1_reading_aggregates: {
+    get_api_v1_datasets_by_id_profile: {
         parameters: {
-            query: {
-                datasetId: string;
-                /** @description minLon,minLat,maxLon,maxLat (WGS84). */
+            query?: {
+                sensorIds?: string[];
                 bbox?: string;
-                bucket?: "hour" | "day";
-                /** @description UTC ISO 8601 with Z; range áp dụng cho readings/anomalies. */
+                /** @description Closed UTC interval; Z and at most 3 fractional digits (D018). */
                 from?: string;
-                /** @description UTC ISO 8601 with Z; range áp dụng cho readings/anomalies. */
+                /** @description Closed UTC interval; Z and at most 3 fractional digits (D018). */
                 to?: string;
             };
             header?: never;
-            path?: never;
+            path: {
+                id: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
+            /** @description Complete bounded result */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AggregatePage"];
+                    "application/json": components["schemas"]["DatasetProfileResponse"];
                 };
             };
-            /** @description Bad Request */
+            /** @description Error; no partial result */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -1811,21 +1920,16 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description Unauthorized */
+            /** @description Error; no partial result */
             401: {
                 headers: {
-                    /**
-                     * @description Bearer challenge cho API được bảo vệ.
-                     * @example Bearer realm="pm25-api"
-                     */
-                    "WWW-Authenticate"?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description Forbidden */
+            /** @description Error; no partial result */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1834,18 +1938,16 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description Method Not Allowed */
+            /** @description Error; no partial result */
             405: {
                 headers: {
-                    /** @description Danh sách HTTP methods được hỗ trợ tại path. */
-                    Allow?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Error; no partial result */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1854,8 +1956,110 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description Internal Server Error */
+            /** @description Error; no partial result */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Error; no partial result */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    get_api_v1_reading_aggregates: {
+        parameters: {
+            query: {
+                datasetId: string;
+                sensorIds?: string[];
+                bbox?: string;
+                /** @description Closed UTC interval; Z and at most 3 fractional digits (D018). */
+                from: string;
+                /** @description Closed UTC interval; Z and at most 3 fractional digits (D018). */
+                to: string;
+                bucket: "hour" | "day";
+                timeZone?: "UTC" | "+07:00" | "+08:00";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Complete bounded result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadingAggregationResponse"];
+                };
+            };
+            /** @description Error; no partial result */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Error; no partial result */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Error; no partial result */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Error; no partial result */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Error; no partial result */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Error; no partial result */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Error; no partial result */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

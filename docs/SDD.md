@@ -7,6 +7,10 @@
 
 > **Quy tắc đọc:** Phần này chốt trách nhiệm và hướng phụ thuộc giữa các module. Không tự suy diễn thành API/DTO, index MongoDB hay chi tiết class đã được chốt. Hợp đồng dữ liệu ở Bước 2 là bản khởi đầu; REST API/HTTP và MongoDB vật lý có bản thiết kế ở Bước 3 bên dưới, hiện chưa khóa các quyết định mở.
 
+**Bổ sung 16/11/2026:** [D016](decisions.md#d016--ưu-tiên-visual-analytics-và-phạm-vi-nâng-cấp-online-16112026) và [Backend Change Plan](backend-change-plan.md) ghi hướng nâng cấp Visual Analytics đã duyệt. Các API/profile/timezone/feature mới còn gate chi tiết; không coi mô tả dự kiến là schema/module đã triển khai. D010–D015 và báo cáo B1–B5 là quyết định/bằng chứng mới hơn những đoạn draft lịch sử bên dưới.
+
+**Cập nhật C2/D018 (16/11/2026):** G02/G03 và ngân sách khởi đầu C2 đã được chủ dự án duyệt tại [contract C2](backend/c2-contract-proposal.md). Module `server/src/modules/exploration/` giữ Route → Validation → Service → Repository → MongoDB; cung cấp Profile/quality và time aggregation theo trạm. Service điều phối admission/deadline/coverage; Repository dùng `$match/$limit/$group/$dateTrunc`, không lấy trang FE làm toàn scope, không DB trong thuật toán. C2 không có cache collection hay worker/Redis mới; metadata CLI riêng không đổi DTO Dataset/Reading hoặc worker B5. Shared schemas và adapter được migrate đồng bộ. G04/G05 ML v2 tiếp tục mở; bằng chứng ở [C2 verification](backend/c2-verification.md).
+
 ## 1. Architecture Overview
 
 ![Sơ đồ kiến trúc tổng thể](diagrams/system-architecture.png)
@@ -44,8 +48,16 @@
 ### 1.4. ML inference và phân biệt Worker
 
 - **Đã chốt:** ML inference dùng model đã huấn luyện trước và **chạy phía Server**; không chạy trên trình duyệt mỗi người dùng. **Browser Web Worker** (Duy/Khải) chỉ xử lý thống kê offline.
-- **Đã chốt hướng OPEN-06 — D008 (13/11/2026):** Analysis online dùng job `queued/running/completed/failed` cho cả statistical/ml, tiếp nhận và thực thi tách rời. Worker/cơ chế nền thuộc Server, giới hạn concurrency; công nghệ queue và process/thread topology, recovery/retention và mức tải còn cần owner chốt. **Redis + BullMQ là ứng viên đánh giá ở B5, chưa chốt công nghệ.** Không mặc định Kafka/Spark.
+- **D008/D015 — baseline B5:** Analysis online dùng job `queued/running/completed/failed`, MongoDB-backed worker trên Replica Set, receipt/run/counter atomic và lease/attempt fencing/recovery; statistical worker thread, ML Python subprocess. Chưa thêm Redis/BullMQ/Kafka/Spark. D015 chốt cấu hình khởi đầu, [B5 verification](backend/b5-verification.md) ghi bằng chứng/giới hạn; Cường còn đo triển khai/tải trước tăng cấu hình.
 - Worker vẫn dùng CPU/RAM Server; async không phải bằng chứng giảm tài nguyên hoặc hệ thống cũ quá tải. `POST /api/v1/analysis-runs` trả 202 tiếp nhận, không anomalies; GET detail/history dùng cùng DTO. Completed chỉ sau persist đầy đủ. Chi tiết [D008](decisions.md#d008--analysis-online-bất-đồng-bộ). Upload/Import giữ đồng bộ.
+
+### 1.5. Định hướng nâng cấp Visual Analytics — D016
+
+- Giữ kiến trúc/layering và worker B5. B6 triển khai theo OpenAPI hiện tại, không chờ Profile/aggregation/ML v2. Tiếp đó nâng cấp Exploration tối thiểu và v2 theo gates của Change Plan, FE/test theo từng chặng.
+- Profile/quality thuộc nghiệp vụ Dataset, aggregation/comparison thuộc Query; feature/model thuộc engine/ML, context acquisition qua Service/Repository của Analysis. Vị trí file và payload mới là đề xuất cần review; không đưa MongoDB vào shared-core/thuật toán hoặc trình duyệt.
+- Target scope của Analysis và context dùng tính feature là hai phạm vi cần định nghĩa riêng. Context chỉ cùng dataset và tuân thủ thời gian, có budgets; không dùng một trang FE hoặc policy thị giác làm reference ML. Khải bàn giao Feature Contract/builder dùng chung cho train–inference, policy thiếu context và version trước code phụ thuộc.
+- Nguồn/biên/cadence/metadata cho missing statistics, timezone presentation và aggregation boundaries còn G01–G03. UTC wire/persistence giữ nguyên; không tự đổi Dataset/Reading DTO hoặc collection hàng loạt. Schema/API/index thay đổi theo từng contract delta đã duyệt, không tự sinh từ concept UI.
+- ML v2 phải có model/feature/policy identity và rollout tương thích v1 queued/running/receipts/results. Không train trong request/job hoặc tự rescore terminal; method/config/version selection còn G05. B7/Admin và B8/triển khai không bị hủy.
 
 ## 2. Module Boundary & Responsibility
 
@@ -211,7 +223,7 @@ project-root/                           # Monorepo đã dựng
 - BR-08 báo duplicate/conflict và giữ first valid row; BR-15 dùng baseVersion; BR-16 dùng clientMutationId và idempotent receipt.
 - `GET /api/v1/exports` là contract offline prefetch **hoãn ngoài P0 online**; không có bảo đảm toàn dataset được tải chỉ bởi một trang; cần phối hợp Duy trước khi triển khai.
 - Analysis async: `POST /api/v1/analysis-runs` → 202; `GET /api/v1/analysis-runs/{id}` → 200; GET history và anomalies phân trang giữ lại. Không có cancel/retry-job endpoint hoặc progress %; retry tiếp nhận giữ key/payload. API Contract v0.3.0-draft chưa phải implementation.
-- `POST /api/v1/reading-batches` đánh dấu `x-internal` và **hoãn HTTP handler P0**; Import gọi Service/Repository nội bộ, không qua HTTP. `GET /api/v1/reading-aggregates` P1, cũng hoãn.
+- `POST /api/v1/reading-batches` đánh dấu `x-internal` và **hoãn HTTP handler P0**; Import gọi Service/Repository nội bộ, không qua HTTP. **D018/C2 nâng GET `/api/v1/reading-aggregates` sang online cho hour/day theo trạm với contract mới; spatial LOD/phần P1 khác tiếp tục hoãn.**
 
 **Quyền sở hữu:** Khiêm viết Backend/OpenAPI; Tài dùng API list/analysis/review; Duy dùng export/sync; Khải kiểm tra tương ứng `shared-core` và methods.
 

@@ -211,7 +211,7 @@ test('M4 shares selection across views, paginates and applies UTC filters with f
   await page.screenshot({ path: 'test-results/m4-mobile.png', fullPage: true });
   await page.locator('summary.filter-heading').click();
   await page.getByLabel('Trạm (Sensor ID)').fill('no-data');
-  await page.getByLabel('Từ · UTC+07', { exact: true }).fill('2026-01-01T07:00:00');
+  await page.getByLabel('Từ · UTC+07:00', { exact: true }).fill('2026-01-01T07:00:00');
   await page.getByRole('button', { name: 'Áp dụng bộ lọc' }).click();
   await expect(page.getByText('Không có phép đo trong khoảng đã chọn.')).toBeVisible();
   await expect(page.getByText('Reading: reading-001', { exact: true })).toHaveCount(0);
@@ -243,10 +243,10 @@ test('M5 restores run, distinguishes tracking failure and loads results only aft
   // Login whitelist may retain only the workspace path; explicit URL also verifies authenticated deep-link recovery.
   await page.goto('/workspace/dataset-001?runId=run-001');
   await expect(page.getByTestId('run-status')).toContainText('queued'); expect(resultCalls).toBe(0);
-  await page.getByLabel('Phương pháp', { exact: true }).selectOption('ml');
+  await page.getByRole('radio', {name: /Isolation Forest/}).check();
   await expect(page.getByRole('checkbox')).toBeEnabled();
-  await expect(page.getByRole('button', { name: 'Gửi analysis', exact: true })).toBeDisabled(); // Needs explicit confirmation for ML too.
-  await page.getByLabel('Phương pháp', { exact: true }).selectOption('zscore');
+  await expect(page.getByRole('button', { name: 'Chạy phát hiện bất thường', exact: true })).toBeDisabled(); // Needs explicit confirmation for ML too.
+  await page.getByRole('radio', {name: /Z-score/}).check();
   status = 'running'; await page.getByRole('button', { name: 'Đọc lại run' }).click(); await expect(page.getByTestId('run-status')).toContainText('running');
   disconnected = true; await page.getByRole('button', { name: 'Đọc lại run' }).click(); await expect(page.getByRole('alert')).toContainText('Chưa cập nhật'); await expect(page.getByTestId('run-status')).toContainText('running');
   disconnected = false; await page.reload(); await expect(page.getByTestId('run-status')).toContainText('running'); expect(posts).toBe(0);
@@ -254,7 +254,7 @@ test('M5 restores run, distinguishes tracking failure and loads results only aft
   const terminalCalls = detailCalls; await page.waitForTimeout(3200); expect(detailCalls).toBe(terminalCalls);
   await page.screenshot({ path: 'test-results/m5-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true); await page.screenshot({ path: 'test-results/m5-mobile.png', fullPage: true });
-  await page.getByRole('button', { name: 'Xem reading-002', exact: true }).click(); await expect(page.getByText('Reading: reading-002', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Xem reading-002', exact: true }).click(); await expect(page.getByRole('complementary', { name: 'Điều tra phát hiện' })).toBeVisible();
 });
 
 test('M5 failed run never requests results and completed empty results are explicit', async ({ page }) => {
@@ -273,10 +273,10 @@ test('M5 failed run never requests results and completed empty results are expli
   await expect(page.getByTestId('run-status')).toContainText('failed');
   await expect(page.getByRole('alert')).toContainText('INFERENCE_FAILED'); expect(results).toBe(0);
   failed = false; await page.reload();
-  await expect(page.getByText('Run hoàn tất, không phát hiện anomaly.')).toBeVisible(); expect(results).toBe(1);
+  await expect(page.getByText('Run hoàn tất, không phát hiện anomaly.', {exact:false})).toBeVisible(); expect(results).toBe(1);
 });
 
-test('M5 sends fixed statistical payloads and never retries unknown online acceptance after reload', async ({ page }) => {
+test('M5 sends fixed payloads and restores an explicit same-key replay after lost acceptance', async ({ page }) => {
   const sent: { key?: string; body: Record<string, unknown> }[] = [];
   await page.route('http://localhost:3001/api/v1/**', async route => {
     const path = new URL(route.request().url()).pathname;
@@ -291,16 +291,16 @@ test('M5 sends fixed statistical payloads and never retries unknown online accep
   await page.goto('/workspace/dataset-001');
   await page.getByLabel('Tên đăng nhập', { exact: true }).fill('analyst01'); await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password'); await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
   await page.getByRole('button', { name: 'Analysis', exact: true }).click();
-  await page.getByRole('checkbox').check(); await page.getByRole('button', { name: 'Gửi analysis', exact: true }).click();
+  await page.getByRole('checkbox').check(); await page.getByRole('button', { name: 'Chạy phát hiện bất thường', exact: true }).click();
   await expect(page.getByTestId('run-status')).toContainText('completed');
   expect(sent[0].body).toEqual({ datasetId: 'dataset-001', family: 'statistical', method: 'zscore', config: { threshold: 3 }, scope: {} }); expect(sent[0].key).toBeTruthy();
   page.on('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Chuẩn bị lần chạy mới' }).click();
-  await page.getByLabel('Phương pháp', { exact: true }).selectOption('iqr'); await page.getByRole('checkbox').check(); await page.getByRole('button', { name: 'Gửi analysis', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Thử lại cùng key', exact: true })).toBeDisabled();
+  await page.getByRole('radio', {name: /IQR/}).check(); await page.getByRole('checkbox').check(); await page.getByRole('button', { name: 'Chạy phát hiện bất thường', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Thử lại cùng key', exact: true })).toBeEnabled();
   expect(sent[1].body.config).toEqual({ multiplier: 1.5 }); expect(sent[1].key).not.toBe(sent[0].key);
   await page.reload(); await page.getByRole('button', { name: 'Analysis', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Thử lại cùng key', exact: true })).toBeDisabled(); expect(sent).toHaveLength(2);
+  await expect(page.getByRole('button', { name: 'Thử lại cùng key', exact: true })).toBeEnabled(); expect(sent).toHaveLength(2);
 });
 
 test('M6 preserves draft on 409, rebases explicitly and saves only review fields', async ({ page }) => {
@@ -323,6 +323,7 @@ test('M6 preserves draft on 409, rebases explicitly and saves only review fields
   });
   await page.goto('/workspace/dataset-001'); await page.getByLabel('Tên đăng nhập', { exact: true }).fill('analyst01'); await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password'); await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
   await page.getByRole('button', { name: 'Anomalies', exact: true }).click(); await page.getByRole('button', { name: 'Review anomaly-001', exact: true }).click();
+  await page.getByRole('button', {name:'Đánh giá phát hiện',exact:true}).click();
   await page.getByLabel('Ghi chú', { exact: true }).fill('My note'); await page.getByLabel('Review status', { exact: true }).selectOption('confirmed'); await page.getByRole('button', { name: 'Lưu review', exact: true }).click();
   await expect(page.getByText(/Server v.*Server note/)).toBeVisible(); await expect(page.getByLabel('Ghi chú', { exact: true })).toHaveValue('My note'); expect(writes).toHaveLength(1); await expect(page.getByRole('button', { name: 'Lưu review', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Giữ bản sửa trên version mới' }).click(); expect(writes).toHaveLength(1);
@@ -345,11 +346,12 @@ test('M6 keeps draft through network/409 and allows explicit discard without ano
   });
   await page.goto('/workspace/dataset-001'); await page.getByLabel('Tên đăng nhập', { exact: true }).fill('analyst01'); await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password'); await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
   await page.getByRole('button', { name: 'Anomalies', exact: true }).click(); await page.getByRole('button', { name: 'Review anomaly-001', exact: true }).click();
+  await page.getByRole('button', {name:'Đánh giá phát hiện',exact:true}).click();
   await page.getByLabel('Ghi chú', { exact: true }).fill('Keep me'); await page.getByRole('button', { name: 'Lưu review', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Bản sửa vẫn được giữ'); await expect(page.getByLabel('Ghi chú', { exact: true })).toHaveValue('Keep me');
   await expect(page.getByText('Server đã xác nhận lưu review.')).toHaveCount(0); expect(patches).toBe(1);
   page.once('dialog', d => d.dismiss()); await page.getByRole('button', { name: 'Visualization', exact: true }).click(); await expect(page.getByLabel('Ghi chú', { exact: true })).toHaveValue('Keep me');
-  await page.getByRole('button', { name: 'Lưu review', exact: true }).click(); await page.getByRole('button', { name: 'Bỏ bản sửa, dùng Server' }).click();
+  await page.getByRole('button', { name: 'Giữ bản sửa trên version mới' }).click(); await page.getByRole('button', { name: 'Lưu review', exact: true }).click(); await page.getByRole('button', { name: 'Bỏ bản sửa, dùng Server' }).click();
   await expect(page.getByLabel('Ghi chú', { exact: true })).toHaveValue('Server wins'); expect(patches).toBe(2); await expect(page.getByRole('button', { name: 'Lưu review', exact: true })).toBeDisabled();
 });
 
@@ -463,14 +465,14 @@ for (const terminal of ['completed', 'failed'] as const) {
     await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password');
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
     await page.getByRole('button', { name: 'Analysis', exact: true }).click();
-    await page.getByLabel('Phương pháp', { exact: true }).selectOption('ml');
-    await expect(page.getByText('Method/config: isolation_forest {}')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Gửi analysis', exact: true })).toBeDisabled();
+    await page.getByRole('radio', {name: /Isolation Forest/}).check();
+    await expect(page.getByText('Model value-only do Server quản lý', {exact:true})).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Chạy phát hiện bất thường', exact: true })).toBeDisabled();
     await page.getByRole('checkbox').check();
-    await page.getByRole('button', { name: 'Gửi analysis', exact: true }).click();
+    await page.getByRole('button', { name: 'Chạy phát hiện bất thường', exact: true }).click();
     await expect(page.getByTestId('run-status')).toContainText('queued');
     expect(sent).toHaveLength(1); expect(sent[0].body).toEqual(body); expect(sent[0].key).toMatch(/^[0-9a-f-]{36}$/i);
-    await expect(page.getByLabel('Phương pháp', { exact: true })).toBeDisabled();
+    await expect(page.getByRole('radio', {name: /Isolation Forest/})).toBeDisabled();
     expect(results).toBe(0);
     status = 'running';
     await page.getByRole('button', { name: 'Đọc lại run' }).click();
@@ -482,7 +484,7 @@ for (const terminal of ['completed', 'failed'] as const) {
     status = terminal;
     await page.getByRole('button', { name: 'Đọc lại run' }).click();
     await expect(page.getByTestId('run-status')).toContainText(terminal);
-    if (terminal === 'completed') await expect(page.getByText('Run hoàn tất, không phát hiện anomaly.')).toBeVisible();
+    if (terminal === 'completed') await expect(page.getByText('Run hoàn tất, không phát hiện anomaly.', {exact:false})).toBeVisible();
     else { await expect(page.getByRole('alert')).toContainText('MODEL_UNAVAILABLE'); expect(results).toBe(0); }
   });
 }
@@ -554,7 +556,7 @@ test('map timeline carries only fresh actual readings, changes maxAge and plays 
  await expect(page.getByTestId('snapshot-status')).toContainText('2 trạm có mẫu');
  await page.getByLabel('Xem chi tiết trạm tại thời điểm này',{exact:true}).selectOption('b0');
  await expect(page.getByText('Reading: b0',{exact:true})).toBeVisible();
- await expect(page.getByText('08:00:00 11/11/26 · UTC+07',{exact:true})).toBeVisible();
+ await expect(page.getByText('08:00:00 11/11/26 · UTC+07:00',{exact:true})).toBeVisible();
  await page.getByLabel('Độ cũ tối đa',{exact:true}).selectOption('0.5');
  await expect(page.getByTestId('snapshot-status')).toContainText('1 trạm có mẫu');
  expect(requests.at(-1)?.searchParams.get('from')).toBe('2026-11-11T01:30:00.000Z');

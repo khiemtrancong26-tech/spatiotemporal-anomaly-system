@@ -4,6 +4,8 @@
 **Nguồn:** SRS v0.4, SDD v0.1 Bước 1, kế hoạch thống nhất ngày 11/11/2026.  
 **Trạng thái:** Hợp đồng dữ liệu **đề xuất để bắt đầu tích hợp**; nhóm trưởng và Khải cần review trước khi merge làm chuẩn. **Không phải OpenAPI / MongoDB schema vật lý cuối cùng.**
 
+**C2/D018 bổ sung:** [contract đã duyệt](backend/c2-contract-proposal.md) và [`exploration.ts`](../shared-core/src/contracts/exploration.ts) định nghĩa các DTO strict riêng `DatasetProfile`, `ReadingAggregation`, `Coverage`, scope và metadata. Không thêm field vào Dataset/Reading/Sensor/AnalysisRun/Anomaly cũ. Unknown dùng null/reason, empty count0/mean null, not_applicable ratio null; UTC wire giữ nguyên. Source-quality, sampling missing và FE chưa tải là ba khái niệm riêng. Response draft aggregation P1 được thay có chủ đích; generated online contract có22 operations. Chỉ timezone cố định UTC/+07:00/+08:00; metadata CLI/version/provenance tường minh. Chưa có Feature Contract ML v2 trong bổ sung này.
+
 ## A. Các quy ước chung (không tùy ý sửa)
 
 1. **ID public:** chuỗi opaque không rỗng (`string`). Ví dụ `reading-001` chỉ là fixture; Backend được dùng `ObjectId` nội bộ nhưng API **không trả BSON**.
