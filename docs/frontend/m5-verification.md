@@ -24,7 +24,6 @@ Ngày 14/11/2026. Phạm vi frontend online + shared contract; không triển kh
 - `npm run test:e2e`: 13 tests đạt, gồm M2–M4 regression và M5: demo submit/lifecycle/logout; queued/running/network-error/reload/completed; failed không gọi results; completed rỗng; payload zscore/iqr đúng; unknown online POST giữ snapshot và không tự resend/retry sau reload; chọn kết quả sang visualization.
 - Unit tests: shared/wire invariants, polling không overlap, backoff/terminal/visibility/dispose-late-response, replay-window và snapshot; mock replay cùng run và không công bố kết quả sớm.
 - `python docs/frontend/verify_m0.py`: 38 cases / 20 operations / 7 core DTO / 7 legacy payloads đạt; không cần override guard trong bộ nhớ nữa.
-- Desktop/mobile 390px đã xem ảnh; bảng cuộn ngang, không tràn viewport. Suite đầy đủ tạo ảnh ở `client/test-results/m5-desktop.png`, `m5-mobile.png`; đây là thư mục tạm được Playwright ghi đè ở lần chạy kế tiếp.
 
 ## Giới hạn nghiệm thu
 
