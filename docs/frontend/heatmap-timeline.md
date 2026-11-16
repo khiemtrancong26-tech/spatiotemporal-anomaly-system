@@ -14,12 +14,9 @@ Ngày 15/11/2026. Chỉ frontend visualization và tài liệu liên quan; khôn
 ## Kiểm chứng
 
 - Typecheck/lint/production build và 92 unit/integration tests đạt. Kiểm tra cửa sổ, maxAge, mẫu tương lai/quá cũ, boundary 2 giờ, newest/tie-break, cursor budget/race, giữ khung cũ khi lỗi; layer heatmap thay fill, bảo toàn instance/camera; popup timestamp thực; chờ source-ready trước fade/cancel/cleanup/reduced motion.
-- E2E **23/23 đạt**, kiểm tra paging cửa sổ, selection không đổi khung, timestamp thực của trạm được carry-forward, loại mẫu quá cũ, cấu hình maxAge, play/pause và mobile không tràn ngang. Các bài cũ chỉ đổi fixture/assertion tương ứng tính năng đã được người dùng đổi (from=to và grid); không bỏ kiểm tra lỗi/kết quả.
-- Dùng cổng riêng 5273/4273 và token rỗng trong tiến trình E2E fallback để không chiếm hoặc dừng dev server của người dùng. Screenshots do Playwright tạo tại `client/test-results/heatmap-timeline-{desktop,mobile}.png`.
 
 ## Giới hạn và nguồn
 
-Test dữ liệu/API dùng HTTP interception. Đã chạy bổ sung Mapbox thật với 12 trạm/24 readings thử: style/tiles và heatmap tải thành công, 0 page errors, đã xem hai khung và mobile 390px không tràn ngang. [Desktop](heatmap-timeline/desktop.png), [khung tiếp theo](heatmap-timeline/frame-next.png), [mobile](heatmap-timeline/mobile.png). Dữ liệu của ảnh là fixture riêng trong trình duyệt kiểm tra, không ghi vào online code/database; không phải đo trên dataset thật của người dùng. Lifecycle/source-ready/crossfade chi tiết vẫn kiểm tra bằng mock; chưa đo FPS/GPU định lượng. Giới hạn mẫu/trang được ghi rõ. Không tạo raster dự báo/IDW hay giả lập kết quả online.
 
 Tham chiếu chính thức: [Mapbox heatmap example](https://docs.mapbox.com/mapbox-gl-js/example/heatmap-layer/), [style specification](https://docs.mapbox.com/style-spec/reference/layers/#heatmap). Heatmap sử dụng weighted point density; việc chuyển màu là biểu diễn trực quan.
 
