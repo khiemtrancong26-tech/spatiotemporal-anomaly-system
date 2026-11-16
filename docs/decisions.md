@@ -19,6 +19,7 @@
 | D014 | Tích hợp thư viện trước B5, policy thử nghiệm tường minh và artifact demo có provenance | Chủ dự án yêu cầu dùng thư viện, chưa triển khai B5 |
 | D015 | B5 dùng MongoDB-backed worker trên Replica Set hiện có; chưa thêm Redis/BullMQ | Chủ dự án chọn hướng thực thi khi yêu cầu B5 ngày 15/11/2026 |
 | D016 | Ưu tiên B6 → Exploration tối thiểu → Isolation Forest v2 → nghiệm thu Analyst; FE/test theo từng chặng | Chủ dự án duyệt phần điều chỉnh đề xuất AI ngày 16/11/2026; các contract/feature gates chi tiết còn mở |
+| D017 | B6/C1 triển khai Anomaly API, completed visibility và review CAS; golden Beijing CSV đã kiểm chứng bytes/facts | Theo yêu cầu triển khai B6 ngày16/11/2026, giữ OpenAPI và baseline B1–B5 |
 
 ## Quyết định chưa hoàn tất
 
@@ -38,6 +39,16 @@
 - Lý do:
 - Ảnh hưởng:
 - Người thống nhất:
+
+## D017 — B6/C1: publication và review online (16/11/2026)
+
+- Chủ dự án yêu cầu thực hiện C1/B6 ngay theo3 operations hiện có, không đợi G01–G06/ML v2; cung cấp đường dẫn CSV Beijing12 trạm trong `.local/demo-datasets`. Đây là triển khai contract hiện hành, không phê duyệt API Exploration hoặc Feature Contract mới.
+- GET list/detail và PATCH chỉ cho dataset imported + run completed, cùng liên kết dataset/family/method. List tổng loại partial; specific run chưa completed409, detail/PATCH unavailable404; list parent/time policy kế thừa dependency B4, dataset/run không tồn tại hoặc sai dataset422. Không thêm filter/field/status ngoài OpenAPI.
+- Repository áp visibility trong pipeline trước limit và trong transaction PATCH. Mỗi review conditional-write parent dataset/run bằng private `reviewFence`, rồi conditional-update anomaly theo baseVersion; status/note, version+1 và server updatedAt nguyên tử. Failed/stale transaction rollback fences; driver retry write conflicts trong budget nhỏ. Không đổi score/method/severity/run/reading metadata.
+- Note giữ nguyên text/whitespace, empty note hợp lệ; same-value PATCH hợp lệ vẫn tăng version. Stale409 có details.currentVersion; không có replay/idempotency-key cho PATCH. Mất response phải GET lại rồi đối soát, không tự retry hoặc tạo mutation offline.
+- Public review service tái dùng domain validation/CAS; future Sync vẫn cần auth và transaction mutation ledger riêng. B6 không chứng minh Sync đã atomic.
+- CSV nguồn giữ nguyên; đã copy golden bytes vào repo với manifest/SHA256, test độc lập8782 rows/12 sensors/739 timestamps/146 missing station-hours và các events trong Cube spec. Upstream extraction/coordinate-source audit chưa được kiểm định độc lập, không tự đóng G04/G05 hoặc dùng CSV làm training data/ground truth.
+- [B6 verification](backend/b6-verification.md) ghi API/DB/engine/browser thật, test doubles/fault injection, giới hạn và handoff. B6 đưa Backend lên17/20 online operations; B7/B8, G02–G05 và chất lượng model vẫn còn phần việc riêng.
 
 ## D016 — Ưu tiên Visual Analytics và phạm vi nâng cấp online (16/11/2026)
 

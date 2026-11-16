@@ -2,6 +2,8 @@
 
 Ngày lập: **16/11/2026**. Quyết định: **D016**, chủ dự án trả lời “ok duyệt” cho phần đánh giá/điều chỉnh đề xuất AI trong chat. **Đã duyệt định hướng và thứ tự ưu tiên; chưa khóa các API/DTO, công thức feature hoặc giá trị vận hành mới.** Đây là kế hoạch thay đổi, chưa phải bằng chứng đã triển khai các hạng mục bên dưới.
 
+**Cập nhật triển khai C1/B6 cùng ngày:** chủ dự án giao thực hiện3 Anomaly operations theo contract hiện tại và cung cấp CSV12 trạm. C1 đã có implementation/bằng chứng tại [B6 verification](backend/b6-verification.md), [D017](decisions.md#d017--b6c1-publication-và-review-online-16112026). Golden bytes/checksum/events đã xác minh và đưa vào repo; upstream/coordinate-source audit chưa hoàn tất. C2/C3 và G02–G05 chưa được khóa hay triển khai.
+
 ## 1. Mục tiêu và quan hệ với kế hoạch hiện tại
 
 Ưu tiên luồng **Data Exploration → Visualization → Anomaly Detection → Investigation/Review**. ML phục vụ công cụ phân tích: giữ Isolation Forest, bổ sung ngữ cảnh không gian/thời gian có định nghĩa rõ, train offline một baseline có thể tái lập; không mở dự án nghiên cứu/tuning nhiều thuật toán.
@@ -17,7 +19,7 @@ Kế hoạch này bổ sung [Backend P0 online](backend-online-plan.md), không 
 | Nghiệm thu | Hướng tới CSV Beijing12 trạm/tháng03–2015 và các thao tác Analyst cụ thể | Phải xác minh file, nguồn, checksum và expected results; không coi ảnh concept là bằng chứng |
 | B1–B5 | Giữ API và dữ liệu hiện có, cơ chế worker, receipt/fencing/recovery và kết quả đã lưu | Mọi thay đổi compatibility hoặc resource limit phải có review/test riêng |
 
-## 2. Baseline đã đối chiếu
+## 2. Baseline trước C1 đã đối chiếu
 
 Rà soát tài liệu/source, không chạy lại runtime hoặc sửa DB trong lượt lập kế hoạch này:
 
@@ -147,6 +149,7 @@ Khiêm chịu orchestration/API/persistence; Khải chịu feature/model và tes
 - [x] Ghi D016 và Change Plan, phân biệt direction đã duyệt với chi tiết còn mở.
 - [x] Liên kết cập nhật phạm vi SRS/SDD/kế hoạch hiện tại; giữ OpenAPI/runtime nguyên trạng trong lượt lập kế hoạch.
 - [ ] G01: xác minh CSV/provenance/checksum/expected facts; lập fixture manifest có thể tái tính, giữ synthetic fixtures riêng.
+- [x] Phần golden G01: đã nhận đúng file trong `.local/demo-datasets`, copy byte-identical sang test fixture, pin SHA256 và có test facts/grid/events độc lập; không coi đó là đã kiểm định upstream/nguồn tọa độ cho ML v2.
 - [ ] G02/G03: chốt Requirement/API Exploration, timezone/cadence/empty/coverage và resource budgets trước C2.
 - [ ] G04/G05: Feature Contract, nguồn/split/model/version selection trước C3. Có thể review song song C1; không phải điều kiện chặn bắt đầu B6.
 
@@ -164,10 +167,10 @@ Khiêm chịu orchestration/API/persistence; Khải chịu feature/model và tes
 
 **Công việc:**
 
-- [ ] Imported dataset gate và completed-run visibility ở mọi đường list/detail/PATCH; run chưa completed theo filter cụ thể409, list tổng loại partial, detail không công bố404; kiểm tra run/dataset nhất quán.
-- [ ] Query/filter/sort/keyset đúng whitelist; không thêm sensorId/bbox hoặc join value vào DTO Anomaly.
-- [ ] PATCH CAS atomic theo ID/baseVersion; chỉ status/note; version tăng/updatedAt cùng thao tác;409/currentVersion đúng contract. Sau mất response đọc lại, không retry mù.
-- [ ] FE dùng run thật để tải list/detail/review/overlay và xử lý conflict; reading chưa tải phải được ghi rõ, không lấy score làm PM2.5 hoặc bịa value.
+- [x] Imported dataset và completed-run visibility trong Repository ở list/detail/PATCH;409 khi run chưa công bố, tổng loại partial, hidden detail/PATCH404, kiểm linkage parents.
+- [x] Query/filter/sort/keyset đúng whitelist, không thêm sensorId/bbox/value vào DTO.
+- [x] CAS trong transaction có parent locks; status/note/version/updatedAt atomic,409/currentVersion; TCP response loss được GET đối soát, không blind replay.
+- [x] FE dùng run/anomaly thật, conflict giữ draft/GET/rebase chủ động và reload persistence đã E2E. Data-source/overlay dùng DTO hiện có; render/GPU/tiles không được tự tính là đã nghiệm thu bởi test review.
 
 **Dependency:** B1–B5 đã có; source contract B6, auth và Dataset/Run visibility. Không chờ G01–G05 của phần nâng cấp.
 
@@ -238,7 +241,7 @@ Khiêm chịu orchestration/API/persistence; Khải chịu feature/model và tes
 
 | Gate | Cần quyết định/đầu ra review được | Owner phối hợp | Chặn phần nào |
 |---|---|---|---|
-| G01 — CSV chuẩn | Vị trí/cách cung cấp file, SHA256/source/station-coordinate mapping/offset/cadence/anchor, script tái tính expected facts; quan hệ với UCI501 | Chủ dự án + Khiêm/Khải/Cường | Golden CSV thật C2–C4; không chặn B6 trên fixtures hiện có |
+| G01 — CSV chuẩn | Đã có file/checksum/golden grid/events trong repo theo B6 verification; còn upstream extraction/coordinate-source audit và xác nhận lineage trước dùng cho ML/context | Chủ dự án + Khiêm/Khải/Cường | Golden nghiệp vụ đã chạy thật B6; provenance/quality cho C2–C4 còn review, không chặn B6 |
 | G02 — Profile/timezone | Use cases ưu tiên/field semantics, full vs scoped, raw-quality source, cadence/unknown, metadata input/storage/output, timezone hiển thị và visibility/status/budgets | Khiêm + Tài + Khải; chủ dự án chốt nghiệp vụ | C2a và contract/DB delta tương ứng |
 | G03 — Aggregation | Draft endpoint giữ/sửa, per-station grouping, bucket timezone/bounds/empty/count/coverage, response/limits/status/cursor nếu cần; kiểm tương thích strict clients | Khiêm + Tài + Cường | C2b |
 | G04 — Features/context | Các mục5; công thức cụ thể, shared builder, neighbor/time policy, missing/unscorable reporting, budgets target+context | Khải + Khiêm + Tài; chủ dự án chốt lựa chọn quan trọng | Train/feature inference C3; không chặn C1/C2 |
@@ -250,7 +253,7 @@ Khiêm chịu orchestration/API/persistence; Khải chịu feature/model và tes
 ## 9. Trình tự phối hợp và trạng thái sau lượt này
 
 1. **Đã làm trong lượt lập kế hoạch:** ghi scope D016, Change Plan, liên kết SRS/SDD/Backend plan/mục lục; document link/diff check. Không đổi OpenAPI/Zod/generated adapters, code/runtime/model/DB hoặc checkbox B6 hoàn tất.
-2. **Mốc code tiếp theo:** C1/B6 theo contract hiện hành, tích hợp FE/review thật ngay khi API sẵn sàng. Chủ dự án chưa giao triển khai C1 bằng riêng việc duyệt kế hoạch này.
+2. **C1/B6 đã được giao và triển khai sau lượt lập kế hoạch:**3 APIs theo contract hiện hành, FE review/conflict/reload dùng API/DB thật. Xem B6 verification/D017; B7/B8 và ML quality chưa hoàn tất.
 3. **Song song C1:** Khiêm/Tài chuẩn bị G02/G03, Khải chuẩn bị G04/G05 và kiểm provenance cùng G01; Cường chuẩn bị fixture assertions, DB fault harness và resource baseline. Không train v2 trước G04/G05.
 4. **Sau gate từng phần:** C2a → C2b, C3 với handoff nhỏ; C4 tổng hợp regression/bằng chứng. B7/B8 giữ backlog và tiêu chí hoàn thành riêng.
 

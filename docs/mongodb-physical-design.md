@@ -112,6 +112,14 @@ Phần này cập nhật các đề xuất import/receipt cũ bên dưới theo 
 - `score` và `severity` không đổi khi analyst sửa review; `status/note/version/updatedAt` có thể đổi.
 - D015/B5 tạm severity=low cho mọi anomaly; chưa có ngưỡng medium/high được kiểm chứng. Ví dụ `score 3.8/high` phía trên là lịch sử thiết kế, không phải rule của baseline. Khởi tạo review open/note rỗng/version1/updatedAt, snapshot location từ Reading.
 
+**D017/B6 — publication và PATCH online:**
+
+- List/detail aggregate join run completed và dataset imported/cùng parent IDs; visibility trước limit+1. Chỉ chiếu fields DTO, không trả lookup arrays/value hoặc private fields. Sort/cursor theo ts+_id;14 online indexes hiện tại giữ nguyên, không tạo collection/index mới.
+- Review transaction snapshot/majority: đọc anomaly, conditional `$inc:{reviewFence:1}` lên dataset còn imported rồi run còn completed/cùng dataset/family/method; CAS update anomaly theo ID/version, chỉ `$set` status/note, `$inc` version, `$currentDate` updatedAt. Các thao tác tuần tự; commit atomic hoặc rollback cả fences.
+- `reviewFence` là số nội bộ optional của documents Dataset/AnalysisRun, khởi tạo bằng $inc khi review đầu tiên. Không đổi status lifecycle/createdAt/config/model; không phải review version của anomaly và không xuất ra DTO. Giữ thứ tự lock dataset→run→anomaly, tránh check-before-write race khi parent visibility thay đổi.
+- Đổi review cùng dataset có thể bị serialize ở parent guard; Cường đo contention khi mở rộng tải. Không suy ra throughput/SLA từ correctness tests. Không reset fences hoặc nâng field này thành endpoint.
+- Public review service chưa kèm processedMutations/Sync ledger. Future Sync phải thiết kế unit-of-work/receipt atomic, không ghi ledger sau một review đã commit riêng rồi coi là an toàn.
+
 ### `processedMutations`
 ```js
 { _id:ObjectId('...'), clientMutationId:'uuid-from-client',

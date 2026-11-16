@@ -2,7 +2,7 @@
 
 **Bổ sung 16/11/2026 — D016:** [Backend Change Plan](backend-change-plan.md) ghi hướng nâng cấp đã được chủ dự án duyệt: **B6 theo contract hiện tại → Exploration tối thiểu → Isolation Forest v2 → nghiệm thu Analyst**, FE/test tích hợp từng chặng. Đây là mở rộng có giới hạn đối với phạm vi dưới đây; các API/feature/timezone mới còn gate, không tự sửa OpenAPI. B0–B8 giữ mã/tiêu chí; B7/B8 không bị hủy. Các dòng hoãn P1 bên dưới là baseline cũ; chỉ subset được chỉ rõ trong Change Plan được nâng ưu tiên sau khi khóa contract.
 
-Ngày lập: 13/11/2026. Cập nhật 15/11/2026: **B1–B5 đã triển khai: 14/20 operations online có API thật**, gồm health, auth/me, datasets list, import, Query và Analysis async với MongoDB-backed worker. Còn6 operations B6/B7; B8 triển khai/tải và đánh giá chất lượng model chưa nghiệm thu. Xem [B1](backend/b1-verification.md), [B2](backend/b2-verification.md), [B3](backend/b3-verification.md), [B4](backend/b4-verification.md), [B5 verification](backend/b5-verification.md).
+Ngày lập: 13/11/2026. Cập nhật16/11/2026: **B1–B6 đã triển khai:17/20 operations online có API thật**, gồm health/auth/me/datasets/import/Query/Analysis và Anomaly list/detail/review CAS. Còn3 operations B7; B8 triển khai/tải và ML quality chưa nghiệm thu. Xem [B1](backend/b1-verification.md), [B2](backend/b2-verification.md), [B3](backend/b3-verification.md), [B4](backend/b4-verification.md), [B5](backend/b5-verification.md), [B6 verification](backend/b6-verification.md).
 
 ## 1. Mục tiêu và cơ sở lập kế hoạch
 
@@ -24,14 +24,14 @@ Nguồn đã đọc và đối chiếu:
 
 | Thành phần | Hiện trạng kiểm tra | Hệ quả cho kế hoạch |
 |---|---|---|
-| `server/` | B1–B5 có API thật, MongoDB-backed Analysis worker, receipts/fencing/recovery và keyset | FE M2–M5 statistical/history đã E2E API thật; B6/B7 còn chờ |
+| `server/` | B1–B6 có API thật, Analysis worker, receipts/fencing/recovery, keyset và review CAS | FE M2–M6 đã có E2E API thật cho statistical/history/review; B7 còn chờ |
 | Root workspace | Scripts check/build/typecheck/lint/test đã bao phủ client + server; dev client giữ nguyên, thêm dev:server | Integration MongoDB thật chạy riêng bằng `npm run test:server:integration` hoặc server coverage |
 | `client/` | FE đến M7; M2–M5 statistical/history đã chạy với API thật; ML vẫn khóa tại FE; B6 API chưa có | Tài nhận method/config ML và replay24h từ B5; Admin/Mapbox thật còn chờ |
 | `shared-core/` | Statistical implementation simple-statistics thật; schema/DTO D008; Server đã infer scikit-learn PM2.5 baseline thật | Model một feature và severity tạm low đã được chủ dự án duyệt; Khải tiếp tục đánh giá chất lượng |
 | `infra/`, `tests/` | Replica-set integration/fault injection; 14 online indexes trên8 collections, thêm claim index và queue counter B5 | Cường tiếp tục Docker/Nginx/TLS/CI, volume và stress; Sync vẫn hoãn |
 | Tài liệu | Một số mục lục, đoạn SDD/DB và báo cáo FE M0/M1 giữ version/URL/số operations cũ | Dùng file nguồn hiện tại: 25 operations tổng cộng, 20 thuộc online/health; không tạo alias URL cũ |
 
-Phần “client mới có README” trong mở đầu kế hoạch FE và các dòng M2 ở thời điểm lập plan là mô tả lịch sử; hiện dùng [M7 verification](frontend/m7-verification.md) cùng source FE để xác định tiến độ. Test E2E dùng intercept/mock không phải bằng chứng Backend thật. B0 chỉ cập nhật tài liệu; B1–B5 có bằng chứng runtime riêng. B6/B7 vẫn chờ API; baseline ML chưa phải bằng chứng chất lượng domain.
+Phần “client mới có README” trong mở đầu kế hoạch FE và các dòng M2 ở thời điểm lập plan là mô tả lịch sử; hiện dùng [M7 verification](frontend/m7-verification.md) cùng source FE để xác định tiến độ. Test intercept/mock không phải bằng chứng Backend thật. B1–B6 có bằng chứng runtime riêng; B7 vẫn chờ API, baseline ML chưa phải bằng chứng chất lượng domain.
 
 ## 2. Phạm vi và ranh giới
 
@@ -263,15 +263,17 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 ### B6 — Anomaly list/detail và review online
 
+**Đã triển khai16/11/2026 — C1/D017:** [verification](backend/b6-verification.md) ghi3 APIs thật, visibility tại Repository/transaction, CAS/conflict và FE review trên CSV Beijing thật. Không sửa OpenAPI hoặc triển khai C2/C3; G02–G05 tiếp tục mở.
+
 **Mục tiêu:** FE M6 và anomaly overlay M4 có API thật; lưu review không ghi đè cạnh tranh và không phụ thuộc offline sync.
 
 **Endpoint:** `GET /anomalies` → `200 AnomalyPage`; `GET /anomalies/{id}` và `PATCH /anomalies/{id}` → `200 SingleAnomaly`.
 
-- [ ] Chỉ công bố anomalies của run completed; GET theo run chưa completed trả 409, list tổng loại partial, detail chưa công bố 404. List đúng query: datasetId, analysisRunId, family/method, severity/status, from/to, ts sort và cursor/limit. Không tự nhận sensorId/bbox; xác minh run/dataset nhất quán.
-- [ ] Detail trả đầy đủ Anomaly theo schema, không join thêm value của reading vào wire DTO. FE dùng readingId để ghép dữ liệu đã tải hoặc báo chưa tải phép đo; score không thay cho PM2.5.
-- [ ] PATCH chỉ baseVersion + changes có ít nhất status/note; validate strict, chỉ ba review statuses. Repository conditional update theo ID/version, tăng version và updatedAt nguyên tử.
-- [ ] Stale trả `409` kèm currentVersion theo contract; không bắt buộc response conflict chứa full current anomaly. ID không tồn tại trả `404`; Tài GET detail để xử lý conflict. Mất response PATCH không có nghĩa chưa commit, không tự retry mù.
-- [ ] Áp dụng dataset visibility và auth cho list/detail/review; giữ public service review để sync sau này dùng, chưa tạo outbox/receipt/checkpoint.
+- [x] Chỉ công bố anomalies của run completed; GET theo run chưa completed trả409, list tổng loại partial, detail/PATCH chưa công bố404. Filters/paging đúng contract, visibility trước limit; run/dataset nhất quán, không thêm sensorId/bbox.
+- [x] Detail Anomaly đầy đủ, không có value/private fields. FE đọc Reading bằng reference khi đã tải; score không thay cho PM2.5.
+- [x] PATCH strict baseVersion+status/note; CAS/version/updatedAt atomic, parent visibility guards trong cùng transaction; same-version race chỉ một winner.
+- [x] Stale409/details.currentVersion;404 cho unavailable. Test mất response TCP sau commit, GET đối soát và blind replay không tăng revision thứ hai; FE giữ draft/GET/rebase có chủ đích.
+- [x] Auth current user và dataset/run visibility mọi path; public review boundary cho business reuse, chưa Sync ledger/outbox/checkpoint.
 
 **Dependency:** B1/B2, policy query/time của B4; seed liên kết đúng dataset/sensor/reading/run để phát triển trước B5. Nghiệm thu analysis → review phải có B5 tạo kết quả thật.
 

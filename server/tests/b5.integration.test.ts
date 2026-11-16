@@ -168,6 +168,9 @@ describe('B5 actual HTTP/MongoDB and real library engines', () => {
       const run = await f.terminal(response.json().data.id); expect(run.status, JSON.stringify(run)).toBe('completed');
       expect(run).toMatchObject({ engineVersion: 'scikit-learn@1.9.1', modelVersion: 'pm25-iforest-uci381-v1' });
       outputs.push(await f.db.collection('anomalies').find({ analysisRunId: new ObjectId(run.id) }, { projection: { _id: 0, readingId: 1, score: 1, severity: 1 } }).sort({ readingId: 1 }).toArray());
+      const published = await f.app.inject({ url: `/api/v1/anomalies?datasetId=${f.datasetId}&analysisRunId=${run.id}`, headers: f.headers });
+      expect(published.statusCode, published.body).toBe(200); expect(published.json().data).toHaveLength(1);
+      expect(published.json().data[0]).toMatchObject({ family: 'ml', method: 'isolation_forest', analysisRunId: run.id, score: .3069626761725055 });
     }
     expect(outputs[0]).toEqual(outputs[1]); expect(outputs[0]).toHaveLength(1);
     expect((outputs[0] as { score: number; severity: string }[])[0]).toMatchObject({ severity: 'low' });
@@ -339,7 +342,8 @@ describe('B5 MongoDB worker recovery and fault injection (test doubles explicitl
     await f.seed(Array(600).fill(2)); const accepted = await f.post(), run = await f.terminal(accepted.json().data.id);
     expect(run.status).toBe('failed'); expect(run.error?.code).toBe('ANALYSIS_FAILED');
     expect(await f.db.collection('anomalies').countDocuments()).toBe(500);
-    expect((await f.app.inject({ url: `/api/v1/anomalies?analysisRunId=${run.id}`, headers: f.headers })).statusCode).toBe(404); // B6 is not implemented.
+    expect((await f.app.inject({ url: `/api/v1/anomalies?datasetId=${f.datasetId}&analysisRunId=${run.id}`, headers: f.headers })).statusCode).toBe(409);
+    expect((await f.app.inject({ url: `/api/v1/anomalies?datasetId=${f.datasetId}`, headers: f.headers })).json().data).toEqual([]);
     expect(await f.repo.claim()).toBeNull();
   });
   it('bounds crash recovery attempts without automatically rerunning terminal runs', async () => {

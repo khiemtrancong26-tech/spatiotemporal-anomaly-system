@@ -1,0 +1,2 @@
+# Preserve the supplied golden fixture bytes/checksum across Windows/Linux checkouts.
+server/tests/fixtures/beijing-12-stations-demo-2015-03.csv -text

@@ -8,6 +8,11 @@ import { createAnalysisRoutes } from './analysis.routes.js';
 import { createAnalysisService } from './analysis.service.js';
 import { createAnalysisWorker } from './analysis.worker.js';
 import type { AnalysisEngine, AnalysisTestHooks } from './analysis.types.js';
+import type { Db } from 'mongodb';
+import { createAnalysisReadRepository } from './analysis.repository.js';
+
+export type { AnalysisReadAccess } from './analysis.types.js';
+export const createAnalysisReadAccess = (db: Db) => createAnalysisReadRepository(db);
 
 export const analysisRoutes: FastifyPluginAsync<{ config: AnalysisConfig; cursorSecret: string;
   testHooks?: AnalysisTestHooks; testEngine?: AnalysisEngine; workerEnabled?: boolean }> = async (app, options) => {
