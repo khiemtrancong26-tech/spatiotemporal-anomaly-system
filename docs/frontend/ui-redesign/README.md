@@ -6,10 +6,8 @@ Ngày 15/11/2026. Triển khai trực tiếp trên React/CSS hiện có, không 
 
 | Vấn đề trước đây | Thiết kế hiện tại |
 |---|---|
-| Bộ lọc và văn bản kỹ thuật đẩy 3D xuống dưới | Desktop: panel phạm vi cạnh nội dung chính, Canvas/inspector nổi bật. Mobile: bộ lọc thu gọn, có thể mở bằng bàn phím |
 | Component dính nhau, kiểu form/bảng không đều | Tokens cho màu, radius, shadow và spacing 4/8px; input 42px, button 40px, nhóm form có khoảng cách và mặt nền phụ |
 | Sidebar Unicode và nhãn milestone dành cho developer | SVG icons nội bộ, active state rõ, user/avatar/role và nhãn Online/Demo |
-| Login/Register giống form prototype | Bố cục hai cột, nhận diện sản phẩm, minh họa SVG/CSS, mobile một cột |
 | ID/scope/config và chú thích dài chiếm toàn trang | Inspector phân cấp, metadata/kỹ thuật trong disclosure; trạng thái run có badge chữ và dấu nhận diện |
 | Bảng tràn ngang, textarea chưa có style | Vùng cuộn riêng có keyboard focus/accessible label, table/tabular numerals, textarea thống nhất |
 | Import thiếu định hướng thị giác | Chỉ dẫn 4 bước, nhóm field/báo cáo và hành động theo cùng thiết kế; không thay flow |
@@ -25,24 +23,23 @@ Tái dùng typography hệ thống (Inter nếu máy có, fallback Segoe UI/syst
 
 ## Screenshots
 
-Tất cả ảnh dùng **mock có nhãn**, không phải bằng chứng chạy detector hoặc dữ liệu thực tế. Cùng browser Chromium và tài khoản admin demo, chụp 1440×1000 và 390×844, full-page.
+Tất cả ảnh dùng **mock có nhãn**, không phải bằng chứng chạy detector hoặc dữ liệu thực tế. Cùng browser Chromium và tài khoản admin demo, chụp 1440×1000, full-page.
 
-| Màn | Trước 1440 / 390 | Sau 1440 / 390 |
+| Màn | Trước 1440 | Sau 1440 |
 |---|---|---|
-| Login | [Desktop](before/login-1440.png) / [Mobile](before/login-390.png) | [Desktop](after/login-1440.png) / [Mobile](after/login-390.png) |
-| Register | [Desktop](before/register-1440.png) / [Mobile](before/register-390.png) | [Desktop](after/register-1440.png) / [Mobile](after/register-390.png) |
-| Datasets | [Desktop](before/datasets-1440.png) / [Mobile](before/datasets-390.png) | [Desktop](after/datasets-1440.png) / [Mobile](after/datasets-390.png) |
-| Workspace | [Desktop](before/workspace-1440.png) / [Mobile](before/workspace-390.png) | [Desktop](after/workspace-1440.png) / [Mobile](after/workspace-390.png) |
-| Import | [Desktop](before/import-1440.png) / [Mobile](before/import-390.png) | [Desktop](after/import-1440.png) / [Mobile](after/import-390.png) |
-| Analysis | [Desktop](before/analysis-1440.png) / [Mobile](before/analysis-390.png) | [Desktop](after/analysis-1440.png) / [Mobile](after/analysis-390.png) |
-| Anomalies | [Desktop](before/anomalies-1440.png) / [Mobile](before/anomalies-390.png) | [Desktop](after/anomalies-1440.png) / [Mobile](after/anomalies-390.png) |
-| Review | [Desktop](before/review-1440.png) / [Mobile](before/review-390.png) | [Desktop](after/review-1440.png) / [Mobile](after/review-390.png) |
-| Admin | [Desktop](before/admin-1440.png) / [Mobile](before/admin-390.png) | [Desktop](after/admin-1440.png) / [Mobile](after/admin-390.png) |
+| Login | [Desktop](before/login-1440.png) | [Desktop](after/login-1440.png) |
+| Register | [Desktop](before/register-1440.png) | [Desktop](after/register-1440.png) |
+| Datasets | [Desktop](before/datasets-1440.png) | [Desktop](after/datasets-1440.png) |
+| Workspace | [Desktop](before/workspace-1440.png) | [Desktop](after/workspace-1440.png) |
+| Import | [Desktop](before/import-1440.png) | [Desktop](after/import-1440.png) |
+| Analysis | [Desktop](before/analysis-1440.png) | [Desktop](after/analysis-1440.png) |
+| Anomalies | [Desktop](before/anomalies-1440.png) | [Desktop](after/anomalies-1440.png) |
+| Review | [Desktop](before/review-1440.png) | [Desktop](after/review-1440.png) |
+| Admin | [Desktop](before/admin-1440.png) | [Desktop](after/admin-1440.png) |
 
 ## Kiểm chứng
 
 - Typecheck, lint, 80 unit/integration tests (12 files), production build: đạt.
-- E2E Chromium: **21/21 đạt**, regression M2–M7/Isolation Forest và kiểm tra UI mới: thu gọn bộ lọc không thay canvas, heatmap có trung bình/số mẫu, lớp không gian có toggle, mobile mặc định thu bộ lọc và không tràn ngang toàn trang. Không sửa các bài regression hiện có để bỏ assertion; chỉ bổ sung bài mới.
 - Screenshot script kiểm tra overflow toàn trang của 9 màn ở hai kích thước. Đã kiểm tra hình ảnh các bố cục chính, sửa sticky/scroll capture và đưa filters ra khỏi luồng đầu của canvas desktop.
 - Unit mới: rollover ngày UTC+07/offset tương đương, mean/count, không có mẫu, ô địa lý có mẫu và biên tọa độ; mock Mapbox kiểm tra source/layer/visibility, bật heatmap không tạo instance mới và unmount gọi cleanup.
 - E2E fallback chạy với `VITE_MAPBOX_TOKEN` rỗng chỉ trong environment của tiến trình test; không ghi đè token local. Build thêm với token môi trường local đạt, gồm nhánh bundling Mapbox/CSS. Còn cảnh báo circular dependency TanStack CLI và Three.js/Mapbox chunks lớn như trước.
@@ -62,9 +59,8 @@ Lần thử Mapbox với token môi trường tạo được canvas/control như
 
 ## Workspace v2 — sửa theo phản hồi sử dụng thực tế
 
-Bố cục đầu tiên phía trên là bằng chứng lịch sử. Workspace hiện đã thay bằng [Workspace v2](../workspace-v2.md): bản đồ lớn, panel nổi đóng/mở, bảng bounded và tabs bổ trợ; mặc định bộ lọc thu gọn cả desktop/mobile. Chính sách mixed-time latest-per-station đã bỏ khỏi renderer; Mapbox đọc riêng các trạm tại đúng một thời điểm. Các ảnh v1 giữ làm đối chiếu, ảnh hiện tại xem báo cáo v2.
 
-Bằng chứng Mapbox v2 ngày 15/11: đã tải được nền/tiles trong phiên QA riêng và chụp ba trạm cùng T ở 1440px/390px; xem báo cáo v2. Giới hạn Mapbox ở bản chụp v1 phía trên là ghi nhận lịch sử.
+Bằng chứng Mapbox v2 ngày 15/11: đã tải được nền/tiles trong phiên QA riêng và chụp ba trạm cùng T ở 1440px; xem báo cáo v2. Giới hạn Mapbox ở bản chụp v1 phía trên là ghi nhận lịch sử.
 
 
 Chính sách snapshot/grid trong các phần lịch sử trên đã được thay bằng [heatmap mềm + latest ≤ T, maxAge 2 giờ](../heatmap-timeline.md) theo xác nhận tiếp theo của người dùng.
