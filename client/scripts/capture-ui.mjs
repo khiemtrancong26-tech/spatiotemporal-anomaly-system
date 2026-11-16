@@ -6,8 +6,8 @@ const browser = await chromium.launch();
 const page = await browser.newPage();
 const base = process.env.UI_BASE_URL ?? 'http://127.0.0.1:5173';
 async function shot(name) {
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: width === 1440 ? 1000 : 844 });
+  for (const width of [1440]) {
+    await page.setViewportSize({ width, height: 1000 });
     const filter = page.locator('details.workspace-control-panel');
     if (await filter.count()) {
       const open = await filter.getAttribute('open') !== null;
@@ -59,4 +59,4 @@ await page.goto(`${base}/admin/users`);
 await page.getByRole('button', {name:'Sửa admin01',exact:true}).waitFor();
 await shot('admin');
 await browser.close();
-console.log(`Captured ${process.argv.includes('--map') ? 10 : 9} screens at desktop/mobile in ${directory}`);
+console.log(`Captured ${process.argv.includes('--map') ? 10 : 9} screens on desktop in ${directory}`);

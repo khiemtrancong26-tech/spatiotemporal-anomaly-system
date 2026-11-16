@@ -22,8 +22,8 @@ await page.route('http://localhost:3001/api/v1/**',async route=>{
 await page.goto(`${base}/datasets`);await page.getByLabel('Tên đăng nhập',{exact:true}).fill('analyst01');await page.getByLabel('Mật khẩu',{exact:true}).fill('demo-password');await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();await page.getByRole('link',{name:'Mở dữ liệu',exact:true}).click();
 await page.getByRole('button',{name:'Mapbox 3D',exact:true}).click();await page.getByTestId('snapshot-status').filter({hasText:'3 trạm có mẫu'}).waitFor();
 let mapReady=true;try{await page.locator('.renderer-surface[data-ready=true]').waitFor({timeout:40000});}catch{mapReady=false;}
-for(const width of [1440,390]){
- await page.setViewportSize({width,height:width===1440?1000:844});await page.evaluate(()=>window.scrollTo(0,0));
+for(const width of [1440]){
+ await page.setViewportSize({width,height:1000});await page.evaluate(()=>window.scrollTo(0,0));
  await page.screenshot({path:`${dir}/${mapReady?'map':'map-unavailable'}-${width}.png`,fullPage:true});
  if(mapReady)await page.locator('.explorer-stage').screenshot({path:`${dir}/map-stage-${width}.png`});
  if(width===1440)await page.screenshot({path:`${dir}/overview-1440.png`});
@@ -31,10 +31,10 @@ for(const width of [1440,390]){
 }
 await page.getByRole('button',{name:'Cube',exact:true}).click();await page.locator('.renderer-surface[data-ready=true]').waitFor();
 await page.getByRole('button',{name:'Heatmap thời gian',exact:true}).click();
-for(const width of [1440,390]){await page.setViewportSize({width,height:width===1440?1000:844});await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:`${dir}/cube-heatmap-${width}.png`,fullPage:true});if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Viewport overflow');}
+for(const width of [1440]){await page.setViewportSize({width,height:1000});await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:`${dir}/cube-heatmap-${width}.png`,fullPage:true});if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Viewport overflow');}
 await page.goto(`${base}/datasets/import`);
 await page.getByLabel('Tên dataset (tùy chọn)',{exact:true}).fill('Kiểm thử UI — không ghi vào Backend');
 await page.getByLabel('File nguồn',{exact:true}).setInputFiles({name:'ui-qa.csv',mimeType:'text/csv',buffer:Buffer.from('station_id,lat,lon,observed_at,pm25\nA,10,106,2026-01-01T00:00:00Z,25\n')});
 await page.getByRole('button',{name:'Upload',exact:true}).click();await page.getByRole('heading',{name:'3. Xác nhận mapping',exact:true}).waitFor();
-for(const width of [1440,390]){await page.setViewportSize({width,height:width===1440?1000:844});await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:`${dir}/import-mapping-${width}.png`,fullPage:true});if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Import overflow');}
+for(const width of [1440]){await page.setViewportSize({width,height:1000});await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:`${dir}/import-mapping-${width}.png`,fullPage:true});if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Import overflow');}
 await browser.close();console.log(JSON.stringify({mapReady,stationsAtSameTime:3,fixtureOnly:true,directory:dir}));

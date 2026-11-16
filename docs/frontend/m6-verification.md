@@ -13,4 +13,3 @@ Ngày 14/11/2026. Frontend online; chưa triển khai Backend hoặc offline rev
 
 Kiểm chứng: `npm run check` (typecheck/lint/75 tests/build); E2E HTTP interception kiểm tra 409 giữ draft, đọc bản Server, rebase chủ động, payload chỉ review fields và lưu version mới; regression M2–M5 chạy cùng suite. Mock/HTTP interception không chứng minh CAS giữa hai phiên Backend thật; nghiệm thu Server còn chờ.
 
-Kết quả cuối: 15/15 E2E đạt (M2–M6), gồm lỗi mạng giữ draft, chặn đổi tab khi từ chối bỏ draft, hai cách xử lý conflict, payload/version đúng. Đã sửa mount Anomalies thoáng qua khi workspace chưa khởi tạo để không query kết quả sớm ở M5. Lint và diff check đạt; desktop screenshot đã xem, viewport 390px không tràn ngang.

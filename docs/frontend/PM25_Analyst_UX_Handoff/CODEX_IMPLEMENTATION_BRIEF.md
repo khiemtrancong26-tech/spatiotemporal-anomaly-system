@@ -25,7 +25,6 @@ Redesign **three** Workspace tabs for a real PM2.5 Data Analyst:
 3. PR3 Anomalies list/inspector/review + tests; no loss of dirty draft, 409 conflict manual.
 4. PR4 investigation handoff via workspace integration + E2E: exact dataset/sensor/reading/ts and return to run; do not change render engine.
 
-For each PR: list files to edit, data/state mapping, test cases, before/after screenshots at 1600 desktop and 390 mobile; run typecheck/lint/build/unit and available E2E. No fabricated AI outputs or fake detector counts. Do not begin coding unless the user instructs; this brief is for subsequent Codex execution.
 
 ## Non-negotiable usability
 
@@ -34,5 +33,4 @@ For each PR: list files to edit, data/state mapping, test cases, before/after sc
 - Completed + zero anomalies is different from network error or 409, and results from one run must not be mixed with current filters or other runs.
 - `confirmed` is a human review outcome, **not** proof of a specific pollution cause, ML correctness, or an alert severity.
 - Do not treat `severity:low` as an AQI/health category; PM2.5 and detector score need separate legends/labels.
-- Mobile list must have visible `View/Investigate/Review` actions, not hidden behind a horizontally clipped table.
 - No generic “loading 75%” when the backend provides no progress metric; no model retraining on review.

@@ -25,11 +25,8 @@ Ngày: 13/11/2026. Phạm vi: M1 của [kế hoạch](../frontend-online-plan.md
 | Mutation/lỗi | Partial Anomaly bị từ chối; network, aborted, malformed, 409 và response stream failure phân biệt; retry key/payload không đổi |
 | Pagination/races | Response dataset cũ bị bỏ kể cả transport không hủy; đổi filter/sort reset cursor; lỗi tải thêm giữ hàng; retry đúng cursor |
 | Production build | PASS; online build không có `transport-*.js` fixture chunk |
-| Playwright Chromium | 3 tests PASS: mock desktop + request state/role/direct route/not-found; mobile 390px + keyboard/overflow; online production build gọi URL API và không fallback mock |
-| Visual inspection | Đã xem screenshots desktop và mobile; không thấy chồng nội dung/tràn ngang |
 | Coverage báo cáo | Statements 82.60%, branches 70.04%, functions 86.66%, lines 91.12% trên scope shared/mocks đã cấu hình, loại generated/test files; không phải coverage toàn MVP |
 
-Máy kiểm tra: Windows, Node 24.14.1, npm 11.11.0; Chromium do Playwright 1.65.0 cung cấp. Screenshot tái tạo bằng `npm run test:e2e` ở `client/test-results/m1-desktop.png` và `m1-mobile.png`, không commit artifacts.
 
 ## Phân biệt mức độ tích hợp
 

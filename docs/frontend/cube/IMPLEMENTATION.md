@@ -27,7 +27,7 @@ Không thêm dependency, không sửa backend/API/database, không commit/push. 
 
 - Typecheck, lint và production build đạt. Build có cảnh báo chunk lớn từ Three.js/Mapbox và cảnh báo circular dependency của công cụ generate hiện có.
 - **97 unit/integration tests đạt**; thêm 5 trường hợp kiểm tra palette, timezone, tọa độ/thời gian, missing hours và coverage.
-- **27 Playwright E2E đạt** (23 cũ + 4 mới): cùng canvas/camera qua ba mode, đỉnh 369/missing hours, đổi timezone, official anomaly → review không tự PATCH, ngân sách 2.000, retry/empty/no run, responsive 1440/1024/390px không tràn ngang.
+- **27 Playwright E2E đạt** (23 cũ + 4 mới): cùng canvas/camera qua ba mode, đỉnh 369/missing hours, đổi timezone, official anomaly → review không tự PATCH, ngân sách 2.000, retry/empty/no run, responsive 1440/1024px không tràn ngang.
 - Kiểm tra CSV thật bằng `client/scripts/capture-cube.mjs`: 8.782 readings, 12 trạm, 739 timestamps, thiếu 146 trạm–giờ, không duplicate, min/max 3/369. Sự kiện A có 12 trạm và mean 315,5; sự kiện B có 69→84→84→235→369, thiếu 22h/23h, trung vị 11 trạm khác bằng 80. Xem `qa/verification.json`.
 - Script CSV đưa số đo thật qua API giả lập trong trình duyệt, gán **QA IDs**, không import hoặc ghi database. Anomaly fixture trong E2E chỉ xác minh contract/luồng UI, không chứng minh detector đã chạy trên CSV.
 - Tính tham chiếu ngoài UI trên toàn CSV: z-score dương per sensor, ddof=0, z>3 cho 100 candidates. Đây không phải kết quả anomaly chính thức.

@@ -115,10 +115,10 @@ test('Cube handles retry, empty scope and absence of runs without inventing anom
   expect(qa.errors).toEqual([]);
 });
 
-test('Cube responsive QA at 1440, 1024 and 390 pixels', async ({ page }) => {
+test('Cube desktop QA at 1440, 1366 and 1024 pixels', async ({ page }) => {
   const qa = await setup(page);
-  for (const width of [1440, 1024, 390]) {
-    await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+  for (const width of [1440, 1366, 1024]) {
+    await page.setViewportSize({ width, height: width === 1366 ? 768 : 1000 });
     for (const mode of ['01 Tổng quan', '02 Theo trạm', '03 Điều tra bất thường']) {
       await page.getByRole('button', { name: mode, exact: true }).click();
       await expect(page.locator('.cube-canvas canvas')).toBeVisible();

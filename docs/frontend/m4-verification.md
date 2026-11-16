@@ -17,7 +17,6 @@ Ngày: 2026-11-13.
 
 - `npm run check`: typecheck/lint, 62 tests, production build. Geometry tests kiểm tra hướng tọa độ, thời gian có offset, điểm đơn và chọn mới nhất/điểm lịch sử.
 - `npm run test:e2e`: 9/9 tests đạt. E2E M4 trên online build dùng HTTP interception: chọn reading, chuyển mode giữ selection, Cube có canvas, thiếu token có fallback, tải cursor một lần, lọc UTC+07 và dữ liệu rỗng xóa selection. Bộ E2E M2/M3 tiếp tục chạy.
-- Đã kiểm tra screenshot desktop/mobile 390px và không tràn ngang. Ảnh được tạo tại `client/test-results/m4-*.png`.
 - Giới hạn phiên 2.000 readings và 2.000 sensors, trang 100; không tự tải hàng trăm nghìn điểm. Số đo geometry 2.000 điểm: 1,70 ms trên máy phát triển; buffers vị trí+màu Float32: 48.000 bytes. Đây không phải số đo tổng heap/GPU hoặc FPS trên thiết bị mục tiêu. Cần đo lại trước khi nâng giới hạn. Không cắt bớt âm thầm tập readings đã tải.
 - Build bổ sung có placeholder public token để kiểm tra nhánh bundling Mapbox/CSS đạt; không dùng token này gọi dịch vụ thật. Mapbox lazy chunk khoảng 1.892 KB minified / 529 KB gzip.
 - Three.js lazy chunk khoảng 743 KB minified / 188 KB gzip, build có cảnh báo kích thước; không tải trên màn login/datasets.

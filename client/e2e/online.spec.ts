@@ -107,9 +107,7 @@ test('import wizard preserves mutation keys, reconfirms mapping after reload and
   expect(mappings).toBe(2);
   expect(await page.evaluate(() => sessionStorage.getItem('pm25.import.online'))).toBeNull();
   await page.screenshot({ path: 'test-results/m3-desktop.png', fullPage: true });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: 'test-results/m3-mobile.png', fullPage: true });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
   await page.getByRole('link', { name: 'Mở workspace', exact: true }).click();
   await expect(page).toHaveURL(/workspace\/dataset-001/);
 });
@@ -206,9 +204,7 @@ test('M4 shares selection across views, paginates and applies UTC filters with f
   await expect(page.getByText('Reading: reading-001', { exact: true })).toBeVisible();
   await expect(page.locator('.cube-canvas canvas')).toHaveCount(1);
   await page.screenshot({ path: 'test-results/m4-desktop.png', fullPage: true });
-  await page.setViewportSize({ width: 390, height: 844 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.screenshot({ path: 'test-results/m4-mobile.png', fullPage: true });
+
   await page.locator('summary.filter-heading').click();
   await page.getByLabel('Trạm (Sensor ID)').fill('no-data');
   await page.getByLabel('Từ · UTC+07:00', { exact: true }).fill('2026-01-01T07:00:00');
@@ -253,7 +249,7 @@ test('M5 restores run, distinguishes tracking failure and loads results only aft
   status = 'completed'; await page.getByRole('button', { name: 'Đọc lại run' }).click(); await expect(page.getByRole('button', { name: 'Xem reading-002', exact: true })).toBeVisible();
   const terminalCalls = detailCalls; await page.waitForTimeout(3200); expect(detailCalls).toBe(terminalCalls);
   await page.screenshot({ path: 'test-results/m5-desktop.png', fullPage: true });
-  await page.setViewportSize({ width: 390, height: 844 }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true); await page.screenshot({ path: 'test-results/m5-mobile.png', fullPage: true });
+
   await page.getByRole('button', { name: 'Xem reading-002', exact: true }).click(); await expect(page.getByRole('complementary', { name: 'Điều tra phát hiện' })).toBeVisible();
 });
 
@@ -329,7 +325,7 @@ test('M6 preserves draft on 409, rebases explicitly and saves only review fields
   await page.getByRole('button', { name: 'Giữ bản sửa trên version mới' }).click(); expect(writes).toHaveLength(1);
   await page.getByRole('button', { name: 'Lưu review', exact: true }).click(); await expect(page.getByText('Server đã xác nhận lưu review.')).toBeVisible(); expect(writes).toHaveLength(2);
   await page.screenshot({ path: 'test-results/m6-desktop.png', fullPage: true });
-  await page.setViewportSize({ width: 390, height: 844 }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
 });
 
 test('M6 keeps draft through network/409 and allows explicit discard without another PATCH', async ({ page }) => {
@@ -527,8 +523,7 @@ test('workspace loads latest-in-window samples and keeps original timestamps/det
   const box=await page.getByRole('region',{name:'Bảng readings',exact:true}).boundingBox();expect(box!.height).toBeLessThanOrEqual(340);
   await page.getByRole('button',{name:'Cube',exact:true}).click();await expect(page.locator('canvas').first()).toBeVisible();
   await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/workspace-v2-desktop.png',fullPage:true});
-  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.screenshot({path:'test-results/workspace-v2-mobile.png',fullPage:true});
+
 });
 
 test('map timeline carries only fresh actual readings, changes maxAge and plays through real time frames', async ({page})=>{
@@ -566,6 +561,5 @@ test('map timeline carries only fresh actual readings, changes maxAge and plays 
  await expect(page.getByRole('button',{name:'Phát timeline',exact:true})).toBeVisible();
  await expect(page.getByTestId('snapshot-status')).toContainText('1 trạm có mẫu');
  await page.screenshot({path:'test-results/heatmap-timeline-desktop.png',fullPage:true});
- await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
- await page.screenshot({path:'test-results/heatmap-timeline-mobile.png',fullPage:true});
+
 });

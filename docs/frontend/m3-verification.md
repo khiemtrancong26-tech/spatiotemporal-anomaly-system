@@ -15,7 +15,6 @@ Ngày: 2026-11-13. Phạm vi: frontend online, không triển khai Backend/PWA/O
 
 - `npm run check`: typecheck, lint, 58 unit/component tests và production build.
 - `npm run test:e2e`: 8 tests Chromium, gồm 3 tests M3 trên production online build với HTTP interception: mất response upload/import và giữ key qua retry/reload; xác nhận lại mapping; 413/415/422 và unknown upload; phục hồi importing/failed/imported không tự mutation. Các tests M2 tiếp tục chạy.
-- Ảnh desktop/mobile: `client/test-results/m3-desktop.png`, `m3-mobile.png`; kiểm tra viewport 390px không tràn ngang.
 
 ## Giới hạn nghiệm thu
 

@@ -13,7 +13,6 @@ Ngày 14/11/2026. Hoàn tất phần FE; chưa nghiệm thu với Backend thật
 
 - `npm run check`: typecheck, lint, 76 tests và production build đạt.
 - E2E Chromium: 18/18 đạt (M2–M7). tạo/sửa mock và tự hạ quyền; HTTP interception kiểm tra sort/cursor, key/payload create, 422/trùng username, unknown khóa retry, không lưu password vào storage, PATCH chỉ isActive, 403 giữ draft và tự vô hiệu hóa thoát phiên. Regression M2–M6 và analyst route guard chạy cùng suite.
-- Đã xem screenshot desktop/mobile; viewport 390px không tràn ngang toàn trang, bảng có cuộn ngang riêng.
 - Build còn cảnh báo chunk Three.js lớn và circular dependency của TanStack CLI như các mốc trước.
 
 ## Còn chờ tích hợp

@@ -109,7 +109,6 @@ Các checkbox là việc cần thực hiện, chưa đánh dấu hoàn thành ch
 - [x] Implement interface + adapter online + mock fixtures đúng từng envelope; kiểm tra đủ 18 operations, sinh type/schema từ OpenAPI.
 - [x] Chuẩn hóa cursor: limit mặc định 100, tối đa 200 theo draft; reset khi filter/sort đổi; chỉ dùng sort được endpoint hỗ trợ. Có kiểm thử response race và load-more retry.
 - [x] Quản lý `Idempotency-Key` cho upload, import, analysis và create user: helper giữ key/payload cho retry, thao tác mới có key mới; các operation bắt buộc header được kiểm tra trước khi gửi. Không tự retry mutation.
-- [x] Chuẩn bị kiểm thử logic trọng yếu và integration UI: Vitest, React Testing Library và Playwright chạy đạt; có coverage và kiểm tra desktop/mobile.
 
 **Bằng chứng M1:** [kết quả kiểm tra](frontend/m1-verification.md), [hướng dẫn chạy client](../client/README.md). 46 tests logic/UI + 3 tests Chromium đã đạt. API thật chưa tồn tại trong checkout; mock/HTTP-intercept tests không thay cho nghiệm thu Backend.
 
@@ -282,7 +281,6 @@ Các mục này là phụ thuộc khi triển khai, không phải yêu cầu ng�
 
 ## UI/UX redesign — 15/11/2026
 
-Đã triển khai diện mạo Modern Geospatial Analytics Dashboard và hai heatmap theo yêu cầu bổ sung của chủ dự án. Thay đổi thuộc presentation/derived visualization; không đổi contract, nghiệp vụ hay phạm vi PWA/Offline/Sync. Audit, danh sách file, ảnh 1440px/390px và kết quả kiểm tra tại [UI redesign](frontend/ui-redesign/README.md).
 
 
 ### Điều chỉnh Workspace theo phản hồi demo — 15/11/2026

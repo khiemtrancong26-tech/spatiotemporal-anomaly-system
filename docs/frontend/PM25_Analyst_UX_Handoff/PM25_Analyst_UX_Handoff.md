@@ -89,9 +89,7 @@ Không thiết kế `GET /reading/:id`, export, rerun/cancel, cancel job, “pro
 - Heading H1 workspace: **24px/32px, 700–750**. Heading H2 trong tab: **26px/32px, 700**. Card title: **17px/24px, 700**.
 - Body: **14px/22px**; label: **12–13px/18px**, semibold; cell tables **12–13px/18px**; metadata/technical helper **11–12px/17px**. **Không dùng chữ 10px cho nội dung quan trọng trong production; ảnh mockup có một số nhãn nhỏ để bao quát canvas.**
 - Numeric/KPI: **28–32px/36px, 750**; tabular-nums. PM2.5 unit `µg/m³` hiển thị cạnh giá trị.
-- Spacing: 4px base; phổ biến 8/12/16/24/32px; card padding 24 desktop, 16 mobile, card gap 16px.
 - Border radius card **16px**, controls **9px**, badges **999px**; border **1px**; shadow rất nhẹ `0 2px 8px #1F35530A`.
-- Primary button height **40–44px**, padding-inline 16px; input/select **42–44px**; minimum touch target mobile **44×44px** trong implementation. Tab bar height xấp xỉ **47–51px**.
 - Từ 1600px screenshot: nav rail ~80px, topbar 70px, main horizontal padding 32px. Content `minmax(0, 1fr)`; không cố định toàn bộ panel width theo ảnh.
 
 ### 2.2 Breakpoints và kích thước theo vùng
@@ -99,13 +97,7 @@ Không thiết kế `GET /reading/:id`, export, rerun/cancel, cancel job, “pro
 | Viewport | Grid | Quy tắc |
 |---|---|---|
 | ≥1280 desktop | Overview 4 KPI; Exploration left ~30% / chart ~70%; Analysis 3 cột (~1:1.22:1); Anomalies list ~64% / inspector ~36% | Bảng contained, panel không vượt viewport |
-| 768–1279 tablet | KPI 2 cột, Analysis 2 cột và confirmation xuống hàng; các filter collapse | Không giữ 3 cột nhỏ gây chữ vỡ |
-| ≤767 mobile | Các section stack; tabs cho scroll ngang bên trong; main padding 16px, body copy min 13–14px | Chuyển bảng list thành **cards đầy đủ action** hoặc bảng có vùng scroll và indicator rõ; khuyên dùng cards ở mobile |
 
-- Data Exploration chart desktop: panel cao khoảng **450px**, vẽ SVG/responsive width, trục gắn đơn vị. Mobile chart cao **200–240px**; legend wrap.
-- Bảng list desktop: header sticky, nếu >~12 rows thì container `max-height: 560px; overflow-y:auto`; toàn trang không kéo dài theo 100 rows. Mobile: card list 1 cột, hành động hiển thị không cần kéo ngang.
-- Review desktop: inspector 35–40% cạnh list hoặc trang detail 2 cột; mobile full-width form, nút Save nằm sau input và có trạng thái disabled.
-- Ở desktop có thể giữ detail panel khi cuộn list, nhưng không che filter/toolbars; giới hạn chiều cao panel theo viewport. Không tạo second scrollbar khó điều khiển ở mobile.
 - Dark mode không thuộc scope này; không đổi/light tokens của Visualization.
 
 ## 3. FLOW A — Data Exploration (P0)
@@ -204,7 +196,6 @@ Mục tiêu: Đọc hiểu dataset **trước khi chạy detector**, không ph�
 - Header `Anomalies cần xem xét`, tùy chọn `Đang xem: Z-score — Run ...52c8` hoặc `Tất cả run` (nếu chọn tất cả, cần cảnh báo score khác phương pháp không so sánh trực tiếp). Mặc định khi đi từ M5 là đúng `runId`.
 - Filters phù hợp API: `analysisRunId`, `family/method`, `severity`, `status`, `from/to`, `ts sort`; **không** có sensorId/bbox query đến B6. Không cho người dùng chọn station filter rồi âm thầm lọc client page100 và gọi đó là kết quả toàn run. Muốn tìm trạm cụ thể: hoặc lấy **đầy đủ** kết quả run trong budget rồi client filter với badge rõ `chỉ phần đã tải`, hoặc chuyển giải pháp server change request tương lai. P0: **không đưa sensor filter** trong M6.
 - Primary view: bảng danh sách 6–10 dòng visible, scroll within panel; cột trạm (map từ GET sensors metadata hoặc fallback sensorId), timestamp+zone, method-specific score, review status, `Xem chi tiết`. `PM2.5` **không mặc định lấy từ anomalies**; có thể hiển thị `— · Chưa tải reading` hoặc enrichment theo GET `/readings` của riêng reading được chọn. Tránh 1 request/row khi 100 rows.
-- Chọn row mở **inspector cạnh bảng**, không chuyển trang/scroll xuống dưới hết 100 rows; mobile inspector thành full-width view/back. Không mất vị trí cursor/list/filter khi trở lại.
 - Score: Z-score |Z|; IQR fence distance (µg/m³); ML model score; không `severity color=PM2.5`; `severity low` baseline tạm chỉ metadata.
 
 ### 5.2 Inspector/Review detail
@@ -330,7 +321,6 @@ Chỉ nâng độ phức tạp sau khi PR P0 thành công; phân nhóm như trê
 - [ ] Review PATCH chỉ status/note, `baseVersion`; conflict409 giữ draft và cho đối soát thủ công; input notes không bị mất khi đổi tab bị chặn.
 - [ ] Handoff chọn đúng `readingId`, `sensorId`, `ts`, `datasetId`; nếu M4 chưa tải, tải bounded/hiện trạng thái, không select điểm gần nhất thay target; không đổi camera khi highlight hay pagination thông thường.
 - [ ] Không tự sửa Three.js/Mapbox/legend/PM2.5 color ramp/heatmap/timeline.
-- [ ] Responsive desktop 1600, tablet 1024, mobile 390: không tràn ngang **toàn trang**; mobile list có action luôn thấy được; keyboard tab, focus-visible 2px, labels, error roles, reduced-motion.
 - [ ] Mọi ví dụ synthetic trong test/mock đều gắn nhãn; screenshot của tài liệu không được trích làm bằng chứng detector thật trên server.
 - [ ] Chạy code checks/test hiện có và bổ sung E2E nối thật khi môi trường B5/B6 sẵn sàng; không dùng mock thay lời tuyên bố production E2E.
 
@@ -343,7 +333,6 @@ Chỉ nâng độ phức tạp sau khi PR P0 thành công; phân nhóm như trê
 | `mockups/03-analysis-completed-desktop.png` | Completed + list flags + liên kết M6 | 1600px wide, full-page |
 | `mockups/04-anomalies-list-desktop.png` | B6 list + inspector có contextual reading | 1600px wide, full-page |
 | `mockups/05-review-detail-desktop.png` | Review form status/note + source contextual values | 1600px wide, full-page |
-| `mockups/*-mobile.png` | Minh họa bố cục mobile tương ứng | 390px wide, full-page |
 | `mockups/*.html`, `mockups/design.css` | **Static layout references**, không phải component ứng dụng đang chạy | Xem bằng trình duyệt sau khi unpack |
 | `source/render_mockups.py` | Có thể tái dựng ảnh từ CSV source | Requires pandas + playwright + chromium |
 | `CODEX_IMPLEMENTATION_BRIEF.md` | Prompt ngắn cho implement theo PR | Markdown |
