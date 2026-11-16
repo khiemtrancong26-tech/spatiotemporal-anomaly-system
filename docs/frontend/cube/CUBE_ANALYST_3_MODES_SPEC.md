@@ -20,7 +20,7 @@
 ### Ba chế độ hiển thị trong **một Cube**
 
 | Chế độ | Câu hỏi Analyst cần trả lời | Dữ liệu/hiển thị chính |
-|---|---|---|
+|---|---|
 | **01 — Overview** | Trạm nào cao? Những ngày/giờ nào nhiều trạm cùng cao? | Toàn bộ readings **đã tải trong phạm vi**, 12 cột thời gian theo vị trí trạm, time-slice |
 | **02 — Station Focus** | Một trạm tăng bất thường lúc nào? Kéo dài bao lâu? Có mất mẫu? | Một cột trạm nổi bật, các trạm khác mờ; bảng/mini-chart theo giờ |
 | **03 — Anomaly Focus** | Điểm nào là anomaly đã phát hiện, phân bố ở đâu/khi nào? | Điểm anomaly có vòng highlight; lọc theo `AnalysisRun`; chi tiết score/method/status |
@@ -72,7 +72,7 @@ CSV gồm các cột `sensorId, latitude, longitude, timestamp, value, unit, sou
 ### 3.1 Màu UI
 
 | Token | HEX | Công dụng |
-|---|---|---|
+|---|---|
 | `--cube-bg-app` | `#F5F7FB` | Nền trang |
 | `--cube-surface` | `#FFFFFF` | Card/panel |
 | `--cube-canvas-bg` | `#F0F5F9` | Nền trong vùng render Three.js |
@@ -105,20 +105,20 @@ Dùng một palette nhất quán giữa Cube, tooltip, legend, bảng ở cả 3
 
 ### 3.3 Kiểu chữ, spacing và trạng thái
 
-| Thành phần | Desktop | Mobile |
-|---|---|---|
-| Font | Dùng font hệ thống hiện có; ưu tiên `Inter`, fallback sans-serif | Giống desktop |
-| Heading chế độ | `20px / 28px / 700` | `17px / 24px / 700` |
-| Tab/phím thao tác | `13–14px / 20px / 600` | `13px` |
-| Label biểu đồ/cột | `12–13px` | `11–12px` |
-| Chữ phụ/legend | `12px / 18px` | `11–12px` |
-| Giá trị PM2.5 nổi bật | `22–26px / 700`, tabular numerals | `20px` |
-| Border panel | `1px solid #DFE7EF` | Giống desktop |
-| Radius card | `12px` | `10px` |
-| Radius button/input | `8px` | `8px` |
-| Khoảng cách khối | `12–16px` | `8–12px` |
-| Chiều cao button/input | `36–40px` | `40–44px` |
-| Shadow | `0 4px 16px rgba(20,43,67,0.06)` | Nhẹ hơn |
+| Thành phần | Desktop |
+|---|---|
+| Font | Dùng font hệ thống hiện có; ưu tiên `Inter`, fallback sans-serif |
+| Heading chế độ | `20px / 28px / 700` |
+| Tab/phím thao tác | `13–14px / 20px / 600` |
+| Label biểu đồ/cột | `12–13px` |
+| Chữ phụ/legend | `12px / 18px` |
+| Giá trị PM2.5 nổi bật | `22–26px / 700`, tabular numerals |
+| Border panel | `1px solid #DFE7EF` |
+| Radius card | `12px` |
+| Radius button/input | `8px` |
+| Khoảng cách khối | `12–16px` |
+| Chiều cao button/input | `36–40px` |
+| Shadow | `0 4px 16px rgba(20,43,67,0.06)` |
 
 Bảo đảm text đủ tương phản, focus ring dễ thấy; trạng thái không chỉ phân biệt bằng màu (có label/shape/tooltip).
 
@@ -163,7 +163,6 @@ Bảo đảm text đủ tương phản, focus ring dễ thấy; trạng thái kh
 | Legend | Trong panel hoặc overlay gọn trong Cube, không chiếm thêm nhiều hàng dưới bản đồ |
 | Desktop screenshot target | Có thể thấy phần lớn Cube **ngay khi vào tab**, không cần cuộn qua nhiều block trắng |
 
-**Responsive:** 1024–1199px: panel còn 260–290px hoặc thành drawer; dưới 900px: panel chuyển xuống dưới Cube, không chồng lên camera/tooltip. Mobile 390px: submode có thể scroll ngang, Cube cao khoảng 420–480px, panel dưới dạng accordion/drawer, timeline không gây overflow ngang. Không ép toàn bộ nhãn 3D đọc nhỏ trên mobile; cho phép mở danh sách readings dưới Cube.
 
 ### Lớp hình học Cube (áp dụng cho cả 3)
 
@@ -190,7 +189,7 @@ Nhìn nhiều trạm qua nhiều ngày/giờ để tìm giai đoạn **nhiều t
 ### Bố cục và chức năng
 
 | Vùng | Nội dung bắt buộc | Hành vi |
-|---|---|---|
+|---|---|
 | Submode bar | `01 Tổng quan` active màu teal | Chuyển sang Station/Anomaly không mất dataset, bộ lọc/camera nếu có thể |
 | Bộ lọc | Tất cả trạm / trạm cụ thể; khoảng thời gian; chọn T | Chỉ query readings thuộc phạm vi; hiển thị trạng thái load |
 | **Cube chính** | 12 cột readings theo tọa độ trạm; PM2.5 = màu | Orbit, zoom, hover, chọn reading, time-slice |
@@ -218,7 +217,7 @@ Xác định đỉnh PM2.5 tại một trạm là **một giờ đơn lẻ, mộ
 ### Bố cục và chức năng
 
 | Vùng | Nội dung bắt buộc | Hành vi |
-|---|---|---|
+|---|---|
 | Bộ lọc trạm | Select 1 trong 12 `sensorId` thực | Ví dụ chọn `Nongzhanguan` |
 | Cube | Trạm chọn alpha `1.0`, điểm to `6–8px`, halo nhẹ; trạm khác alpha `0.1–0.15` | Không bỏ các trạm khác khỏi bối cảnh trừ khi Analyst bật “Chỉ trạm này” |
 | Vị trí trạm | Line/label nhỏ ở chân cột | Tránh nhầm cột trạm do phối cảnh |
@@ -253,7 +252,7 @@ Xác định đỉnh PM2.5 tại một trạm là **một giờ đơn lẻ, mộ
 ### Bố cục và hành vi
 
 | Vùng | Nội dung bắt buộc | Hành vi |
-|---|---|---|
+|---|---|
 | Header filter | `Analysis Run` (nếu có), trạm, status/severity hoặc loại preview | Thay query thì cập nhật highlights và trạng thái tải |
 | Cube | Điểm thường mờ `0.1–0.2`; anomaly vòng tím `#7C3AED` + trắng; tâm vẫn giữ màu PM2.5 đo được | Hover/click vòng để select anomaly/reading |
 | Panel phải, card 1 | `Kết quả: N anomalies [đã tải / tổng nếu biết]` | Không tự tính tổng từ một trang rồi gọi là toàn bộ dataset |
@@ -309,7 +308,6 @@ Xác định đỉnh PM2.5 tại một trạm là **một giờ đơn lẻ, mộ
 - [ ] Đổi mode/selection không làm reset camera tùy tiện; Orbit/Zoom/Reset vẫn chạy; cleanup renderer đúng khi rời Cube.
 - [ ] Tương tác chọn reading → Inspector/Mapbox hoặc quy trình Review hợp lệ; không review preview chưa tồn tại trên Server.
 - [ ] Có loading/empty/error/partial coverage states; không nhầm `0` và `chưa tải đủ`.
-- [ ] Responsive ở 1440px, 1024px, 390px; không tràn ngang, panel không che điều khiển Cube.
 - [ ] Typecheck, lint, unit/e2e đang có vẫn đạt. Test thêm chuyển 3 mode, timezone +08/+07, missing hours, điểm anomaly official/preview và giới hạn pagination.
 
 ### Ưu tiên triển khai tránh overengineering
