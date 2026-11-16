@@ -5,13 +5,6 @@ import type { Reading } from '../../shared/api/generated/wire';
 import { createHeatmapTransition, heatLayer } from './map-heatmap';
 import { color, cubePoints } from './geometry';
 import { Button, LoadingState } from '../../shared/ui/primitives';
-const DAY_MAPBOX_COLORS = {
-  land: '#F7F9FB',
-  buildings: '#D9E3EA',
-  roads: '#F2F4F6',
-  water: '#8EC8E8',
-  parks: '#B9D8B0',
-} as const;
 type View = { zone: ExplorationTimeZone; rows: Reading[]; selected?: string; marked: Set<string>; scale?: {min:number;max:number} };
 export default function Renderer({ rows, mode, selected, onSelect, marked, spatialHeatmap = false, scale, zone = '+07:00' }: Omit<View, 'zone'> & { zone?: ExplorationTimeZone; spatialHeatmap?:boolean; mode:'map'|'cube'; onSelect:(id:string)=>void }) {
   const host = useRef<HTMLDivElement>(null), reset = useRef<()=>void>(()=>{});
@@ -34,7 +27,7 @@ export default function Renderer({ rows, mode, selected, onSelect, marked, spati
         if(cancelled)return;
         if(!mapbox.supported())throw new Error('WebGL không khả dụng cho Mapbox. Dùng bảng dữ liệu bên dưới.');
         const center=input.current.rows[0]?.location.coordinates??[105,21];
-        const map=new mapbox.Map({container:element,accessToken:token,style:'mapbox://styles/mapbox/standard',config:{basemap:{theme:'default',lightPreset:'day',show3dObjects:true,colorLand:DAY_MAPBOX_COLORS.land,colorBuildings:DAY_MAPBOX_COLORS.buildings,colorRoads:DAY_MAPBOX_COLORS.roads,colorMotorways:DAY_MAPBOX_COLORS.roads,colorTrunks:DAY_MAPBOX_COLORS.roads,colorWater:DAY_MAPBOX_COLORS.water,colorGreenspace:DAY_MAPBOX_COLORS.parks}},center:[center[0],center[1]],zoom:12,pitch:45,antialias:true});
+        const map=new mapbox.Map({container:element,accessToken:token,style:'mapbox://styles/mapbox/standard',center:[center[0],center[1]],zoom:12,pitch:45,antialias:true});
         map.addControl(new mapbox.NavigationControl(),'bottom-right');
         let fitted=false, previousWidth=element.clientWidth;
         cleanup=()=>map.remove();
