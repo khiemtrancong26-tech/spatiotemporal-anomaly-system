@@ -27,7 +27,7 @@ export default function Renderer({ rows, mode, selected, onSelect, marked, spati
         if(cancelled)return;
         if(!mapbox.supported())throw new Error('WebGL không khả dụng cho Mapbox. Dùng bảng dữ liệu bên dưới.');
         const center=input.current.rows[0]?.location.coordinates??[105,21];
-        const map=new mapbox.Map({container:element,accessToken:token,style:'mapbox://styles/mapbox/light-v11',center:[center[0],center[1]],zoom:12,pitch:45,antialias:true});
+        const map=new mapbox.Map({container:element,accessToken:token,style:'mapbox://styles/mapbox/standard',center:[center[0],center[1]],zoom:12,pitch:45,antialias:true});
         map.addControl(new mapbox.NavigationControl(),'bottom-right');
         let fitted=false, previousWidth=element.clientWidth;
         cleanup=()=>map.remove();
@@ -42,7 +42,6 @@ export default function Renderer({ rows, mode, selected, onSelect, marked, spati
         map.on('load',()=>{
           if(cancelled)return;
           const empty:GeoJSON.FeatureCollection={type:'FeatureCollection',features:[]};
-          if(map.getSource('composite')) map.addLayer({id:'context-buildings',source:'composite','source-layer':'building',type:'fill-extrusion',minzoom:14,filter:['==','extrude','true'],paint:{'fill-extrusion-color':'#d7e0eb','fill-extrusion-height':['coalesce',['get','height'],0],'fill-extrusion-base':['coalesce',['get','min_height'],0],'fill-extrusion-opacity':0.7}});
           map.addSource('readings',{type:'geojson',data:empty});
           const duration=window.matchMedia('(prefers-reduced-motion: reduce)').matches?0:700;
           for (const slot of [0,1]) { const id=`pm25-heat-${slot}`;map.addSource(id,{type:'geojson',data:empty});map.addLayer(heatLayer(id,id,range(input.current).max,duration)); }
