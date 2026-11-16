@@ -116,7 +116,7 @@ Admin có list cursor/sort, create với idempotency key và PATCH role/isActive
 
 Light dashboard với design tokens, SVG icons nội bộ, form/table/status và responsive shell thống nhất; không thêm UI dependency. Workspace có panel bộ lọc thu gọn, Cube/Mapbox, inspector và trợ giúp phụ. Heatmap ngày × giờ gộp readings đã tải theo UTC+07; heatmap Mapbox là các ô 0,02° có mẫu từ điểm trạm đang hiển thị, không nội suy hoặc gán ngưỡng sức khỏe. Cùng thang màu PM2.5 đang có. Xem [audit, ảnh trước/sau và bằng chứng](../docs/frontend/ui-redesign/README.md).
 
-Chụp UI mock tại 1440px/390px: chạy `npm run dev:mock`, sau đó từ root `node client/scripts/capture-ui.mjs docs/frontend/ui-redesign/after`. Tùy chọn `--map` thử thêm Mapbox bằng token môi trường hiện tại; có canvas chưa chứng minh tiles/layer tải thành công.
+Chụp UI mock tại 1440px: chạy `npm run dev:mock`, sau đó từ root `node client/scripts/capture-ui.mjs docs/frontend/ui-redesign/after`. Tùy chọn `--map` thử thêm Mapbox bằng token môi trường hiện tại; có canvas chưa chứng minh tiles/layer tải thành công.
 
 
 ## Workspace v2 — cùng thời điểm và bố cục map-first
@@ -130,4 +130,3 @@ E2E có thể đổi cổng qua `PM25_E2E_MOCK_PORT` và `PM25_E2E_ONLINE_PORT` 
 
 ## Bố cục Mapbox gọn — 15/11/2026
 
-Toolbar gộp, legend/layer overlay trong map, viewport map ≥520px, dock readings thu gọn mặc định. Giữ nguyên heatmap/timeline/maxAge đã duyệt. Xem [Mapbox layout](../docs/frontend/map-layout.md) với ảnh desktop/tablet/mobile và kiểm chứng.
