@@ -68,3 +68,11 @@ export function sliceSummary(rows: Reading[], expectedSensorIds: string[], compl
   const full = complete && expectedSensorIds.length > 0 && expectedSensorIds.every(id => ids.has(id)) && rows.length === ids.size;
   return { count: ids.size, mean: full ? stationStats(rows)?.mean : undefined };
 }
+
+export function linkedCubeScope(ts:string,filters:{from?:string;to?:string},previous?:CubeScope,durationMs?:number):CubeScope {
+ const lower=filters.from?Date.parse(filters.from):-Infinity,upper=filters.to?Date.parse(filters.to):Infinity;
+ const t=Math.min(upper,Math.max(lower,Date.parse(ts)));
+ if(previous&&Date.parse(previous.from)<=t&&Date.parse(previous.to)>=t&&Date.parse(previous.from)>=lower&&Date.parse(previous.to)<=upper)return previous;
+ const duration=durationMs??(previous?Date.parse(previous.to)-Date.parse(previous.from)+1:24*HOUR);
+ return {from:new Date(Math.max(lower,t-duration/2)).toISOString(),to:new Date(Math.min(upper,t+duration/2-1)).toISOString()};
+}

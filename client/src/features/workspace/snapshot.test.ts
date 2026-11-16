@@ -27,9 +27,9 @@ it('ignores responses from an old time and stops repeat cursors',async()=>{
  const repeated=vi.fn().mockResolvedValueOnce(page([row('A')],'same')).mockResolvedValueOnce(page([row('B')],'same'));
  await expect(loadSnapshot(repeated,query,new AbortController().signal)).rejects.toMatchObject({kind:'invalid-response'});
 });
-it('caps snapshots at 2000 with an explicit remaining-page flag',async()=>{
- let count=0;const load=vi.fn().mockImplementation(()=>{const data=Array.from({length:100},()=>row(String(count++)));return Promise.resolve(page(data,String(count)));});
- const result=await loadSnapshot(load,query,new AbortController().signal);expect(result.rows).toHaveLength(2000);expect(result.hasMore).toBe(true);expect(load).toHaveBeenCalledTimes(20);
+it('scans beyond 2000 raw readings without truncating or retaining a raw window',async()=>{
+ let count=0;const load=vi.fn().mockImplementation(()=>{const data=Array.from({length:100},()=>({...row(String(count++)),sensorId:'A'}));return Promise.resolve(page(data,count<2500?String(count):null));});
+ const result=await loadSnapshot(load,query,new AbortController().signal);expect(result.rows).toHaveLength(1);expect(result.hasMore).toBe(false);expect(load).toHaveBeenCalledTimes(25);
 });
 
 it('selects the newest sample per station, retains age boundary, omits stale samples via bounded query',async()=>{
