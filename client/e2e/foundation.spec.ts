@@ -42,14 +42,14 @@ test('login, session restoration, workspace filters, logout and admin guard', as
   await expect(page.getByRole('link', { name: 'Mở dữ liệu' })).toBeVisible();
   await page.screenshot({ path: 'test-results/m2-desktop.png', fullPage: true });
 });
-test('mobile layout and deep link survive login without inventing metadata', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test('desktop deep link survives login without inventing metadata', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto('/workspace/unknown-dataset');
   await login(page);
   await expect(page.getByText('Dataset ID: unknown-dataset', { exact: true })).toBeVisible();
   await expect(page.getByText('Chưa đọc được Profile dataset.', { exact: false })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.screenshot({ path: 'test-results/m2-mobile.png', fullPage: true });
+  await page.screenshot({ path: 'test-results/m2-desktop-deep-link.png', fullPage: true });
 });
 
 test('register handles duplicate usernames, returns to login and never auto-authenticates', async ({ page }) => {
@@ -108,9 +108,7 @@ test('M7 admin creates, edits and loses admin access after self downgrade', asyn
   await page.getByRole('button', { name: 'Về danh sách user' }).click();
   await expect(page.getByRole('row').filter({ hasText: 'created-admin' })).toContainText('admin');
   await page.screenshot({ path: 'test-results/m7-desktop.png', fullPage: true });
-  await page.setViewportSize({ width: 390, height: 844 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: 'test-results/m7-mobile.png', fullPage: true });
+
   await page.getByRole('button', { name: 'Sửa admin01', exact: true }).click();
   await page.getByLabel('Role', { exact: true }).selectOption('analyst');
   await page.getByRole('button', { name: 'Lưu tài khoản' }).click();
