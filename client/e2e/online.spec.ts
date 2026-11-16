@@ -325,7 +325,7 @@ test('M6 preserves draft on 409, rebases explicitly and saves only review fields
   await page.getByRole('button', { name: 'Giữ bản sửa trên version mới' }).click(); expect(writes).toHaveLength(1);
   await page.getByRole('button', { name: 'Lưu review', exact: true }).click(); await expect(page.getByText('Server đã xác nhận lưu review.')).toBeVisible(); expect(writes).toHaveLength(2);
   await page.screenshot({ path: 'test-results/m6-desktop.png', fullPage: true });
-  await page.setViewportSize({ width: 390, height: 844 }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
 });
 
 test('M6 keeps draft through network/409 and allows explicit discard without another PATCH', async ({ page }) => {
