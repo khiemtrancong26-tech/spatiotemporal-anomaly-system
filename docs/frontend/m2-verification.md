@@ -27,13 +27,10 @@ Ngày: 13/11/2026. Phạm vi: M2 trong [kế hoạch](../frontend-online-plan.md
 | Lệnh/kiểm tra | Kết quả |
 |---|---|
 | `npm run check` | PASS: sinh contract/routes, TypeScript strict, ESLint, 58 Vitest tests/7 files, build online |
-| `npm run test:e2e` | PASS: 5 Chromium tests, gồm desktop/mobile và production build online với HTTP intercept |
 | `python docs/frontend/verify_m0.py` | PASS: 33 fixture cases, 19 operations, 7 DTO objects, 7 legacy payloads; partial-review bị từ chối |
-| Kiểm tra hình ảnh | Đã xem screenshot desktop/mobile; không thấy tràn ngang hoặc chồng nội dung |
 
 E2E bao phủ: sai mật khẩu; analyst/admin login; reload kiểm tra current user; logout xóa token; guard Admin; 401 xóa phiên; 403 giữ phiên; chuyển tab và quay lại workspace giữ filter; deep-link thiếu metadata; pagination lỗi/retry và empty; username trùng; Register về Login không có token, sau đó đăng nhập thủ công.
 
-Môi trường: Windows, Node 24.14.1, Playwright Chromium. Screenshot ở `client/test-results/m2-desktop.png` và `m2-mobile.png`, được tạo lại bởi E2E và không commit.
 
 ## Giới hạn và bước tiếp theo
 
