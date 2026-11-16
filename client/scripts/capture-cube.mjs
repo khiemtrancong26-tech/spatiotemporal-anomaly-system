@@ -53,7 +53,7 @@ try {
   await page.getByRole('button',{name:'02 Theo trạm',exact:true}).click();await page.getByLabel('Trạm trong Cube',{exact:true}).selectOption('Nongzhanguan');await changeDay(26);await page.getByLabel('Lát thời gian Cube',{exact:true}).selectOption(t(26,21));await page.getByRole('region',{name:'Chuỗi giờ của trạm',exact:true}).getByRole('button',{name:'21:00',exact:true}).click();await expect(page.locator('.cube-inspector')).toContainText('369');await expect(page.locator('.cube-panel')).toContainText('Trung vị 11 trạm khác tại lát: 80');
   for(const hour of ['22:00','23:00'])await expect(page.getByRole('region',{name:'Chuỗi giờ của trạm',exact:true}).getByRole('row').filter({hasText:hour})).toContainText('Thiếu mẫu');
   await expect(page.locator('.cube-canvas')).toHaveAttribute('data-camera',camera);
-  for(const width of [1440,1024,390]){await page.setViewportSize({width,height:width===390?844:900});await capture(`station-${width}`);}
+  for(const width of [1440,1366,1024]){await page.setViewportSize({width,height:width===1366?768:900});await capture(`station-${width}`);}
   await page.setViewportSize({width:1440,height:900});await page.getByRole('button',{name:'03 Điều tra bất thường',exact:true}).click();await expect(page.getByText('Chưa có kết quả phát hiện bất thường được chọn.',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Mở review',exact:true})).toHaveCount(0);await capture('anomaly-empty-1440');
   expect(errors).toEqual([]);report.pageErrors=errors;
   await writeFile(`${output}/verification.json`,JSON.stringify(report,null,2)+'\n');
