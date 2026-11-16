@@ -8,7 +8,6 @@ Ngày 16/11/2026. Theo `../PM25_Analyst_UX_Handoff/PM25_Analyst_UX_Handoff.md`. 
 |---|---|---|
 | Exploration | `workspace/exploration.tsx`, `exploration-chart.tsx` | Profile cho KPI/quality; Aggregates cho mean/count/coverage. Ba series mặc định, tối đa 20, hour/day, null ngắt đường và giữ điểm đơn lẻ. Bảng và small multiples trong disclosure. CTA chọn scope workspace hoặc trạm chart, chưa POST. |
 | Analysis | `analysis/page.tsx`, `intent.ts`, `results.tsx` | Ba bước scope/method/confirm, Profile kiểm scope đúng trước khi công bố count; chặn count biết >50k. Preset cố định, không gửi bbox. Snapshot/key lưu trước POST; retry chủ động cùng body/key trong 24h. History và results gắn run, polling 3s/backoff tối đa 30s. JSON chỉ trong disclosure. |
-| Anomalies/Review | `anomalies/page.tsx`, `reading.tsx`, `review.tsx` | Query theo B6, không sensorId/bbox; count đã tải, không bịa total. Reading được xác minh riêng cho điểm chọn. List/inspector desktop, cards và view/back mobile. CAS chỉ status/note; 409 hoặc mất phản hồi giữ draft, GET đối soát rồi người dùng quyết định, không tự PATCH lại. |
 | Investigation | `workspace/investigation.ts`, `state.ts`, `page.tsx` | Xác minh đúng dataset/sensor/readingId/ts bằng query chính xác, có pagination và cap 2k. Mở đúng reading trước, cho chủ động mở rộng ±12h/trạm xung quanh. Quay lại giữ run, selection, query, pages và list DOM. |
 
 Các tên file trên tương đối với `client/src/features/`. Helpers dùng chung: `workspace/analyst.ts`, `analyst-ui.tsx`. CSS mới có scope `.analyst-ux`/`.workspace-analyst`, không áp vào Visualization thông thường.
@@ -24,7 +23,6 @@ Không đổi backend production (`server/src`), OpenAPI, shared DTO hoặc thê
 - Backend browser suite: **4/4 passed** — B5 statistical, B6 CSV/review hai client, Analyst journey và C2 Profile/Aggregates/timezone. Không HTTP intercept trong các case này. MongoDB Replica Set tạm, tài khoản/dataset kiểm thử riêng; không ghi dữ liệu vào database người dùng.
 - Analyst journey import CSV thật 8.782 readings, kiểm coverage unknown khi thiếu sampling metadata; mean 86,55 và chart 3 series từ API. Tắt socket sau acceptance commit, reload/replay cùng key/body, kiểm DB chỉ có một run. Z-score chạy thật, reading Nongzhanguan 369 được tra đúng ID, điều tra Cube/Mapbox frame, quay lại đúng run rồi lưu review; score/method không đổi.
 - B6 concurrency case: client B ghi v2; client A nhận 409, giữ note, chủ động rebase/lưu v3; reload xác nhận trạng thái/note/version.
-- 1600/1024/390px: không overflow toàn trang; mobile filter thu gọn và inspector có nút quay lại, không bắt cuộn qua 100 dòng. Focus-visible và reduced-motion có CSS riêng.
 
 Ảnh `before/` từ code HEAD `03dc4f8` được xuất vào thư mục tạm; ảnh `after/` từ code mới. Cả hai dùng cùng Backend/CSV thật trong harness. Các ID trong ảnh thuộc database kiểm thử đã được hủy, không phải production.
 
