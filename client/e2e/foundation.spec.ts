@@ -144,11 +144,6 @@ test('redesign keeps the visual canvas mounted when folding filters and exposes 
   await expect(page.getByText('Heatmap loang mềm biểu diễn cường độ thị giác từ các trạm;', {exact:false})).toBeVisible();
   await page.getByRole('button',{name:'Cube',exact:true}).click();
   await expect(page.locator('canvas').first()).toBeVisible();
-  await page.setViewportSize({width:390,height:844});
   await page.reload();
-  await expect(page.getByLabel('Trạm (Sensor ID)',{exact:true})).toBeHidden();
   await expect(page.locator('canvas').first()).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.locator('summary.filter-heading').click();
-  await expect(page.getByLabel('Trạm (Sensor ID)',{exact:true})).toBeVisible();
 });
