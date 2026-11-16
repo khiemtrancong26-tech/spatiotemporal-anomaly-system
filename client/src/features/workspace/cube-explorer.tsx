@@ -28,20 +28,20 @@ function StationChart({ rows, scope, offset, onSelect }: { rows: Reading[]; scop
   </svg>;
 }
 
-export function CubeExplorer({ datasetId, filters, anchor, seedReady, seedError, retrySeed, sensors, sensorsComplete, sensorsError, retrySensors, loadSensors, onMap, onDock, onRows }: {
-  datasetId: string; filters: WorkspaceFilters; anchor?: string; seedReady: boolean; seedError?: string; retrySeed: () => void; sensors: Sensor[]; sensorsComplete: boolean; sensorsError?: string;
+export function CubeExplorer({ initialTimestamp, datasetId, filters, anchor, seedReady, seedError, retrySeed, sensors, sensorsComplete, sensorsError, retrySensors, loadSensors, onMap, onDock, onRows }: {
+  initialTimestamp?: string; datasetId: string; filters: WorkspaceFilters; anchor?: string; seedReady: boolean; seedError?: string; retrySeed: () => void; sensors: Sensor[]; sensorsComplete: boolean; sensorsError?: string;
   retrySensors: () => void; loadSensors?: () => void; onMap: (ts?: string) => void; onDock: () => void; onRows: (rows: Reading[]) => void;
 }) {
   const { data, workspace, datasets } = useServices();
   const selected = useStore(workspace, s => s.selectedReadingId), resultRun = useStore(workspace, s => s.resultRun);
   const existing = useStore(workspace, s => s.anomalies);
-  const [mode, setMode] = useState<CubeMode>('overview');
+  const [mode, setMode] = useState<CubeMode>(initialTimestamp ? 'station' : 'overview');
   const zone = useStore(workspace, s => s.timeZone), offset = explorationOffset(zone);
   const [focused, focus] = useState(filters.sensorId ?? ''), [showContext, setContext] = useState(true);
   const [customScope, setScope] = useState<CubeScope>(), [windowHours, setHours] = useState('24');
   const [draftFrom, setFrom] = useState<string>(), [draftTo, setTo] = useState<string>(), [scopeError, setScopeError] = useState('');
   useEffect(() => { setFrom(undefined); setTo(undefined); }, [offset]);
-  const [requested, setRequested] = useState<string>(), [playing, play] = useState(false), [speed, setSpeed] = useState(1800);
+  const [requested, setRequested] = useState<string | undefined>(initialTimestamp), [playing, play] = useState(false), [speed, setSpeed] = useState(1800);
   const [runChoice, setRunChoice] = useState<string>(), [status, setStatus] = useState(''), [severity, setSeverity] = useState('');
   const readings = useMemo(() => createCursorPager(data.readings.list), [data]);
   const runs = useMemo(() => createCursorPager(data.analysis.list), [data]);
@@ -108,7 +108,7 @@ export function CubeExplorer({ datasetId, filters, anchor, seedReady, seedError,
   const unavailable = () => complete ? 'Không có reading tại mốc (coverage xem Profile)' : 'Chưa xác định · chưa tải đủ';
   function review(item: Anomaly) {
     workspace.getState().setResults(resultRun, [...new Map([...existing, item].map(a => [a.id, a])).values()]);
-    workspace.getState().selectReading(item.readingId); workspace.getState().selectTab('anomalies');
+    workspace.getState().selectReading(item.readingId); workspace.getState().openAnomalies(item.analysisRunId, item.id, true);
   }
   return <div className="cube-explorer">
     <nav className="cube-submodes" aria-label="Chế độ Cube">{(['overview', 'station', 'anomaly'] as const).map(id => <Button key={id} variant="secondary" aria-pressed={mode === id} onClick={() => setMode(id)}>{titles[id]}</Button>)}</nav>

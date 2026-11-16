@@ -1,62 +1,90 @@
 import { useStore } from 'zustand';
-import { formatWorkspaceTime, zoneLabel } from '../workspace/time';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { useBlocker } from '@tanstack/react-router';
 import { useServices } from '../../app/services';
 import { StatusBadge, Button, Field, ErrorState, LoadingState } from '../../shared/ui/primitives';
 import { createCursorPager } from '../../shared/lib/cursor-pager';
-import { DataSourceError, errorMessage } from '../../shared/api/errors';
+import { errorMessage } from '../../shared/api/errors';
 import type { Anomaly, AnomaliesQuery } from '../../shared/api/generated/wire';
 import type { WorkspaceFilters } from '../workspace/state';
-function Review({ item, saved }: { item: Anomaly; saved: (a: Anomaly) => void }) {
-  const { data, workspace } = useServices();
-  const zone = useStore(workspace, s => s.timeZone);
-  const [base, setBase] = useState(item), [status, setStatus] = useState(item.status), [note, setNote] = useState(item.note);
-  const [conflict, setConflict] = useState(false), [latest, setLatest] = useState<Anomaly>();
-  const [pending, setPending] = useState(false), [error, setError] = useState(''), [success, setSuccess] = useState(false);
-  const active = useRef<AbortController | undefined>(undefined);
-  const dirty = status !== base.status || note !== base.note;
-  useEffect(() => { workspace.getState().setReviewDirty(dirty || conflict); return () => workspace.getState().setReviewDirty(false); }, [workspace, dirty, conflict]);
-  useBlocker({ shouldBlockFn: () => (dirty || conflict) && !window.confirm('Bỏ bản review chưa lưu?'), enableBeforeUnload: dirty || conflict });
-  useEffect(() => () => active.current?.abort(), []);
-  async function loadLatest() {
-    const controller = new AbortController(); active.current = controller; setPending(true);
-    try { const a = await data.anomalies.get(base.id, { signal: controller.signal }); if (!controller.signal.aborted) { if (a.datasetId !== base.datasetId || a.id !== base.id) throw new Error('Dataset không khớp'); setLatest(a); } }
-    catch (e) { if (!controller.signal.aborted) setError(errorMessage(e)); }
-    finally { if (!controller.signal.aborted) setPending(false); }
-  }
-  async function save() {
-    if (pending || conflict || !dirty) return;
-    const controller = new AbortController(); active.current = controller; setPending(true); setError(''); setSuccess(false);
-    try { const a = await data.anomalies.review(base.id, { baseVersion: base.version, changes: { status, note } }, { signal: controller.signal }); if (controller.signal.aborted) return; if (a.id !== base.id || a.datasetId !== base.datasetId || a.version <= base.version) throw new Error('Response không khớp'); setBase(a); setStatus(a.status); setNote(a.note); setSuccess(true); saved(a); }
-    catch (e) { if (!controller.signal.aborted) { setError(errorMessage(e)); if (e instanceof DataSourceError && e.status === 409) { setConflict(true); setLatest(undefined); await loadLatest(); } } }
-    finally { if (!controller.signal.aborted) setPending(false); }
-  }
-  return <section className="card analysis-page anomalies-page"><h3>Chi tiết {base.id}</h3><p>Reading: {base.readingId} · Sensor: {base.sensorId} · Run: {base.analysisRunId}</p><p>{formatWorkspaceTime(base.ts, zone)} · {zoneLabel(zone)} · Lon/Lat: {base.location.coordinates.join(', ')}</p><p>{base.family} / {base.method} · Score {base.score} · Severity {base.severity} · Version {base.version} · Cập nhật: {formatWorkspaceTime(base.updatedAt, zone)} · {zoneLabel(zone)}</p><p>Xem giá trị reading trong workspace khi phép đo đã được tải.</p><label className="field">Review status<select aria-label="Review status" disabled={pending} value={status} onChange={e => { setStatus(e.target.value as Anomaly['status']); setSuccess(false); }}><option>open</option><option>confirmed</option><option>false_positive</option></select></label><label className="field">Ghi chú<textarea aria-label="Ghi chú" disabled={pending} value={note} onChange={e => { setNote(e.target.value); setSuccess(false); }} /></label><Button disabled={pending || conflict || !dirty} onClick={() => { void save(); }}>Lưu review</Button>{success && <p role="status">Server đã xác nhận lưu review.</p>}{error && <p role="alert">{error} Bản sửa vẫn được giữ. Lỗi mạng không chứng minh Server chưa lưu; ứng dụng không tự gửi lại.</p>}{conflict && <div><p role="alert">Xung đột phiên bản. Không tự ghi đè hoặc tự gửi lại.</p>{latest ? <><p>Server v{latest.version}: {latest.status} · {latest.note || '(ghi chú rỗng)'}</p><p>Bản của bạn: {status} · {note || '(ghi chú rỗng)'}</p><Button disabled={pending} onClick={() => { setBase(latest); setStatus(latest.status); setNote(latest.note); setConflict(false); setError(''); saved(latest); }}>Bỏ bản sửa, dùng Server</Button><Button disabled={pending} onClick={() => { setBase(latest); setConflict(false); setError(''); }}>Giữ bản sửa trên version mới</Button><p>Sau khi giữ bản sửa, kiểm tra lại rồi bấm Lưu review.</p></> : <Button disabled={pending} onClick={() => { void loadLatest(); }}>Đọc lại bản Server</Button>}</div>}<Button variant="secondary" disabled={dirty || conflict || pending} onClick={() => { workspace.getState().selectReading(base.readingId); workspace.getState().selectTab('visualization'); }}>Xem reading trên workspace</Button></section>;
-}
-export function AnomaliesPage({ datasetId, filters, runId, initialAnomalyId }: { datasetId: string; filters: WorkspaceFilters; runId?: string; initialAnomalyId?: string }) {
-  const { data, workspace } = useServices();
-  const [draft, setDraft] = useState({ run: runId ?? '', family: '', method: '', severity: '', status: '', sort: 'ts:asc' });
-  const [query, setQuery] = useState<AnomaliesQuery>({ datasetId, analysisRunId: runId, from: filters.from, to: filters.to, sort: 'ts:asc', limit: 100 });
-  const [item, setItem] = useState<Anomaly>(), [error, setError] = useState(''), [loading, setLoading] = useState(false);
-  const [revision, refresh] = useState(0);
-  const request = useRef<AbortController | undefined>(undefined);
+import { explorationUtcTime } from '@pm25/shared-core';
+import { formatWorkspaceTime, explorationLocalTime, zoneLabel } from '../workspace/time';
+import { methodName, number, scoreLabel, sensorName, shortId } from '../workspace/analyst';
+import { TechnicalId, useAnalystSensors } from '../workspace/analyst-ui';
+import { targetFromAnomaly } from '../workspace/investigation';
+import { AnomalyReading } from './reading';
+import { AnomalyReview } from './review';
+
+export function AnomaliesPage({ datasetId, filters, runId, initialAnomalyId, active = true }: { datasetId: string; filters: WorkspaceFilters; runId?: string; initialAnomalyId?: string; active?: boolean }) {
+  const { data, workspace } = useServices(), zone = useStore(workspace, s => s.timeZone), context = useStore(workspace, s => s.anomalyContext);
+  const sensors = useAnalystSensors(datasetId);
+  const [filtersOpen, setFiltersOpen] = useState(() => window.innerWidth >= 768);
+  useEffect(() => { const media = window.matchMedia('(max-width:767px)'); const changed = () => setFiltersOpen(!media.matches); media.addEventListener('change', changed); return () => media.removeEventListener('change', changed); }, []);
+  const [draft, setDraft] = useState({ run: context?.runId ?? runId ?? '', family: '', method: '', severity: '', status: '', sort: 'ts:asc' });
+  const [query, setQuery] = useState<AnomaliesQuery>({ datasetId, analysisRunId: context?.runId ?? runId, from: (context?.runId ?? runId) ? undefined : filters.from, to: (context?.runId ?? runId) ? undefined : filters.to, sort: 'ts:asc', limit: 100 });
+  const [dateFrom, setFrom] = useState<string>(), [dateTo, setTo] = useState<string>();
+  const [item, setItem] = useState<Anomaly>(), [error, setError] = useState(''), [loading, setLoading] = useState(false), [reviewOpen, openReview] = useState(false);
+  const request = useRef<AbortController | undefined>(undefined), handledContext = useRef<number | undefined>(undefined), listRef = useRef<HTMLDivElement>(null);
   const pager = useMemo(() => createCursorPager(data.anomalies.list), [data]);
   const state = useSyncExternalStore(pager.subscribe, pager.getSnapshot);
-  useEffect(() => { void pager.setQuery(query); return () => pager.dispose(); }, [pager, query, revision]);
-  useEffect(() => () => request.current?.abort(), []);
+  useEffect(() => { if (active) void pager.setQuery(query); }, [pager, query, active]);
+  useEffect(() => () => { pager.dispose(); request.current?.abort(); }, [pager]);
+  useEffect(() => { setFrom(undefined); setTo(undefined); }, [zone]);
+  const lastGlobal = useRef(JSON.stringify([filters.from, filters.to]));
   useEffect(() => {
-    if (!initialAnomalyId) return;
-    const controller = new AbortController();
-    setLoading(true);
-    void data.anomalies.get(initialAnomalyId, { signal: controller.signal }).then(a => {
+    const key = JSON.stringify([filters.from, filters.to]);
+    if (active && key !== lastGlobal.current) { lastGlobal.current = key; openReview(false); setItem(undefined); setQuery(q => ({ ...q, from: filters.from, to: filters.to })); setFrom(undefined); setTo(undefined); }
+  }, [active, filters.from, filters.to]);
+  useEffect(() => {
+    if (!active || (context && context.revision === handledContext.current)) return;
+    if (context) {
+      handledContext.current = context.revision; setFrom(undefined); setTo(undefined);
+      setDraft(d => ({ ...d, run: context.runId ?? '', family: '', method: '', severity: '', status: '' }));
+      setQuery({ datasetId, analysisRunId: context.runId, sort: 'ts:asc', limit: 100 });
+    }
+    const id = context?.anomalyId ?? initialAnomalyId;
+    if (!id) return;
+    const controller = new AbortController(); request.current?.abort(); request.current = controller; setLoading(true); setError('');
+    void data.anomalies.get(id, { signal: controller.signal }).then(a => {
       if (controller.signal.aborted) return;
-      if (a.datasetId !== datasetId || a.id !== initialAnomalyId) throw new Error('Response không khớp');
-      setItem(a);
+      if (a.datasetId !== datasetId || a.id !== id || (context?.runId && a.analysisRunId !== context.runId)) throw new Error('Response anomaly không khớp dataset/run/ID.');
+      setItem(a); openReview(context?.review ?? false);
     }).catch(e => { if (!controller.signal.aborted) setError(errorMessage(e)); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [data, datasetId, initialAnomalyId]);
-  async function select(id: string) { request.current?.abort(); const controller = new AbortController(); request.current = controller; setLoading(true); setError(''); try { const a = await data.anomalies.get(id, { signal: controller.signal }); if (!controller.signal.aborted) { if (a.datasetId !== datasetId || a.id !== id) throw new Error('Response không khớp'); setItem(a); const current = workspace.getState(); current.setResults(undefined, [a]); } } catch(e) { if (!controller.signal.aborted) setError(errorMessage(e)); } finally { if (!controller.signal.aborted) setLoading(false); } }
-  function saved(a: Anomaly) { const current = workspace.getState(); current.setResults(current.resultRun, current.anomalies.map(value => value.id === a.id ? a : value)); refresh(v => v + 1); }
-  return <section className="card analysis-page anomalies-page"><h2>Anomalies và review</h2><p>Scope: dataset {datasetId}, thời gian {filters.from ?? 'mọi thời điểm'} → {filters.to ?? 'không giới hạn'}. Trạm/bbox không áp dụng. Chỉ kết quả đã công bố; 409 chưa sẵn sàng khác kết quả rỗng.</p>{!item && <><form onSubmit={e => { e.preventDefault(); setQuery({ datasetId, from: filters.from, to: filters.to, analysisRunId: draft.run || undefined, family: (draft.family || undefined) as AnomaliesQuery['family'], method: draft.method || undefined, severity: (draft.severity || undefined) as AnomaliesQuery['severity'], status: (draft.status || undefined) as AnomaliesQuery['status'], sort: draft.sort as AnomaliesQuery['sort'], limit: 100 }); }}><Field label="Analysis run ID" value={draft.run} onChange={e => setDraft({ ...draft, run: e.target.value })} /><Field label="Method" value={draft.method} onChange={e => setDraft({ ...draft, method: e.target.value })} />{(['family','severity','status','sort'] as const).map(field => <label className="field" key={field}>{field}<select aria-label={field} value={draft[field]} onChange={e => setDraft({ ...draft, [field]: e.target.value })}>{(field === 'family' ? ['', 'statistical', 'ml'] : field === 'severity' ? ['', 'low', 'medium', 'high'] : field === 'status' ? ['', 'open', 'confirmed', 'false_positive'] : ['ts:asc','ts:desc']).map(v => <option key={v} value={v}>{v || 'Tất cả'}</option>)}</select></label>)}<Button type="submit">Lọc anomalies</Button></form>{state.status === 'loading' && <LoadingState />}{state.status === 'error' && <ErrorState message={errorMessage(state.error)} retry={() => { void pager.retry(); }} />}{state.status === 'ready' && !state.data.length && <p>Không có anomaly trong trang/phạm vi này.</p>}<div className="table-scroll" tabIndex={0} role="region" aria-label="Bảng anomalies"><table><thead><tr><th>Anomaly</th><th>Reading</th><th>Method</th><th>Severity</th><th>Status</th><th>Chi tiết</th></tr></thead><tbody>{state.data.map(a => <tr key={a.id}><td>{a.id}</td><td>{a.readingId}</td><td>{a.family}/{a.method}</td><td>{a.severity}</td><td><StatusBadge value={a.status} /></td><td><Button disabled={loading} onClick={() => { void select(a.id); }}>Review {a.id}</Button></td></tr>)}</tbody></table></div><p>Đã tải {state.data.length} anomalies{state.nextCursor ? ' · Còn trang' : ''}</p>{state.nextCursor && <Button disabled={state.status === 'loading' || state.data.length >= 2000} onClick={() => { void pager.loadMore(); }}>Tải thêm anomalies</Button>}</>}{loading && <LoadingState />}{error && <p role="alert">{error}</p>}{item && <><Review key={item.id} item={item} saved={saved} /><Button variant="secondary" onClick={() => { if (window.confirm('Về danh sách và bỏ bản sửa chưa lưu nếu có?')) setItem(undefined); }}>Về danh sách anomalies</Button></>}</section>;
+    // Keep the verified detail and list when hiding this tab for investigation.
+  }, [active, context, initialAnomalyId, data, datasetId]);
+  useEffect(() => { if (!active) request.current?.abort(); }, [active]);
+  function discard() { return !workspace.getState().reviewDirty || window.confirm('Bỏ bản review chưa lưu để tiếp tục?'); }
+  async function select(id: string) {
+    if (!discard()) return;
+    request.current?.abort(); const controller = new AbortController(); request.current = controller; setLoading(true); setError(''); openReview(false);
+    try { const a = await data.anomalies.get(id, { signal: controller.signal }); if (!controller.signal.aborted) { if (a.datasetId !== datasetId || a.id !== id) throw new Error('Response không khớp'); setItem(a); setOverrides(previous => ({...previous,[a.id]:a})); const current = workspace.getState(); current.setResults(current.resultRun, [...new Map([...current.anomalies, a].map(v => [v.id, v])).values()]); } }
+    catch (e) { if (!controller.signal.aborted) setError(errorMessage(e)); } finally { if (!controller.signal.aborted) setLoading(false); }
+  }
+  function saved(a: Anomaly) {
+    setItem(a); setOverrides(previous => ({...previous,[a.id]:a})); const current = workspace.getState(); current.setResults(current.resultRun, current.anomalies.map(v => v.id === a.id ? a : v));
+    // Patch the displayed item locally, retaining the loaded pages/cursor and scroll.
+    setOverrides(previous => ({ ...previous, [a.id]: a }));
+  }
+  const [overrides, setOverrides] = useState<Record<string, Anomaly>>({});
+  const rows = state.data.map(a => overrides[a.id] && overrides[a.id].version >= a.version ? overrides[a.id] : a).filter(a => (!query.status || a.status === query.status) && (!query.severity || a.severity === query.severity));
+  function investigate(mode: 'map' | 'cube') { if (item && discard()) workspace.getState().investigate(targetFromAnomaly(item, mode)); }
+  return <section className="analyst-ux ux-anomalies"><header className="ux-page-heading"><div><p className="ux-eyebrow">03 · ĐIỀU TRA VÀ ĐÁNH GIÁ</p><h2>Anomalies cần xem xét</h2><p>Phát hiện của detector cần được đối chiếu và đánh giá trong bối cảnh.</p></div><Button variant="secondary" onClick={() => { if (discard()) workspace.getState().selectTab('analysis'); }}>Quay lại Analysis</Button></header>
+    <details className="ux-filter-disclosure" open={filtersOpen} onToggle={e => setFiltersOpen(e.currentTarget.open)}><summary>Bộ lọc phát hiện</summary><form className="ux-panel ux-anomaly-filters" onSubmit={e => { e.preventDefault(); if (!discard()) return; try { const from = dateFrom === undefined ? query.from : dateFrom ? explorationUtcTime(dateFrom, zone) : undefined, to = dateTo === undefined ? query.to : dateTo ? explorationUtcTime(dateTo, zone) : undefined; if (from && to && to < from) throw new Error('Khoảng thời gian bị đảo ngược.'); openReview(false); setItem(undefined); setError(''); setQuery({ datasetId, from, to, analysisRunId: draft.run || undefined, family: (draft.family || undefined) as AnomaliesQuery['family'], method: draft.method || undefined, severity: (draft.severity || undefined) as AnomaliesQuery['severity'], status: (draft.status || undefined) as AnomaliesQuery['status'], sort: draft.sort as AnomaliesQuery['sort'], limit: 100 }); listRef.current?.scrollTo(0, 0); } catch (e) { setError((e as Error).message); } }}>
+      <Field label="Analysis run ID" value={draft.run} placeholder="Tất cả run" onChange={e => setDraft({ ...draft, run: e.target.value })} /><Field label="Method" value={draft.method} placeholder="Tất cả phương pháp" onChange={e => setDraft({ ...draft, method: e.target.value })} />
+      {(['family', 'severity', 'status', 'sort'] as const).map(field => <label className="field" key={field}>{({ family: 'Nhóm phương pháp', severity: 'Metadata severity', status: 'Trạng thái review', sort: 'Thứ tự thời gian' })[field]}<select aria-label={field} value={draft[field]} onChange={e => setDraft({ ...draft, [field]: e.target.value })}>{(field === 'family' ? ['', 'statistical', 'ml'] : field === 'severity' ? ['', 'low', 'medium', 'high'] : field === 'status' ? ['', 'open', 'confirmed', 'false_positive'] : ['ts:asc', 'ts:desc']).map(v => <option key={v} value={v}>{v || 'Tất cả'}</option>)}</select></label>)}
+      <Field label={`Anomalies từ · ${zoneLabel(zone)}`} type="datetime-local" step="1" value={dateFrom ?? (query.from ? explorationLocalTime(query.from, zone) : '')} onChange={e => setFrom(e.target.value)} /><Field label={`Anomalies đến · ${zoneLabel(zone)}`} type="datetime-local" step="1" value={dateTo ?? (query.to ? explorationLocalTime(query.to, zone) : '')} onChange={e => setTo(e.target.value)} /><Button type="submit">Lọc anomalies</Button><p className="ux-filter-help">{query.analysisRunId ? `Run đang xem ${shortId(query.analysisRunId)}.` : 'Đang xem nhiều run; score của các phương pháp không so sánh trực tiếp.'} API không lọc theo trạm/bbox. Severity không phải nồng độ hoặc mức sức khỏe.</p>
+    </form></details>
+    <div className={`ux-anomaly-layout ${item ? 'has-selection' : ''} ${reviewOpen ? 'is-review' : ''}`}><section className="ux-panel ux-list-panel"><div className="ux-panel-heading"><div><h3>Danh sách phát hiện</h3><p>{state.data.length} mục đã tải{state.nextCursor ? ' · Còn dữ liệu trên Server' : state.status === 'ready' ? ' · Đã hết trang trong phạm vi' : ''}</p></div></div>
+      {state.status === 'loading' && <LoadingState />}{state.status === 'error' && <ErrorState message={errorMessage(state.error)} retry={() => { void pager.retry(); }} />}{state.status === 'ready' && !rows.length && !state.nextCursor && <p>Không có anomalies phù hợp bộ lọc.</p>}
+      <div ref={listRef} className="ux-list-scroll" tabIndex={0} role="region" aria-label="Bảng anomalies"><table className="ux-responsive-table"><thead><tr><th>Trạm</th><th>Thời gian</th><th>Score</th><th>Review</th><th>Tác vụ</th></tr></thead><tbody>{rows.map(a => <tr key={a.id} aria-selected={a.id === item?.id}><td data-label="Trạm"><strong>{sensorName(a.sensorId, sensors.data)}</strong><small>{methodName(a.method)}</small></td><td data-label="Thời gian">{formatWorkspaceTime(a.ts, zone)} · {zoneLabel(zone)}</td><td data-label={scoreLabel(a.method)}>{number(a.score, 4)}<small>{scoreLabel(a.method)}</small></td><td data-label="Review"><StatusBadge value={a.status} /></td><td data-label="Tác vụ"><Button variant="secondary" aria-label={`Review ${a.id}`} disabled={loading} onClick={() => { void select(a.id); }}>Xem chi tiết</Button></td></tr>)}</tbody></table></div>
+      {state.nextCursor && <Button variant="secondary" disabled={state.status === 'loading' || state.data.length >= 2000} onClick={() => { void pager.loadMore(); }}>Tải thêm anomalies</Button>}{state.data.length >= 2000 && state.nextCursor && <p className="ux-warning">Phần kết quả chưa tải hết; đã đạt ngân sách 2.000 anomalies.</p>}
+    </section><aside className="ux-anomaly-inspector" aria-label="Điều tra phát hiện">{item && <Button className="ux-mobile-back" variant="secondary" onClick={() => { if (discard()) { openReview(false); setItem(undefined); } }}>Về danh sách phát hiện</Button>}
+      {loading && <LoadingState label="Đang đọc chi tiết anomaly…" />}{error && <p role="alert" className="ux-warning">{error}</p>}
+      {item ? <><section className="ux-panel"><div className="ux-panel-heading"><div><h3>{sensorName(item.sensorId, sensors.data)}</h3><p>{formatWorkspaceTime(item.ts, zone)} · {zoneLabel(zone)}</p></div><StatusBadge value={item.status} /></div>
+        {active && <AnomalyReading key={`${item.id}/${item.version}`} item={item} />}
+        <dl className="ux-detail-grid"><div><dt>Phương pháp</dt><dd>{methodName(item.method)}</dd></div><div><dt>{scoreLabel(item.method)}</dt><dd>{number(item.score, 4)}</dd></div><div><dt>Tọa độ lon / lat</dt><dd>{item.location.coordinates.join(', ')}</dd></div><div><dt>Metadata severity</dt><dd>{item.severity}</dd></div></dl>
+        <p className="ux-notice">Đây là cảnh báo thuật toán; chưa chứng minh nguyên nhân ô nhiễm hay lỗi cảm biến.</p><div className="ux-stack-actions"><Button onClick={() => investigate('cube')}>Điều tra trên Cube</Button><Button variant="secondary" onClick={() => investigate('map')}>Xem trên Mapbox</Button><Button variant="secondary" aria-expanded={reviewOpen} onClick={() => openReview(true)}>Đánh giá phát hiện</Button></div>
+        <details><summary>Chi tiết kỹ thuật</summary><TechnicalId label="Anomaly ID" id={item.id} /><TechnicalId label="Reading ID" id={item.readingId} /><TechnicalId label="Run ID" id={item.analysisRunId} /><p>Version {item.version}</p></details>
+      </section>{reviewOpen && active && <AnomalyReview key={item.id} item={item} saved={saved} />}<Button variant="secondary" onClick={() => { if (discard()) { openReview(false); setItem(undefined); } }}>Về danh sách anomalies</Button></> : <section className="ux-panel ux-inspector-empty"><h3>Điều tra một phát hiện</h3><p>Chọn “Xem chi tiết” để đối chiếu reading thực đo, mở Cube/Mapbox hoặc ghi nhận đánh giá.</p></section>}
+    </aside></div>
+  </section>;
 }

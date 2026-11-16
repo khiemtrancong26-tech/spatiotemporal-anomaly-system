@@ -79,7 +79,7 @@ test('M5 demo submits one immutable intent, follows async lifecycle and clears c
   await login(page);
   await page.getByRole('button', { name: 'Analysis', exact: true }).click();
   await page.getByRole('checkbox').check();
-  await page.getByRole('button', { name: 'Gửi analysis', exact: true }).click();
+  await page.getByRole('button', { name: 'Chạy phát hiện bất thường', exact: true }).click();
   await expect(page.getByTestId('run-status')).toContainText('queued');
   await expect(page.getByRole('button', { name: 'Thử lại cùng key', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Đọc lại run' }).click();

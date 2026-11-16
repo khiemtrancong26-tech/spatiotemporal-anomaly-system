@@ -1,0 +1,45 @@
+{
+  "baseline": "03dc4f8",
+  "files": [
+    {
+      "path": "client/src/features/workspace/renderer.tsx",
+      "sha256": "2535352edd5022e75cee5f23e637e244efc5bf2a09f2505ba6284280e887ba27",
+      "unchangedFromHead": true
+    },
+    {
+      "path": "client/src/features/workspace/cube-renderer.tsx",
+      "sha256": "828505409a79a5cf882c1f38dd0d5dffd0e8df2619d3a0595cca7a294de24e65",
+      "unchangedFromHead": true
+    },
+    {
+      "path": "client/src/features/workspace/geometry.ts",
+      "sha256": "87e8a395416de470d8a4385db43c1da4c4a76e24840cad8bfeb860951ff551bf",
+      "unchangedFromHead": true
+    },
+    {
+      "path": "client/src/features/workspace/cube-data.ts",
+      "sha256": "e8754400700a72124d116821e5d5ab99fd269d59d6620fdd15d1788c0fdef5a3",
+      "unchangedFromHead": true
+    },
+    {
+      "path": "client/src/features/workspace/map-heatmap.ts",
+      "sha256": "39629179158524f510266d39c2e374d4bdd7cc4620cd045667dd2645988896ea",
+      "unchangedFromHead": true
+    },
+    {
+      "path": "client/src/features/workspace/snapshot.ts",
+      "sha256": "d2cc3b0bda53bfc7789497badd150a04c3b740a59885a48a763087ddbf863e13",
+      "unchangedFromHead": true
+    },
+    {
+      "path": "client/src/features/workspace/heatmap.tsx",
+      "sha256": "2d425e3e646fccb0dbda0856fa02daf190642d357e03af255ac0bf2acfb167a8",
+      "unchangedFromHead": true
+    },
+    {
+      "path": "client/src/features/workspace/heatmap-data.ts",
+      "sha256": "f1a8b156321f6b7592b34cfd9a43cb3af26d9e16161e161eb712565f2d8adae2",
+      "unchangedFromHead": true
+    }
+  ]
+}

@@ -67,18 +67,18 @@ test('actual B3 import → M5 statistical submission, polling, history, B6 resul
   // Current Cube auto-pages this 150-reading window; initial API page remains bounded100.
   await expect(page.getByTestId('cube-coverage').locator('strong').first()).toHaveText('150');
   await page.getByRole('button', { name: 'Analysis', exact: true }).click();
-  await page.getByLabel('Phương pháp', { exact: true }).selectOption('zscore');
+  await page.getByRole('radio', {name: /Z-score/}).check();
   await page.getByRole('checkbox').check();
   const accepted = page.waitForResponse(response => response.url() === `${backendUrl}/api/v1/analysis-runs` && response.request().method() === 'POST');
-  await page.getByRole('button', { name: 'Gửi analysis', exact: true }).click();
+  await page.getByRole('button', { name: 'Chạy phát hiện bất thường', exact: true }).click();
   const response = await accepted; expect(response.status()).toBe(202); const runId = (await response.json()).data.id;
   expect(response.request().postDataJSON()).toMatchObject({ datasetId, family: 'statistical', method: 'zscore', config: { threshold: 3 }, scope: {} });
-  await expect(page.getByTestId('run-status')).toHaveText('Trạng thái Server: completed', { timeout: 20000 });
+  await expect(page.getByTestId('run-status')).toHaveText('completed', { timeout: 20000 });
   await expect.poll(() => backend.mongo.db.collection('anomalies').countDocuments({ analysisRunId: new ObjectId(runId) })).toBe(1);
   await page.getByRole('button', { name: 'Làm mới lịch sử', exact: true }).click();
   await expect(page.getByRole('button', { name: `Xem run ${runId}`, exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByTestId('run-status')).toHaveText('Trạng thái Server: completed');
+  await expect(page.getByTestId('run-status')).toHaveText('completed');
   await expect(page.getByRole('button', { name: `Xem run ${runId}`, exact: true })).toBeVisible();
   expect(await backend.mongo.db.collection('analysisRuns').countDocuments()).toBe(1);
   expect(analysisErrors).toEqual([]);

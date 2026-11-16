@@ -1,3 +1,4 @@
+import type { InvestigationTarget } from './investigation';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useStore } from 'zustand';
 import { useServices } from '../../app/services';
@@ -14,7 +15,7 @@ import { explorationUtcTime, explorationOffset } from '@pm25/shared-core';
 import { formatWorkspaceTime, explorationLocalTime, zoneLabel } from './time';
 import type { WorkspaceFilters } from './state';
 const Renderer = lazy(() => import('./renderer'));
-export function Visualization({ datasetId, filters, onSensor }: { datasetId: string; filters: WorkspaceFilters; onSensor: (id: string) => void }) {
+export function Visualization({ datasetId, filters, onSensor, initialView }: { datasetId: string; filters: WorkspaceFilters; initialView?: {target: InvestigationTarget; reading: Reading}; onSensor: (id: string) => void }) {
   const { data, workspace, datasets } = useServices();
   const zone = useStore(workspace, s => s.timeZone);
   const time = (ts: string) => formatWorkspaceTime(ts, zone), localTime = (ts: string) => explorationLocalTime(ts, zone);
@@ -23,7 +24,7 @@ export function Visualization({ datasetId, filters, onSensor }: { datasetId: str
   const marked = useMemo(() => new Set(anomalies.map(a => a.readingId)), [anomalies]);
   const selected = useStore(workspace, s => s.selectedReadingId);
   const select = useStore(workspace, s => s.selectReading);
-  const [mode, setMode] = useState<'map' | 'cube'>(import.meta.env.VITE_MAPBOX_TOKEN ? 'map' : 'cube');
+  const [mode, setMode] = useState<'map' | 'cube'>(initialView?.target.preferredMode ?? (import.meta.env.VITE_MAPBOX_TOKEN ? 'map' : 'cube'));
   const [spatialHeatmap, setSpatialHeatmap] = useState(true);
   const [maxAgeHours, setMaxAgeHours] = useState(2);
   const [playing, setPlaying] = useState(false);
@@ -32,7 +33,7 @@ export function Visualization({ datasetId, filters, onSensor }: { datasetId: str
   const [dock, setDock] = useState<'readings' | 'heatmap' | 'stations' | 'help'>('readings');
   const [cubeRows, setCubeRows] = useState<Reading[]>([]);
   const [sort, setSort] = useState<'ts:asc' | 'ts:desc'>('ts:asc');
-  const [requestedTime, setRequestedTime] = useState<string>();
+  const [requestedTime, setRequestedTime] = useState<string | undefined>(initialView?.target.ts);
   const [draftTime, setDraftTime] = useState<string>();
   useEffect(() => { setDraftTime(undefined); }, [zone]);
   const [timeError, setTimeError] = useState('');
@@ -68,7 +69,7 @@ export function Visualization({ datasetId, filters, onSensor }: { datasetId: str
   }, []);
   const shown = mode === 'map' ? mapRows : rows;
   const scale = useMemo(() => { const values = [...rows,...mapRows].map(row => row.value); return {min:values.length ? Math.min(...values) : 0,max:values.length ? Math.max(...values) : 0}; },[rows,mapRows]);
-  const chosen = rows.find(row => row.id === selected) ?? mapRows.find(row => row.id === selected) ?? cubeRows.find(row => row.id === selected);
+  const chosen = rows.find(row => row.id === selected) ?? mapRows.find(row => row.id === selected) ?? cubeRows.find(row => row.id === selected) ?? (initialView && initialView.reading.id === selected ? initialView.reading : undefined);
   const stationName = (id: string) => s.data.find(sensor => sensor.id === id)?.name ?? id;
   const total = datasets.get(datasetId)?.importSummary?.importedRows;
   const inspect = useCallback((id: string) => { select(id);setInspectorOpen(true); },[select]);
@@ -85,7 +86,7 @@ export function Visualization({ datasetId, filters, onSensor }: { datasetId: str
 
     </div>}
     </div>
-    {mode === 'cube' && <CubeExplorer datasetId={datasetId} filters={filters} anchor={rows[0]?.ts} seedReady={r.status === 'ready'} seedError={r.status === 'error' ? errorMessage(r.error) : undefined} retrySeed={() => {void readings.retry();}} sensors={s.data} sensorsComplete={s.status === 'ready' && !s.nextCursor} sensorsError={s.status === 'error' ? errorMessage(s.error) : undefined} retrySensors={() => {void sensors.retry();}} loadSensors={s.nextCursor ? () => {void sensors.loadMore();} : undefined} onRows={setCubeRows} onMap={ts => {if(ts)chooseTime(ts);setMode('map');setInspectorOpen(Boolean(selected));}} onDock={() => {setDock('readings');setDockOpen(true);requestAnimationFrame(()=>dockRef.current?.scrollIntoView({behavior:'smooth',block:'start'}));}} />}
+    {mode === 'cube' && <CubeExplorer initialTimestamp={initialView?.target.ts} datasetId={datasetId} filters={filters} anchor={rows[0]?.ts} seedReady={r.status === 'ready'} seedError={r.status === 'error' ? errorMessage(r.error) : undefined} retrySeed={() => {void readings.retry();}} sensors={s.data} sensorsComplete={s.status === 'ready' && !s.nextCursor} sensorsError={s.status === 'error' ? errorMessage(s.error) : undefined} retrySensors={() => {void sensors.retry();}} loadSensors={s.nextCursor ? () => {void sensors.loadMore();} : undefined} onRows={setCubeRows} onMap={ts => {if(ts)chooseTime(ts);setMode('map');setInspectorOpen(Boolean(selected));}} onDock={() => {setDock('readings');setDockOpen(true);requestAnimationFrame(()=>dockRef.current?.scrollIntoView({behavior:'smooth',block:'start'}));}} />}
     {mode === 'map' && <>
     <div className="explorer-status"><span><strong>{mode === 'map' ? mapRows.length : rows.length}</strong> {mode === 'map' ? 'trạm tại thời điểm đang xem' : 'readings trong Cube'}</span><span>{rows.length} readings đã tải theo thời gian{total !== undefined && ` · dataset ${total.toLocaleString('vi-VN')} readings`}</span><div className="explorer-status-actions">{r.nextCursor && <Button variant="secondary" disabled={r.status === 'loading' || rows.length >= POINT_LIMIT} onClick={loadMore}>Tải tiếp 100 readings</Button>}<Button variant="secondary" onClick={() => {setDock('readings');setDockOpen(true);requestAnimationFrame(()=>dockRef.current?.scrollIntoView({behavior:'smooth',block:'start'}));}}>Xem bảng dữ liệu</Button></div></div>
     {r.status === 'loading' && <LoadingState />}{r.status === 'error' && <ErrorState message={errorMessage(r.error)} retry={() => {void readings.retry();}} />}
