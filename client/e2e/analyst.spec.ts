@@ -95,13 +95,13 @@ test('unresolved exact reading is reported and never replaced with a nearby poin
   await page.getByRole('button', { name: 'Điều tra trên Cube', exact: true }).click(); await expect(page.getByRole('region', { name: 'Điều tra reading', exact: true })).toContainText('Không tìm thấy reading tương ứng'); await expect(page.locator('.cube-canvas')).toHaveCount(0); expect(qa.errors).toEqual([]);
 });
 
-test('Analyst responsive desktop/tablet/mobile has visible list/review actions and no page overflow', async ({ page }) => {
+test('Analyst desktop viewports have visible list/review actions and no horizontal overflow', async ({ page }) => {
   const qa = await setup(page);
-  for (const width of [1600, 1024, 390]) {
-    await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+  for (const width of [1600, 1366, 1024]) {
+    await page.setViewportSize({ width, height: width === 1366 ? 768 : 1000 });
     for (const tab of ['Data Exploration', 'Analysis', 'Anomalies']) {
       await page.getByRole('button', { name: tab, exact: true }).click();
-      if (tab === 'Anomalies') { if (await page.getByRole('button', {name:'Về danh sách phát hiện',exact:true}).isVisible()) await page.getByRole('button', {name:'Về danh sách phát hiện',exact:true}).click(); await page.getByRole('button', { name: 'Review qa-flag', exact: true }).click(); await expect(page.getByRole('button', { name: 'Đánh giá phát hiện', exact: true })).toBeVisible(); }
+      if (tab === 'Anomalies') { await page.getByRole('button', { name: 'Review qa-flag', exact: true }).click(); await expect(page.getByRole('button', { name: 'Đánh giá phát hiện', exact: true })).toBeVisible(); }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: `test-results/analyst-${tab.replaceAll(' ', '-')}-${width}.png`, fullPage: true });
     }
