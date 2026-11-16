@@ -2,7 +2,28 @@
 
 **Nguồn yêu cầu:** SRS v0.4 (PM2.5, BR-08 phương án B, analyst/admin, BR-15..22) và Shared Data Contract v0.1.  
 **Trạng thái:** Thiết kế vật lý **đề xuất cho MVP**, cần Khiêm review trước khi triển khai database chính thức. `indexes.js` là script tạo index gợi ý, **không phải migration đã chạy**.  
-**DB:** `spatiotemporal_anomaly` (tên đề xuất), MongoDB. **7 collections lõi:** `users`, `datasets`, `sensors`, `readings`, `analysisRuns`, `anomalies`, `processedMutations`.
+**DB:** `spatiotemporal_anomaly` (tên đề xuất), MongoDB. **7 collections lõi ban đầu:** `users`, `datasets`, `sensors`, `readings`, `analysisRuns`, `anomalies`, `processedMutations`. D012/D015 bổ sung `idempotencyReceipts` và `analysisQueueState`; online hiện dùng8 collections, chưa khởi tạo processedMutations/Sync.
+
+## Bổ sung Query B4 — D013, 14/11/2026
+
+- Hai GET sensors/readings đã có; DatasetReadAccess public của module Dataset kiểm tra imported trước đọc. Dataset không có/chưa imported và sensor khác dataset trả 422 theo D013, không lộ partial. Reading.location lấy từ snapshot đã lưu, không join để thay bằng Sensor hiện tại.
+- Khoảng thời gian đóng `$gte from/$lte to`; keyset `_id` là tie-break. Projection và limit+1 giữ số document đưa về Node hữu hạn; không skip/đọc toàn dataset vào heap để phân trang. Sensor cursor compact ký digest khóa nguồn và ID, chỉ đọc một anchor để khôi phục khóa externalId đầy đủ; anchor thay đổi/xóa trả 400. Readings cursor self-contained ts/ID.
+- Bbox dùng scalar `location.coordinates.0/.1` đóng để giữ đúng rectangle, kể cả point/line/world. Circle `$centerSphere` bao ngoài là prefilter tùy trường hợp để dùng 2dsphere hiện có; bán kính chặn trên từ đường meridian + parallel, có padding; scalar vẫn quyết định kết quả. Circle lớn ≥π được bỏ, không dùng polygon/circle để thay biên rectangle.
+- Bộ **13 indexes online không đổi**. Đã đo explain/response/memory trên 100k/500k seed mô phỏng và lưu [báo cáo trước/sau](backend/b4-verification.md). 2d coordinate index chỉ được thử rồi xóa trong DB tạm để so sánh; không chọn làm physical design hoặc điều kiện triển khai.
+- Đây không phải nghiệm thu 100 VU/10 phút, failover, TLS, detector hoặc Sync. Script/fixture và số đo chi tiết trong B4 verification.
+
+## Bổ sung B3 đã triển khai — D012, 14/11/2026
+
+Phần này cập nhật các đề xuất import/receipt cũ bên dưới theo [D012](decisions.md#d012--import-b3-và-durable-idempotency); không thay HTTP/DTO. Có thêm collection nội bộ `idempotencyReceipts`: tổng thiết kế 8 collections, trong đó 7 thuộc online và `processedMutations` vẫn hoãn. Script online hiện có 13 indexes ngoài `_id`.
+
+- Dataset lưu private `source:{fileId,format,checksum,bytes}`, `validationReport`, `fieldMapping`, `sourceUnit`, `mappingVersion`, `mappingConfirmed`, tùy lỗi `mappingError`. File ID do Backend sinh, không nhận path từ HTTP. Nguồn đã tiếp nhận lưu persistent ngoài MongoDB, P0 không tự xóa; không có API tải/xóa báo cáo nguồn.
+- Lifecycle thực tế: upload thành công tạo `awaiting_mapping`; PUT mapping hợp lệ giữ trạng thái đó, invalid toàn bộ/tọa độ bất nhất/report vượt hạn mức chuyển `failed`; CAS mapping/version chuyển `importing`; publish sau đủ persistence → `imported`. Failure sau ghi batch chỉ chuyển `failed` sau cleanup có fencing. Mất DB trong cleanup giữ `importing` và receipt processing cho recovery. Imported không sửa mapping/nhập lại.
+- Trong importing có private `importAttemptId` (owner UUID), `importReceiptId`, `batchRevision`. Sensor/Reading có private attempt marker; Reading có `sourceRowNumber` để lưu winner BR-08 qua nhiều batch. PM2.5 ghi BSON Double, thời gian BSON Date/UTC mili-giây, reading location snapshot `[longitude,latitude]` từ tọa độ đã kiểm tra. Dòng invalid không tham gia chọn winner hoặc kiểm tra bất nhất trạm.
+- Report tối đa 1.000 issues theo D012. Nhiều trường sai có thể tạo nhiều issues cho một dòng, nhưng `invalidRows` chỉ tăng một lần. Vượt hạn mức → 422/failed, không truncate rồi báo imported; failed preview có giới hạn. Không triển khai file báo cáo đầy đủ hoặc API phân trang/download mới.
+- `idempotencyReceipts`: `_id`, `userId:ObjectId`, `key:UUID string`, `operation`, `requestHash`, `resourceId`, `kind`, `owner`, `status:processing|completed|failed`, `createdAt`, `expiresAt`, `leaseUntil`, tùy kết quả `response:{statusCode,body}`. Unique `{userId:1,key:1}` và recovery `{status:1,leaseUntil:1}`; **không TTL**, không Redis/processedMutations.
+- Replica set là điều kiện B3. Upload metadata + receipt 201, hoặc Dataset imported + receipt 200, chốt cùng transaction snapshot/majority. Mỗi batch và cleanup batch có transaction riêng, khóa receipt + Dataset; không dùng transaction toàn file. Recovery chỉ tiếp quản receipt hết lease và chỉ dọn attempt có cùng receipt ID; receipt bỏ dở trước start CAS không được dọn attempt khác.
+- Replay 24 giờ, key quá hạn vẫn giữ và trả 409; snapshot cũ không đổi theo Dataset mới. Chi tiết restart, file thất lạc, admission và retry trong [B3 verification](backend/b3-verification.md).
+
 
 ## 1. Nguyên tắc vật lý
 
@@ -23,10 +44,13 @@
   passwordHash: '<hash>', role: 'analyst', isActive: true,
   createdAt: ISODate('2026-11-11T01:00:00Z') }
 ```
-- Unique `usernameNormalized`; khi login chuẩn hóa username thống nhất. `admin` là Application Admin, không có quyền SSH/Docker.
+- Unique `usernameNormalized`; theo D011/B2: `username.trim().toLowerCase()` cho lookup/unique, username public giữ cách viết sau trim. Register/CLI/future Admin dùng chung User service. `admin` là Application Admin, không có quyền SSH/Docker.
 - Không trả passwordHash trong bất kỳ response.
 
 ### `datasets`
+
+**D018/C2:** field nội bộ tùy chọn `explorationMetadata: {version: positive integer, source:'configured', timeZone:'UTC'|'+07:00'|'+08:00', provenance:string, sampling:null|{cadenceSeconds,anchor,expectedFrom,expectedTo}}`. Các timestamp metadata là UTC ISO strings đã validate; readings.ts tiếp tục BSON Date. CLI chỉ cập nhật imported dataset bằng atomic update pipeline tăng version; `$literal` cho input. Chưa có metadata thì không backfill/đoán cadence, Profile trả source=fallback/+07:00/version=null/sampling=null. Metadata không xuất qua Dataset DTO cũ, chỉ Profile và metadataVersion của Aggregates. Không thêm collection/index C2; giữ14 indexes online, unique(datasetId,sensorId,ts) bảo đảm observedSlots không đếm trùng. Explain/số đo pipeline production ở [C2 measurements](backend/c2-query-measurements.json); không phải load/SLA hoặc nguồn tọa độ đã kiểm định.
+
 ```js
 { _id: ObjectId('...'), name: 'PM2.5 Example', sourceFilename: 'demo.csv',
   status: 'imported', createdBy: ObjectId('...'), createdAt: ISODate('2026-11-11T01:00:00Z'),
@@ -59,11 +83,24 @@
 ### `analysisRuns`
 ```js
 { _id:ObjectId('...'), datasetId:ObjectId('...'),family:'statistical',method:'zscore',
-  config:{threshold:3},status:'completed',createdAt:ISODate('2026-11-11T02:00:00Z'),
+  config:{threshold:3},scope:{},status:'completed',createdAt:ISODate('2026-11-11T02:00:00Z'),
   completedAt:ISODate('2026-11-11T02:00:03Z'),engineVersion:'0.1.0' }
 ```
-- Lưu config, method/version; ML model/feature còn OPEN-03. `running/completed/failed` là enum dự thảo của Shared Contract.
-- Đối với run lỗi, không được giả là completed; quyết định lưu Anomaly chỉ khi run thành công hoặc ghi trạng thái run là fail cần được thiết kế thống nhất.
+- D015/B5: config và scope là snapshot JSON (sensorIds public strings, from/to chuẩn UTC ms); ID liên kết dataset/createdBy dùng ObjectId, createdAt/completedAt/leaseUntil dùng BSON Date. HTTP DTO whitelist bỏ fields worker. Baseline PM2.5/model/version được chốt tại D015; chất lượng do Khải tiếp tục review.
+- Run queued chính là job bền vững. Fields nội bộ: `policyId`, `modelHash` cho ML, `createdBy`, `attempt:0`, `writeFence:0`, `leaseUntil:Date(0)`; khi claim đặt `owner` UUID, tăng attempt và gia hạn bằng clock DB. Atomic claim xét queued/running hết lease; terminal không được claim lại. Index bổ sung `{status:1,leaseUntil:1,createdAt:1}` tên `ix_runs_claim`.
+- Mỗi batch persist/cleanup có transaction nhỏ cùng conditional write lên run theo owner/attempt/status/lease; stale owner không ghi được. Heartbeat riêng; attempt mới cleanup partial theo batch trước recompute. Chỉ completed sau persist đủ; terminal + giải phóng slot cùng transaction. Không transaction toàn scope, không exactly-once execution.
+- `idempotencyReceipts` kind=analysis lưu snapshot202; transaction tiếp nhận ghi receipt + run + admission counter. Replay24h rồi409, không TTL. Sweeper upload/import B3 không xử lý receipt Analysis. Chi tiết [D015](decisions.md#d015--hướng-worker-b5-15112026).
+
+### `analysisQueueState` — nội bộ online B5/D015
+
+```js
+{ _id:'online', active:0 }
+```
+
+- Counter của số run queued/running, không phải HTTP DTO/catalog/job endpoint. `_id` index mặc định đủ cho singleton; không thêm secondary index.
+- Transaction nhận run: conditional `active < maxPending`, tăng1; transaction chuyển terminal dưới fence giảm1. Tất cả process chia sẻ counter, nên không dùng count-then-insert không bảo vệ cạnh tranh.
+- Khởi tạo0 chỉ khi chưa tồn tại trên DB bắt đầu B5; không reset lúc restart. Không xóa/reset thủ công khi có run chưa terminal. Nếu restore/migration nhập dữ liệu cũ, Cường cần dừng intake/worker và đối soát counter với run active trước mở lại; không tự sửa dữ liệu người dùng.
+- Online hiện có8 collections: users/datasets/sensors/readings/analysisRuns/anomalies/idempotencyReceipts/analysisQueueState; processedMutations vẫn hoãn với Sync.
 
 ### `anomalies`
 ```js
@@ -76,7 +113,15 @@
 ```
 - Unique `(analysisRunId,readingId)` ngăn tạo 2 anomaly cho cùng reading trong **một lần chạy**; vẫn cho một reading xuất hiện ở các lần chạy khác nhau.
 - `score` và `severity` không đổi khi analyst sửa review; `status/note/version/updatedAt` có thể đổi.
-- `severity` vẫn chờ OPEN-04 (score → severity). Đừng dùng ví dụ `score 3.8/high` làm ngưỡng chuẩn.
+- D015/B5 tạm severity=low cho mọi anomaly; chưa có ngưỡng medium/high được kiểm chứng. Ví dụ `score 3.8/high` phía trên là lịch sử thiết kế, không phải rule của baseline. Khởi tạo review open/note rỗng/version1/updatedAt, snapshot location từ Reading.
+
+**D017/B6 — publication và PATCH online:**
+
+- List/detail aggregate join run completed và dataset imported/cùng parent IDs; visibility trước limit+1. Chỉ chiếu fields DTO, không trả lookup arrays/value hoặc private fields. Sort/cursor theo ts+_id;14 online indexes hiện tại giữ nguyên, không tạo collection/index mới.
+- Review transaction snapshot/majority: đọc anomaly, conditional `$inc:{reviewFence:1}` lên dataset còn imported rồi run còn completed/cùng dataset/family/method; CAS update anomaly theo ID/version, chỉ `$set` status/note, `$inc` version, `$currentDate` updatedAt. Các thao tác tuần tự; commit atomic hoặc rollback cả fences.
+- `reviewFence` là số nội bộ optional của documents Dataset/AnalysisRun, khởi tạo bằng $inc khi review đầu tiên. Không đổi status lifecycle/createdAt/config/model; không phải review version của anomaly và không xuất ra DTO. Giữ thứ tự lock dataset→run→anomaly, tránh check-before-write race khi parent visibility thay đổi.
+- Đổi review cùng dataset có thể bị serialize ở parent guard; Cường đo contention khi mở rộng tải. Không suy ra throughput/SLA từ correctness tests. Không reset fences hoặc nâng field này thành endpoint.
+- Public review service chưa kèm processedMutations/Sync ledger. Future Sync phải thiết kế unit-of-work/receipt atomic, không ghi ledger sau một review đã commit riêng rồi coi là an toàn.
 
 ### `processedMutations`
 ```js
@@ -170,7 +215,7 @@ Nguồn MongoDB về transaction và atomicity: https://www.mongodb.com/docs/man
 | OPEN-03 model ML, input features | Khải + Khiêm | ML integration |
 | OPEN-04 mapping severity, config | Khải + Khiêm + Tài | Kết quả detection |
 | OPEN-05 file size/batch/report limits | Khiêm + Cường | Upload/bulk and perf |
-| OPEN-06 analysis job model | Khiêm + Tài + Cường | Detect workflow |
+| OPEN-06 / D008 execution & recovery | Khiêm + Tài + Cường | Async đã chốt; cơ chế lưu/claim/restart/retention còn mở trước B5 |
 | NEW-01 trạm đổi tọa độ cùng externalId | Khiêm | Import dữ liệu nguồn |
 | NEW-02 Dataset/Run status enums | Khiêm + Khải + Tài | Khóa shared schemas |
 | NEW-04 incremental sync consistency | Duy + Khiêm | Khóa sync protocol |

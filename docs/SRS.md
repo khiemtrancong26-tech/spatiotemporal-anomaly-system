@@ -6,6 +6,8 @@
 **Người chủ trì yêu cầu:** Người 1 (Nhóm trưởng, Backend/Database)  
 **Trạng thái:** Bản đầu vào cho SDD, API Contract và Shared Schema; cần review các mục **[CHƯA CHỐT]** trước khi khóa thiết kế liên quan.
 
+**Bổ sung phạm vi 16/11/2026 — D016:** Chủ dự án duyệt hướng ưu tiên Visual Analytics cho Data Analyst và [Backend Change Plan](backend-change-plan.md). v0.5 bên dưới giữ baseline truy vết; phần nâng cấp được mô tả trong mục1.2 và các CR của Change Plan, chưa tự khóa API/DTO hoặc công thức ML mới. B1–B5 và các quyết định D010–D015 tiếp tục áp dụng cho phần không được thay cụ thể.
+
 > **Mục đích:** Tài liệu này trả lời **“Hệ thống phải làm gì, đối với dữ liệu nào và theo quy tắc nào?”**. Không quy định chi tiết cấu trúc class, folder, collection/index vật lý, endpoint, thư viện hay cách triển khai nội bộ; các nội dung đó nằm trong SDD/API Contract.
 
 ---
@@ -28,11 +30,17 @@ Phát hiện bất thường là **kết quả nghi vấn từ thuật toán**, 
 
 ### 1.2. Phạm vi MVP
 
-**Trong phạm vi (P0):** Đăng nhập/phân quyền cơ bản; upload/validation/mapping/normalization/import; tra cứu dữ liệu; thống kê; ML inference online; hai chế độ trực quan 3D; quản lý anomaly; **tự động lưu dữ liệu đã tải và ứng dụng để sử dụng khi mất mạng đột ngột**; tùy chọn tải trước dữ liệu; tự sync thay đổi.
+**Trong phạm vi (P0):** Tự đăng ký tài khoản analyst, đăng nhập/phân quyền cơ bản; upload/validation/mapping/normalization/import; tra cứu dữ liệu; thống kê; ML inference online; hai chế độ trực quan 3D; quản lý anomaly; **tự động lưu dữ liệu đã tải và ứng dụng để sử dụng khi mất mạng đột ngột**; tùy chọn tải trước dữ liệu; tự sync thay đổi.
 
 **Ưu tiên sau P0 (P1):** Tổng hợp dữ liệu theo bucket/vùng và mức độ chi tiết (LOD) nhằm cải thiện khả năng tương tác với dữ liệu lớn.
 
 **Chỉ mở rộng nếu còn thời gian (P2):** DBSCAN/LOF và so sánh thuật toán nâng cao, sau khi luồng cốt lõi ổn định.
+
+**Đợt nâng cấp online đã duyệt về hướng/ưu tiên (D016, 16/11/2026):** Hoàn thành xem/điều tra/review anomaly trước; bổ sung Profile/chất lượng dữ liệu, khám phá chuỗi thời gian và so sánh trạm trong cùng phạm vi; tiếp đó tích hợp Isolation Forest có ngữ cảnh thời gian/không gian. FE và kiểm thử bàn giao từng phần. Dataset Profile và chính sách timezone theo dataset là requirements bổ sung, không mặc định đã có trong baseline.
+
+Một phần FR-13/P1 phục vụ tổng hợp thời gian/so sánh trạm được nâng ưu tiên cho đợt này; spatial aggregation/LOD tổng quát vẫn hoãn. Phải phân biệt thiếu giá trị nguồn, thiếu phép đo theo chu kỳ kỳ vọng và dữ liệu chưa tải; giờ hiển thị không thay đổi instant UTC đã lưu. Dataset chuẩn, cadence/anchor/timezone, nghĩa các thống kê/coverage và Feature Contract còn phải chốt theo G01–G05 của Change Plan trước phần triển khai phụ thuộc. CSV demo ngoài tập fit khi được dùng làm test độc lập; giá trị PM2.5 cao không tự là nhãn anomaly đúng.
+
+Thay đổi này không xóa yêu cầu PWA/Offline/Sync của MVP; chúng tiếp tục ngoài phạm vi đợt online. B7/Admin vẫn cần hoàn thiện, đánh giá chất lượng ML/tải triển khai phải ghi bằng chứng riêng; chưa tuyên bố toàn bộ P0/SRS đã hoàn tất.
 
 **Ngoài phạm vi MVP:** GPS trajectory; LLM/chatbot; crawler hoặc streaming dữ liệu Internet; dự báo chất lượng không khí; kết luận nguyên nhân ô nhiễm; microservices và hệ thống phân quyền tổ chức phức tạp.
 
@@ -45,7 +53,7 @@ Phát hiện bất thường là **kết quả nghi vấn từ thuật toán**, 
 
 `admin` là **Application Admin**, quản trị tài khoản và chức năng quản trị ứng dụng. Quản trị máy chủ, hệ điều hành, Nginx và Docker do DevOps đảm trách bên ngoài hệ thống role JWT.
 
-Người dùng chưa đăng nhập chỉ được truy cập những tài nguyên công khai được công bố (ví dụ chức năng đăng nhập/kiểm tra sức khỏe hệ thống). Quyền thao tác phải được kiểm tra tại Backend; việc ẩn nút trên UI không được xem là bảo vệ đủ.
+Người dùng chưa đăng nhập chỉ được truy cập những tài nguyên công khai được công bố (ví dụ chức năng đăng ký/đăng nhập/kiểm tra sức khỏe hệ thống). Quyền thao tác phải được kiểm tra tại Backend; việc ẩn nút trên UI không được xem là bảo vệ đủ.
 
 ### 1.4. Giả định và giới hạn
 
@@ -65,6 +73,7 @@ Người dùng chưa đăng nhập chỉ được truy cập những tài nguyê
 | ID | Yêu cầu hệ thống | Actor | Ưu tiên | Kết quả cần quan sát |
 |---|---|---|---|---|
 | **FR-01** | Đăng nhập và áp dụng quyền theo role | Analyst, Admin | P0 | Đăng nhập hợp lệ; thao tác trái quyền bị từ chối |
+| **FR-01a** | Tự đăng ký bằng username/password | Người chưa đăng nhập | P0 | Server gán analyst; từ chối username trùng và role do client gửi; thành công về Login, không tự đăng nhập |
 | **FR-02** | Tiếp nhận file CSV/JSON và tạo phiên nhập dataset | Analyst, Admin | P0 | Có dataset/phiên nhập và thông tin file |
 | **FR-03** | Kiểm tra dữ liệu thô, cung cấp báo cáo lỗi/mapping gợi ý | Analyst, Admin | P0 | Biết dòng, trường, loại lỗi; thấy gợi ý tên cột |
 | **FR-04** | Yêu cầu người dùng xác nhận mapping, đơn vị và thông tin thời gian | Analyst, Admin | P0 | Mapping được xác nhận trước khi nhập |
@@ -89,6 +98,12 @@ Trong MVP chỉ có hai role đăng nhập là `analyst` và `admin`. Bảng xá
 **Luồng chính:** Người dùng cung cấp thông tin đăng nhập → hệ thống xác thực → xác định role → cho phép truy cập chức năng tương ứng.  
 **Kết quả:** Phiên đăng nhập hợp lệ và quyền được áp dụng ở Server.  
 **Ngoại lệ:** Sai thông tin đăng nhập hoặc thiếu quyền → từ chối thao tác với phản hồi phù hợp.
+
+#### UC-01a — Tự đăng ký
+
+**Điều kiện trước:** Người dùng chưa đăng nhập, Backend hoạt động.
+**Luồng chính:** Nhập username/password → kiểm tra theo quy tắc tạo tài khoản hiện có → Backend lưu User bằng cơ chế password hashing hiện có và luôn gán `role = analyst` → chuyển về Login.
+**Ngoại lệ:** Username trùng → thông báo để chọn tên khác; dữ liệu sai hoặc client gửi role → từ chối. Không trả token, không tự đăng nhập; không thêm email verification hoặc khôi phục mật khẩu.
 
 #### UC-02 — Upload, kiểm tra, mapping và nhập dataset
 
@@ -123,8 +138,8 @@ Trong MVP chỉ có hai role đăng nhập là `analyst` và `admin`. Bảng xá
 **Điều kiện trước:** Dataset hợp lệ; người dùng `analyst/admin`; có dữ liệu đáp ứng điều kiện thuật toán.
 
 1. Người dùng chọn dataset/phạm vi dữ liệu, phương pháp và tham số.
-2. Hệ thống chạy nhánh **thống kê** hoặc **ML inference** được chọn.
-3. Khi phân tích trên Server thành công, hệ thống quản lý một lượt phân tích và kết quả liên quan.
+2. Hệ thống tiếp nhận bền vững lượt phân tích online, trả định danh sớm; nhánh **thống kê** hoặc **ML inference** được xử lý nền trên Server với số tác vụ đồng thời giới hạn.
+3. Người dùng theo dõi chờ/đang chạy/hoàn thành/thất bại, tiếp tục theo dõi sau reload hoặc điều hướng. Mất kết nối không đồng nghĩa job thất bại; gửi lại cùng ý định không tạo run trùng. Chỉ công bố kết quả khi lưu hoàn tất; vẫn có thể tra cứu và tương tác renderer trong lúc chờ, không hiển thị phần trăm giả.
 4. Người dùng xem các điểm được gắn cờ trên 3D, score, severity, method và thông tin lần chạy.
 5. Nếu có nhiều phương pháp, kết quả được trình bày riêng để đối chiếu.
 
@@ -199,7 +214,7 @@ Trong MVP chỉ có hai role đăng nhập là `analyst` và `admin`. Bảng xá
 | **BR-11** | ML sử dụng model đã train trước, chỉ chạy inference khi online; không train lại trong luồng upload thông thường. |
 | **BR-12** | Phân tích thống kê phải xử lý trường hợp ít dữ liệu, phương sai bằng 0 hoặc đầu vào không hợp lệ; không coi `NaN` là một anomaly hợp lệ. |
 | **BR-13** | Trạng thái đánh giá anomaly chỉ gồm `open`, `confirmed`, `false_positive`; trạng thái review tách biệt với score và method của detector. |
-| **BR-14** | Cả `analyst` và `admin` được xem, phân tích, upload và đánh giá anomaly; chỉ `admin` được thực hiện các thao tác quản trị tài khoản. Backend kiểm tra quyền. |
+| **BR-14** | Cả `analyst` và `admin` được xem, phân tích, upload và đánh giá anomaly; chỉ `admin` được thực hiện các thao tác quản trị tài khoản. Tự đăng ký chỉ tạo tài khoản analyst của người đăng ký, không cấp quyền quản trị. Backend kiểm tra quyền. |
 | **BR-15** | Chỉnh sửa anomaly có phiên bản; khi Client gửi trên phiên bản cũ, Server phải phát hiện và phản hồi xung đột, không ghi đè im lặng. |
 | **BR-16** | Mỗi mutation offline có mã định danh duy nhất; gửi lại cùng mutation không được áp dụng tác động nhiều lần. |
 | **BR-17** | Khi đồng bộ, Server là nguồn dữ liệu có thẩm quyền; kết quả xung đột phải được thông báo cho Client. |
@@ -288,10 +303,10 @@ Redis là **tùy chọn**, không phải yêu cầu bắt buộc trong MVP. Côn
 | ID | Nội dung cần quyết định | Mức ảnh hưởng | Nguyên tắc tạm thời |
 |---|---|---|---|
 | **OPEN-02** | Timestamp nguồn thiếu timezone được chấp nhận sau xác nhận hay từ chối? | Mapping, validation, normalize | Không tự gán timezone không có căn cứ |
-| **OPEN-03** | Thuật toán/model ML cuối cùng, feature và định dạng lưu model | ML, integration, analysis output | Isolation Forest chỉ là ứng viên; phải kiểm chứng train → load → predict |
+| **OPEN-03** | Thuật toán/model ML cuối cùng, feature và định dạng lưu model | ML, integration, analysis output | D009 chọn thuật toán Isolation Forest; method/config API, model artifact/features/version và train → load → predict còn cần chốt/kiểm chứng |
 | **OPEN-04** | Các ngưỡng cụ thể để ánh xạ score sang severity, cấu hình mặc định của detector | Engine, Shared Schema, UI | Không tự coi ngưỡng minh họa là ngưỡng đã được duyệt |
 | **OPEN-05** | Giới hạn file upload, kích thước batch và chính sách báo cáo lỗi quá nhiều dòng | Import, performance | Phải có giới hạn an toàn; thông số trong SDD |
-| **OPEN-06** | Cơ chế xử lý phân tích lâu: phản hồi đồng bộ hay có trạng thái job / Server Worker | Analysis API, FE | ML inference vẫn chạy phía Server; chưa mặc định thêm job queue hay Worker nếu chưa đo thử |
+| **OPEN-06 / D008** | Đã chốt Analysis online async cho statistical/ml; còn mở cơ chế nền, concurrency, recovery/retention và chính sách tải | Analysis API, FE | ML chỉ Server; queue technology chưa chọn. Upload/Import không chuyển async. Cần benchmark, không suy ra hệ thống cũ quá tải |
 | **OPEN-07** | Chu kỳ đo trạm, độ dài dataset, nhịp thêm batch và nguồn dữ liệu thực dùng làm chuẩn | Dataset source, benchmarking | Phụ thuộc dataset thực được chọn; không khóa 5 phút/72 giờ hay giới hạn cứng khi chưa có căn cứ |
 
 **OPEN-01 đã được giải quyết** bằng BR-08 (phương án B: giữ bản ghi hợp lệ đầu tiên, bỏ trùng có báo cáo); không còn là quyết định mở.
@@ -309,3 +324,6 @@ Các mục còn lại **không được AI tự xem là đã chốt**. Nhóm tr�
 | `0.3` | 11/11/2026 | Làm rõ auto-cache khi online, sử dụng khi mất mạng đột ngột, tải trước tùy chọn, phạm vi dữ liệu offline, nghiệm thu UC-06; cập nhật FR-11, BR-20–22, NFR-04 |
 | `0.4` | 11/11/2026 | Chốt BR-08 phương án B: giữ bản ghi hợp lệ đầu tiên; báo cáo trùng hoàn toàn/xung đột, loại OPEN-01 khỏi danh sách chưa chốt; cập nhật UC-02 |
 | `0.5` | 12/11/2026 | Ưu tiên khôi phục ngữ cảnh làm việc, bảo toàn outbox/đồng bộ khi gián đoạn, tiêu chí AT-06E/F; giữ mở thông số thời gian và chu kỳ dataset |
+## C2 / D018 — Bổ sung yêu cầu Exploration đã khóa (16/11/2026)
+
+CR-02–05 của [Change Plan](backend-change-plan.md) được cụ thể hóa tại [C2 contract](backend/c2-contract-proposal.md): Analyst xem Profile toàn dataset/scoped, phân biệt source-quality/thiếu station–time/chưa tải, so sánh trạm trên hour/day buckets và đổi timezone hiển thị mà giữ instant UTC. Chỉ subset aggregation này được nâng online; không nâng spatial LOD, Offline/Sync hay ML v2. API đọc chỉ imported, kết quả đầy đủ trong ngân sách hoặc lỗi; sampling phải có cadence/anchor/expected interval tường minh. Nghiệm thu phần mềm qua CSV golden và API/DB thật, không coi spike/flag là ground truth hay xác nhận chất lượng ML.

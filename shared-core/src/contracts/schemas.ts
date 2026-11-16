@@ -89,19 +89,26 @@ export const ReadingSchema = z.object({
 
 export const AnalysisFamilySchema = z.enum(['statistical', 'ml']);
 export const StatisticalMethodSchema = z.enum(['zscore', 'iqr', 'moving_avg']);
-export const AnalysisRunStatusSchema = z.enum(['running', 'completed', 'failed']);
+export const AnalysisRunStatusSchema = z.enum(['queued', 'running', 'completed', 'failed']);
+export const AnalysisScopeSchema = z.object({ sensorIds: z.array(IdSchema).optional(), from: UtcIsoSchema.optional(), to: UtcIsoSchema.optional() }).strict();
 export const AnalysisRunSchema = z.object({
   id: IdSchema,
   datasetId: IdSchema,
   family: AnalysisFamilySchema,
   method: z.string().min(1), // ML model/method not finalized.
   config: z.object({}).passthrough(),
+  scope: AnalysisScopeSchema,
+  error: z.object({ code: z.string().min(1), message: z.string().min(1) }).strict().optional(),
   status: AnalysisRunStatusSchema,
   createdAt: UtcIsoSchema,
   completedAt: UtcIsoSchema.optional(),
   engineVersion: z.string().optional(),
   modelVersion: z.string().optional(),
-}).strict();
+}).strict().superRefine((run, ctx) => {
+  const terminal = run.status === 'completed' || run.status === 'failed';
+  if (terminal !== (run.completedAt !== undefined)) ctx.addIssue({ code: 'custom', path: ['completedAt'], message: 'Terminal runs require completedAt; pending runs must omit it.' });
+  if ((run.status === 'failed') !== (run.error !== undefined)) ctx.addIssue({ code: 'custom', path: ['error'], message: 'Only failed runs require error.' });
+});
 
 export const ReviewStatusSchema = z.enum(['open', 'confirmed', 'false_positive']);
 export const SeveritySchema = z.enum(['low', 'medium', 'high']);
@@ -161,6 +168,7 @@ export const StatisticalDetectorInputSchema = z.object({
   config: z.object({
     threshold: z.number().finite().optional(),
     windowSize: z.number().int().min(2).optional(),
+    multiplier: z.literal(1.5).optional(), // Approved fixed IQR preset; no editable range inferred.
   }).strict(),
 }).strict();
 export const StatisticalDetectorPointSchema = z.object({

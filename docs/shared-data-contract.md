@@ -4,6 +4,8 @@
 **Nguồn:** SRS v0.4, SDD v0.1 Bước 1, kế hoạch thống nhất ngày 11/11/2026.  
 **Trạng thái:** Hợp đồng dữ liệu **đề xuất để bắt đầu tích hợp**; nhóm trưởng và Khải cần review trước khi merge làm chuẩn. **Không phải OpenAPI / MongoDB schema vật lý cuối cùng.**
 
+**C2/D018 bổ sung:** [contract đã duyệt](backend/c2-contract-proposal.md) và [`exploration.ts`](../shared-core/src/contracts/exploration.ts) định nghĩa các DTO strict riêng `DatasetProfile`, `ReadingAggregation`, `Coverage`, scope và metadata. Không thêm field vào Dataset/Reading/Sensor/AnalysisRun/Anomaly cũ. Unknown dùng null/reason, empty count0/mean null, not_applicable ratio null; UTC wire giữ nguyên. Source-quality, sampling missing và FE chưa tải là ba khái niệm riêng. Response draft aggregation P1 được thay có chủ đích; generated online contract có22 operations. Chỉ timezone cố định UTC/+07:00/+08:00; metadata CLI/version/provenance tường minh. Chưa có Feature Contract ML v2 trong bổ sung này.
+
 ## A. Các quy ước chung (không tùy ý sửa)
 
 1. **ID public:** chuỗi opaque không rỗng (`string`). Ví dụ `reading-001` chỉ là fixture; Backend được dùng `ObjectId` nội bộ nhưng API **không trả BSON**.
@@ -52,7 +54,7 @@ Mở chỉnh sửa: [`diagrams/logical-data-model.drawio`](diagrams/logical-data
 | **Dataset** | `id`, `name`, `sourceFilename`, `status`, `createdBy`, `createdAt` | `importSummary` khi đã nhập; trạng thái vòng đời import là thiết kế dự kiến |
 | **Sensor** | `id`, `datasetId`, `externalId`, `name`, `location`, `type:"pm25"`, `unit:"ug/m3"` | `region` |
 | **Reading** | `id`, `datasetId`, `sensorId`, `ts`, `location`, `value`, `unit:"ug/m3"` | `location` truyền trong DTO để các renderer hiển thị trực tiếp; ở DB là dữ liệu tại trạm cố định |
-| **AnalysisRun** | `id`, `datasetId`, `family`, `method`, `config`, `status`, `createdAt` | `engineVersion`, `modelVersion`, `completedAt` |
+| **AnalysisRun** | `id`, `datasetId`, `family`, `method`, `config`, `scope`, `status`, `createdAt` | `engineVersion`, `modelVersion`; `completedAt` khi terminal; `error:{code,message}` khi failed, không thông tin nội bộ |
 | **Anomaly** | `id`, `datasetId`, `sensorId`, `readingId`, `analysisRunId`, `ts`, `location`, `family`, `method`, `score`, `severity`, `status`, `note`, `version`, `updatedAt` | Severity là nhãn tách khỏi score; quy tắc tính severity **chưa chốt** |
 | **ImportSummary** | `totalRows`, `importedRows`, `duplicateRows`, `conflictingRows`, `invalidRows` | `issues[]` gồm số dòng, mã lỗi, dòng được giữ; đếm theo dòng đầu vào |
 | **OfflineReviewMutation** | `clientMutationId`, `anomalyId`, `baseVersion`, `changes`, `createdAt` | `changes` chỉ gồm `status` / `note`, ít nhất một trường; ID dùng để retry cùng thao tác |
@@ -64,7 +66,7 @@ Mở chỉnh sửa: [`diagrams/logical-data-model.drawio`](diagrams/logical-data
 ### C.1. Các enum dự kiến của thiết kế
 
 - Dataset `status`: `uploaded | awaiting_mapping | importing | imported | failed`. Đây là **quy ước triển khai đề xuất** để các module mock cùng một trạng thái; có thể điều chỉnh trước khi API Contract được duyệt.
-- AnalysisRun `status`: `running | completed | failed`; muốn job async/queued cần thống nhất sau (OPEN-06 SRS).
+- AnalysisRun `status`: `queued | running | completed | failed` (D008). `queued → running → completed/failed`, queued có thể failed trước thực thi; terminal không tự trở lại running. POST tiếp nhận trả snapshot queued, replay giữ snapshot; GET detail/history trả hiện tại. `scope` là snapshot sensorIds/from/to đã tiếp nhận, thiếu request scope chuẩn hóa `{}`; không lấy bộ lọc hiện tại để diễn giải run cũ. Completed nghĩa là toàn bộ kết quả đã lưu/đọc được; failed không công bố partial. `completedAt` là thời điểm terminal (kể cả failed); error chỉ có và bắt buộc khi failed. Danh mục mã lỗi detector và chính sách scope rỗng/biên thời gian còn cần chốt.
 - `family = statistical | ml`; `method` khác nhau theo family. Zod ở bản khởi đầu chỉ kiểm tra method là chuỗi không rỗng; Backend/engine phải kiểm tra method được hỗ trợ tương ứng.
 - Review status `open | confirmed | false_positive`; anomaly severity `low | medium | high`. **Chưa chốt** mapping score → severity (OPEN-04 SRS).
 
@@ -132,9 +134,11 @@ S01,10.7769,106.7009,2026-11-11T08:00:00+07:00,25.5,ug/m3
 | SRS OPEN-03 — model ML và feature | ML runtime, metadata method | Chốt output ML + tích hợp Backend |
 | SRS OPEN-04 — ngưỡng score → severity / detector defaults | UI legend, thống kê | Chốt detector config và giải thích severity |
 | SRS OPEN-05 — giới hạn file & batch | Upload performance | Chốt ngưỡng từ kết quả thử nghiệm |
-| SRS OPEN-06 — chạy analysis đồng bộ hay job | API analysis response | Khóa OpenAPI phần analysis |
+| SRS OPEN-06 / D008 — hướng async đã chốt | Còn concurrency, queue technology, retention/recovery và polling policy | Chốt trước triển khai B5/M5; không chặn scaffold hay Import |
 | **NEW-01 — trạm cùng externalId khác tọa độ** | Sensor cố định / dữ liệu lỗi | Chốt chính sách khi xây import validation |
 | **NEW-02 — status Dataset/AnalysisRun** | FE/Backend dùng cùng enum | Review enum dự thảo trước OpenAPI |
 | **NEW-03 — metadata `CacheCoverage.complete`** | Tránh hiểu lầm toàn dataset đã lưu | Duy và Khiêm thống nhất độ hạt scope/pagination |
 
 > **Quan trọng:** Bước 2 **chốt dữ liệu cốt lõi**, nhưng chưa chốt REST paths, mã HTTP, JSON envelope, field phân trang hay cấu trúc MongoDB tối ưu. Các nội dung đó thuộc Bước 3 API Contract / phần physical database tiếp theo.
+
+**D009 → D015 (15/11/2026):** FE M5 dùng zscore `{threshold:3}`, iqr `{multiplier:1.5}` cố định và đã bật `family=ml`, `method=isolation_forest`, `config={}`. D015 thay thế quyết định khóa ML trước đây: model PM2.5 dùng feature `value` ug/m3 do Server quản lý; modelVersion chỉ hiển thị khi Server trả. Shared Zod giữ scope/lifecycle D008; policy/điều kiện dữ liệu và lỗi do Backend kiểm tra. Xem [D015](decisions.md) và [B5 verification](backend/b5-verification.md).

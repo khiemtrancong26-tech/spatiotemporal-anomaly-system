@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-11-16T09:49:21.467Z",
+  "baselineCommit": "da90d2ab6cbac4372160498f68a2717914ec544e",
+  "unchangedLegacyOnlineOperations": 20,
+  "unchangedLegacyOnlineSchemas": 33,
+  "onlineOperations": 22,
+  "totalOperations": 26,
+  "addedOnlineOperations": [
+    "get_api_v1_datasets_by_id_profile",
+    "get_api_v1_reading_aggregates"
+  ],
+  "result": "No legacy operation or reachable schema changed; draft aggregation migration and new Profile are the only online additions."
+}

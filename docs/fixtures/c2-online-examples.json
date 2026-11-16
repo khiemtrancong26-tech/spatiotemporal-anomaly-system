@@ -1,0 +1,126 @@
+{
+  "purpose": "Contract-only examples, not a mock implementation or observed Beijing results",
+  "profile": {
+    "data": {
+      "datasetId": "dataset-c2-example",
+      "scope": {
+        "sensorIds": null,
+        "bbox": null,
+        "from": null,
+        "to": null
+      },
+      "metadata": {
+        "version": null,
+        "timeZone": "+07:00",
+        "source": "fallback",
+        "provenance": null,
+        "sampling": null
+      },
+      "dataset": {
+        "readingCount": 2,
+        "sensorCount": 2,
+        "sensorsWithReadings": 2,
+        "observedFrom": "2015-03-26T13:00:00.000Z",
+        "observedTo": "2015-03-26T13:00:00.000Z",
+        "min": 10,
+        "max": 20,
+        "mean": 15,
+        "coverage": {
+          "status": "unknown",
+          "expectedSlots": null,
+          "observedSlots": null,
+          "missingSlots": null,
+          "unexpectedReadings": null,
+          "ratio": null,
+          "reason": "Sampling metadata is not configured."
+        }
+      },
+      "scoped": {
+        "readingCount": 2,
+        "sensorCount": 2,
+        "sensorsWithReadings": 2,
+        "observedFrom": "2015-03-26T13:00:00.000Z",
+        "observedTo": "2015-03-26T13:00:00.000Z",
+        "min": 10,
+        "max": 20,
+        "mean": 15,
+        "coverage": {
+          "status": "unknown",
+          "expectedSlots": null,
+          "observedSlots": null,
+          "missingSlots": null,
+          "unexpectedReadings": null,
+          "ratio": null,
+          "reason": "Sampling metadata is not configured."
+        }
+      },
+      "sourceQuality": {
+        "status": "known",
+        "totalRows": 2,
+        "importedRows": 2,
+        "invalidRows": 0,
+        "duplicateRows": 0,
+        "conflictingRows": 0,
+        "missingValueRows": null,
+        "reason": "Existing import report does not classify missing source values."
+      },
+      "complete": true
+    }
+  },
+  "aggregates": {
+    "data": {
+      "datasetId": "dataset-c2-example",
+      "scope": {
+        "sensorIds": null,
+        "bbox": null,
+        "from": "2015-03-26T13:00:00.000Z",
+        "to": "2015-03-26T14:00:00.000Z"
+      },
+      "bucket": "hour",
+      "timeZone": "+08:00",
+      "metadataVersion": null,
+      "series": [
+        {
+          "sensorId": "opaque/a,b+ c",
+          "buckets": [
+            {
+              "start": "2015-03-26T13:00:00.000Z",
+              "end": "2015-03-26T14:00:00.000Z",
+              "count": 1,
+              "min": 10,
+              "max": 10,
+              "mean": 10,
+              "coverage": {
+                "status": "unknown",
+                "expectedSlots": null,
+                "observedSlots": null,
+                "missingSlots": null,
+                "unexpectedReadings": null,
+                "ratio": null,
+                "reason": "Sampling metadata is not configured."
+              }
+            },
+            {
+              "start": "2015-03-26T14:00:00.000Z",
+              "end": "2015-03-26T15:00:00.000Z",
+              "count": 0,
+              "min": null,
+              "max": null,
+              "mean": null,
+              "coverage": {
+                "status": "unknown",
+                "expectedSlots": null,
+                "observedSlots": null,
+                "missingSlots": null,
+                "unexpectedReadings": null,
+                "ratio": null,
+                "reason": "Sampling metadata is not configured."
+              }
+            }
+          ]
+        }
+      ],
+      "complete": true
+    }
+  }
+}
