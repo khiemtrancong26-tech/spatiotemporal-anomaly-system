@@ -1,5 +1,7 @@
 # Kế hoạch triển khai Backend P0 online — PM2.5
 
+**Bổ sung 16/11/2026 — D016:** [Backend Change Plan](backend-change-plan.md) ghi hướng nâng cấp đã được chủ dự án duyệt: **B6 theo contract hiện tại → Exploration tối thiểu → Isolation Forest v2 → nghiệm thu Analyst**, FE/test tích hợp từng chặng. Đây là mở rộng có giới hạn đối với phạm vi dưới đây; các API/feature/timezone mới còn gate, không tự sửa OpenAPI. B0–B8 giữ mã/tiêu chí; B7/B8 không bị hủy. Các dòng hoãn P1 bên dưới là baseline cũ; chỉ subset được chỉ rõ trong Change Plan được nâng ưu tiên sau khi khóa contract.
+
 Ngày lập: 13/11/2026. Cập nhật 15/11/2026: **B1–B5 đã triển khai: 14/20 operations online có API thật**, gồm health, auth/me, datasets list, import, Query và Analysis async với MongoDB-backed worker. Còn6 operations B6/B7; B8 triển khai/tải và đánh giá chất lượng model chưa nghiệm thu. Xem [B1](backend/b1-verification.md), [B2](backend/b2-verification.md), [B3](backend/b3-verification.md), [B4](backend/b4-verification.md), [B5 verification](backend/b5-verification.md).
 
 ## 1. Mục tiêu và cơ sở lập kế hoạch

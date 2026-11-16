@@ -7,6 +7,8 @@
 
 > **Quy tắc đọc:** Phần này chốt trách nhiệm và hướng phụ thuộc giữa các module. Không tự suy diễn thành API/DTO, index MongoDB hay chi tiết class đã được chốt. Hợp đồng dữ liệu ở Bước 2 là bản khởi đầu; REST API/HTTP và MongoDB vật lý có bản thiết kế ở Bước 3 bên dưới, hiện chưa khóa các quyết định mở.
 
+**Bổ sung 16/11/2026:** [D016](decisions.md#d016--ưu-tiên-visual-analytics-và-phạm-vi-nâng-cấp-online-16112026) và [Backend Change Plan](backend-change-plan.md) ghi hướng nâng cấp Visual Analytics đã duyệt. Các API/profile/timezone/feature mới còn gate chi tiết; không coi mô tả dự kiến là schema/module đã triển khai. D010–D015 và báo cáo B1–B5 là quyết định/bằng chứng mới hơn những đoạn draft lịch sử bên dưới.
+
 ## 1. Architecture Overview
 
 ![Sơ đồ kiến trúc tổng thể](diagrams/system-architecture.png)
@@ -44,8 +46,16 @@
 ### 1.4. ML inference và phân biệt Worker
 
 - **Đã chốt:** ML inference dùng model đã huấn luyện trước và **chạy phía Server**; không chạy trên trình duyệt mỗi người dùng. **Browser Web Worker** (Duy/Khải) chỉ xử lý thống kê offline.
-- **Đã chốt hướng OPEN-06 — D008 (13/11/2026):** Analysis online dùng job `queued/running/completed/failed` cho cả statistical/ml, tiếp nhận và thực thi tách rời. Worker/cơ chế nền thuộc Server, giới hạn concurrency; công nghệ queue và process/thread topology, recovery/retention và mức tải còn cần owner chốt. **Redis + BullMQ là ứng viên đánh giá ở B5, chưa chốt công nghệ.** Không mặc định Kafka/Spark.
+- **D008/D015 — baseline B5:** Analysis online dùng job `queued/running/completed/failed`, MongoDB-backed worker trên Replica Set, receipt/run/counter atomic và lease/attempt fencing/recovery; statistical worker thread, ML Python subprocess. Chưa thêm Redis/BullMQ/Kafka/Spark. D015 chốt cấu hình khởi đầu, [B5 verification](backend/b5-verification.md) ghi bằng chứng/giới hạn; Cường còn đo triển khai/tải trước tăng cấu hình.
 - Worker vẫn dùng CPU/RAM Server; async không phải bằng chứng giảm tài nguyên hoặc hệ thống cũ quá tải. `POST /api/v1/analysis-runs` trả 202 tiếp nhận, không anomalies; GET detail/history dùng cùng DTO. Completed chỉ sau persist đầy đủ. Chi tiết [D008](decisions.md#d008--analysis-online-bất-đồng-bộ). Upload/Import giữ đồng bộ.
+
+### 1.5. Định hướng nâng cấp Visual Analytics — D016
+
+- Giữ kiến trúc/layering và worker B5. B6 triển khai theo OpenAPI hiện tại, không chờ Profile/aggregation/ML v2. Tiếp đó nâng cấp Exploration tối thiểu và v2 theo gates của Change Plan, FE/test theo từng chặng.
+- Profile/quality thuộc nghiệp vụ Dataset, aggregation/comparison thuộc Query; feature/model thuộc engine/ML, context acquisition qua Service/Repository của Analysis. Vị trí file và payload mới là đề xuất cần review; không đưa MongoDB vào shared-core/thuật toán hoặc trình duyệt.
+- Target scope của Analysis và context dùng tính feature là hai phạm vi cần định nghĩa riêng. Context chỉ cùng dataset và tuân thủ thời gian, có budgets; không dùng một trang FE hoặc policy thị giác làm reference ML. Khải bàn giao Feature Contract/builder dùng chung cho train–inference, policy thiếu context và version trước code phụ thuộc.
+- Nguồn/biên/cadence/metadata cho missing statistics, timezone presentation và aggregation boundaries còn G01–G03. UTC wire/persistence giữ nguyên; không tự đổi Dataset/Reading DTO hoặc collection hàng loạt. Schema/API/index thay đổi theo từng contract delta đã duyệt, không tự sinh từ concept UI.
+- ML v2 phải có model/feature/policy identity và rollout tương thích v1 queued/running/receipts/results. Không train trong request/job hoặc tự rescore terminal; method/config/version selection còn G05. B7/Admin và B8/triển khai không bị hủy.
 
 ## 2. Module Boundary & Responsibility
 

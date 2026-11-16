@@ -23,6 +23,7 @@ Tài liệu phân tích yêu cầu, thiết kế và phối hợp phát triển 
 | **Backend B1 — Kết quả** | [backend/b1-verification.md](backend/b1-verification.md) · [Backend plan](backend-online-plan.md) | Nền Fastify/Official Driver, health, HTTP/auth hooks, cursor, index và DB thật | B1 đã triển khai; API nghiệp vụ B2 trở đi còn chờ |
 | **Backend B2 — Kết quả** | [backend/b2-verification.md](backend/b2-verification.md) · [D011](decisions.md#d011--quy-tắc-user-và-xác-thực-b2) | Register/Login/me, datasets list, scrypt/JWT/RBAC và CLI seed | API/DB thật và E2E FE M2; B3 trở đi còn chờ |
 | **Technical Decisions** | [decisions.md](decisions.md) | Các quyết định đã chốt, lựa chọn đang mở và lý do thay đổi | Đã có; cần cập nhật khi quyết định mới được duyệt |
+| **Backend Change Plan — Visual Analytics** | [backend-change-plan.md](backend-change-plan.md) | Requirements/API/module impacts và thứ tự B6 → Exploration → ML v2 → nghiệm thu; FE/test từng chặng | D016 ngày16/11/2026 đã duyệt hướng; G01–G06 còn chốt trước triển khai phần phụ thuộc |
 
 
 ## 2. Sơ đồ thiết kế

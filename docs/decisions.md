@@ -18,12 +18,14 @@
 | D013 | Query B4: parent/sensor 422, thời gian đóng và bbox tọa độ đóng | Chủ dự án xác nhận ba đề xuất B4; không đổi OpenAPI |
 | D014 | Tích hợp thư viện trước B5, policy thử nghiệm tường minh và artifact demo có provenance | Chủ dự án yêu cầu dùng thư viện, chưa triển khai B5 |
 | D015 | B5 dùng MongoDB-backed worker trên Replica Set hiện có; chưa thêm Redis/BullMQ | Chủ dự án chọn hướng thực thi khi yêu cầu B5 ngày 15/11/2026 |
+| D016 | Ưu tiên B6 → Exploration tối thiểu → Isolation Forest v2 → nghiệm thu Analyst; FE/test theo từng chặng | Chủ dự án duyệt phần điều chỉnh đề xuất AI ngày 16/11/2026; các contract/feature gates chi tiết còn mở |
 
 ## Quyết định chưa hoàn tất
 
 - **Driver đã chốt tại D010**, không còn là quyết định mở.
 - D015 đã chốt baseline B5: statistical policies, ML method/config/model một feature PM2.5, severity tạm low và MongoDB-backed worker. Khải còn đánh giá chất lượng/chuyển miền, severity nâng cao và model thay thế; không coi baseline là model đã đạt metric chất lượng.
 - Chưa bổ sung Redis/BullMQ. Cường còn kiểm chứng trên môi trường triển khai, tải nhiều người dùng và tổng RAM/CPU gồm MongoDB/Python trước khi tăng cấu hình.
+- D016 duyệt hướng nâng cấp Visual Analytics và Change Plan; CSV chuẩn/provenance, Profile/aggregation/timezone API, công thức/context/missing của ML v2, version selection và budgets mới còn các gate G01–G06. Chưa tự đổi OpenAPI, shared schemas hoặc model v1.
 - Import B3 đã chốt tại D012; performance thực tế và proxy/volume triển khai vẫn do Cường phối hợp đo. B5 còn cần quyết định riêng về Analysis; không thêm Kafka/Spark khi chưa có nhu cầu rõ ràng.
 
 ## Mẫu ghi quyết định mới
@@ -36,6 +38,17 @@
 - Lý do:
 - Ảnh hưởng:
 - Người thống nhất:
+
+## D016 — Ưu tiên Visual Analytics và phạm vi nâng cấp online (16/11/2026)
+
+- Chủ dự án cung cấp đề xuất AI và trả lời **“ok duyệt”** sau phần đánh giá/điều chỉnh: ưu tiên phần mềm cho Data Analyst, hoàn thiện investigation/review, mở rộng Exploration có giới hạn, giữ Isolation Forest và giảm công sức nghiên cứu/tuning thuật toán. Tài liệu AI là đầu vào, không tự thành quyết định cho mọi chi tiết bên trong.
+- Đã duyệt thứ tự: Change Plan/chốt scope → **B6 theo contract hiện tại** → Profile/quality/aggregation thời gian–so sánh trạm → ML v2 → nghiệm thu tổng thể. FE integration và kiểm thử/đo hiệu năng đi cùng từng chặng; B6 không chờ toàn bộ contract mới. B7/Admin và B8/triển khai tiếp tục backlog, không bị hủy.
+- Đây là mở rộng phạm vi được ghi nhận: Exploration có requirements/API mới; nâng ưu tiên một phần FR-13/P1 phục vụ chuỗi thời gian/so sánh trạm trong đợt online nâng cấp, chưa nâng toàn bộ spatial aggregation/LOD/P1. Phạm vi MVP Offline/Sync của SRS không bị xóa nhưng vẫn hoãn trong đợt online.
+- Giữ Fastify/TypeScript Modular Monolith/layering, MongoDB Replica Set và worker B5. Không thêm Redis/BullMQ/Kafka/microservices, không thay database schema hàng loạt hoặc viết lại worker. D010–D015 vẫn là baseline cho phần không được thay cụ thể.
+- Hướng ML v2 là ba feature PM2.5/temporal delta/spatial delta; **chưa chốt công thức**. Phải tách target readings khỏi context, giữ cùng Feature Contract/builder khi train và inference, không dùng tương lai/trộn dataset; missing/unscorable coverage có policy rõ. Không tự điền0 hoặc lấy maxAge của heatmap làm policy ML.
+- Hướng nghiệm thu là CSV Beijing12 trạm/tháng03–2015 được nêu trong Cube spec. Trước golden test phải khóa file/provenance/checksum và tái tính expected facts. Phân biệt UCI381 của v1 và UCI501 đa trạm; không coi tên Beijing là bằng chứng hai nguồn giống nhau. Giữ CSV nghiệm thu ngoài fit khi tuyên bố test độc lập; không lấy điểm cao làm nhãn anomaly chuẩn.
+- Giữ UTC persistence/wire DTO và imported/completed visibility. Timezone/cadence/profile, schema aggregation và method/config/version selection v2 phải review trước implementation; strict DTO có thể khiến cả thêm optional response field cũng ảnh hưởng tương thích. Không tự đổi default v1, rescore run cũ, làm mất receipt hoặc nâng cap Analysis50k khi chưa đo/duyệt.
+- [Backend Change Plan](backend-change-plan.md) ghi requirements CR-01–07, API/module impacts, milestones C0–C4 và gates G01–G06. D016 đóng **định hướng/ưu tiên**, chưa đóng các gate còn mở; không phải bằng chứng B6/Exploration/v2 đã được triển khai hoặc sign-off riêng của owner.
 
 ## D015 — Hướng worker B5 (15/11/2026)
 
