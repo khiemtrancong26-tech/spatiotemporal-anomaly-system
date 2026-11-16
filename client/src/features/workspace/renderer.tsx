@@ -5,6 +5,49 @@ import type { Reading } from '../../shared/api/generated/wire';
 import { createHeatmapTransition, heatLayer } from './map-heatmap';
 import { color, cubePoints } from './geometry';
 import { Button, LoadingState } from '../../shared/ui/primitives';
+const DAY_MAPBOX_COLORS = {
+  land: '#F7F9FB',
+  buildings: '#D9E3EA',
+  roads: '#F2F4F6',
+  roadOutline: '#BCC6CF',
+  water: '#8EC8E8',
+  parks: '#B9D8B0',
+} as const;
+
+// Recolor only the Mapbox basemap. Data overlays are added separately after this runs.
+function applyDayMapboxPalette(map: import('mapbox-gl').Map) {
+  map.setLight({anchor:'viewport',color:'#ffffff',intensity:0.6,position:[1.5,210,45]});
+  for (const layer of map.getStyle().layers ?? []) {
+    const id=layer.id.toLowerCase();
+    const water=/(water|river|canal|stream|lake|reservoir)/.test(id);
+    const road=/(road|street|highway|motorway|bridge|tunnel|path|pedestrian)/.test(id);
+    const park=/(park|garden|grass|wood|forest|recreation|green)/.test(id);
+    const building=/(building)/.test(id);
+
+    if(layer.type==='background'){
+      map.setPaintProperty(layer.id,'background-color',DAY_MAPBOX_COLORS.land);
+    } else if(layer.type==='fill'){
+      if(water) map.setPaintProperty(layer.id,'fill-color',DAY_MAPBOX_COLORS.water);
+      else if(road) map.setPaintProperty(layer.id,'fill-color',DAY_MAPBOX_COLORS.roads);
+      else if(park) map.setPaintProperty(layer.id,'fill-color',DAY_MAPBOX_COLORS.parks);
+      else if(building) map.setPaintProperty(layer.id,'fill-color',DAY_MAPBOX_COLORS.buildings);
+      else if(id==='land' || id==='land-base') map.setPaintProperty(layer.id,'fill-color',DAY_MAPBOX_COLORS.land);
+      else if(id.includes('landuse') || id.includes('landcover')){
+        const originalColor=map.getPaintProperty(layer.id,'fill-color');
+        if(originalColor!==undefined) map.setPaintProperty(layer.id,'fill-color',[
+          'match',['get','class'],
+          ['park','national_park','garden','recreation_ground','grass','wood','forest'],
+          DAY_MAPBOX_COLORS.parks,originalColor,
+        ]);
+      }
+    } else if(layer.type==='line'){
+      if(water) map.setPaintProperty(layer.id,'line-color',DAY_MAPBOX_COLORS.water);
+      else if(road) map.setPaintProperty(layer.id,'line-color',/casing|case|outline/.test(id)?DAY_MAPBOX_COLORS.roadOutline:DAY_MAPBOX_COLORS.roads);
+    } else if(layer.type==='fill-extrusion' && building){
+      map.setPaintProperty(layer.id,'fill-extrusion-color',DAY_MAPBOX_COLORS.buildings);
+    }
+  }
+}
 type View = { zone: ExplorationTimeZone; rows: Reading[]; selected?: string; marked: Set<string>; scale?: {min:number;max:number} };
 export default function Renderer({ rows, mode, selected, onSelect, marked, spatialHeatmap = false, scale, zone = '+07:00' }: Omit<View, 'zone'> & { zone?: ExplorationTimeZone; spatialHeatmap?:boolean; mode:'map'|'cube'; onSelect:(id:string)=>void }) {
   const host = useRef<HTMLDivElement>(null), reset = useRef<()=>void>(()=>{});
@@ -41,8 +84,9 @@ export default function Renderer({ rows, mode, selected, onSelect, marked, spati
         map.on('error',()=>{if(!cancelled)setError('Không tải được bản đồ/token/tiles. Bảng dữ liệu và Cube vẫn dùng được.');});
         map.on('load',()=>{
           if(cancelled)return;
+          applyDayMapboxPalette(map);
           const empty:GeoJSON.FeatureCollection={type:'FeatureCollection',features:[]};
-          if(map.getSource('composite')) map.addLayer({id:'context-buildings',source:'composite','source-layer':'building',type:'fill-extrusion',minzoom:14,filter:['==','extrude','true'],paint:{'fill-extrusion-color':'#d7e0eb','fill-extrusion-height':['coalesce',['get','height'],0],'fill-extrusion-base':['coalesce',['get','min_height'],0],'fill-extrusion-opacity':0.7}});
+          if(map.getSource('composite')) map.addLayer({id:'context-buildings',source:'composite','source-layer':'building',type:'fill-extrusion',minzoom:14,filter:['==','extrude','true'],paint:{'fill-extrusion-color':DAY_MAPBOX_COLORS.buildings,'fill-extrusion-height':['coalesce',['get','height'],0],'fill-extrusion-base':['coalesce',['get','min_height'],0],'fill-extrusion-opacity':0.9}});
           map.addSource('readings',{type:'geojson',data:empty});
           const duration=window.matchMedia('(prefers-reduced-motion: reduce)').matches?0:700;
           for (const slot of [0,1]) { const id=`pm25-heat-${slot}`;map.addSource(id,{type:'geojson',data:empty});map.addLayer(heatLayer(id,id,range(input.current).max,duration)); }
