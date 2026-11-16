@@ -1,4 +1,5 @@
 import type { Reading, Sensor } from '../../shared/api/generated/wire';
+import { explorationUtcTime } from '@pm25/shared-core';
 
 export type CubeMode = 'overview' | 'station' | 'anomaly';
 export type CubeScope = { from: string; to: string };
@@ -19,15 +20,13 @@ export function pm25Color(value: number) {
 
 export function cubeTime(ts: string, offset = 7, short = false) {
   return new Intl.DateTimeFormat('vi-VN', {
-    timeZone: offset === 8 ? 'Asia/Shanghai' : 'Asia/Ho_Chi_Minh',
+    timeZone: 'UTC',
     ...(short ? { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' } : { dateStyle: 'short', timeStyle: 'short' }),
-  }).format(new Date(ts));
+  }).format(new Date(Date.parse(ts) + offset * HOUR));
 }
 export const localCubeTime = (ts: string, offset: number) => new Date(Date.parse(ts) + offset * HOUR).toISOString().slice(0, 16);
 export const parseCubeTime = (local: string, offset: number) => {
-  const ts = Date.parse(`${local}:00+0${offset}:00`);
-  if (!Number.isFinite(ts)) throw new Error('Ngày giờ không hợp lệ.');
-  return new Date(ts).toISOString();
+  return explorationUtcTime(local, offset === 0 ? 'UTC' : offset === 8 ? '+08:00' : '+07:00');
 };
 
 /** A single spatial frame and explicit time domain shared by every presentation mode. */

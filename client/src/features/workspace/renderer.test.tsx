@@ -52,5 +52,11 @@ it('popup displays the original measurement timestamp and value, safely as text'
  await waitFor(()=>expect(mocks.clicks.has('click:readings')).toBe(true));
  act(()=>mocks.clicks.get('click:readings')!({features:[{properties:{id:'r'}}]}));
  const popup=mocks.popup.mock.calls.at(-1)![0] as HTMLElement;
- expect(popup.textContent).toContain(row.ts);expect(popup.textContent).toContain('118 µg/m³');expect(popup.querySelector('station')).toBeNull();ui.unmount();
+ expect(popup.textContent).toContain(row.ts);expect(popup.textContent).toContain('118 µg/m³');expect(popup.querySelector('station')).toBeNull();
+ await act(async()=>ui.rerender(<Renderer rows={[row]} mode="map" zone="UTC" marked={new Set()} onSelect={vi.fn()}/>));
+ act(()=>mocks.clicks.get('click:readings')!({features:[{properties:{id:'r'}}]}));
+ expect((mocks.popup.mock.calls.at(-1)![0] as HTMLElement).textContent).toContain('23:30');
+ await act(async()=>ui.rerender(<Renderer rows={[row]} mode="map" zone="+08:00" marked={new Set()} onSelect={vi.fn()}/>));
+ act(()=>mocks.clicks.get('click:readings')!({features:[{properties:{id:'r'}}]}));
+ expect((mocks.popup.mock.calls.at(-1)![0] as HTMLElement).textContent).toContain('07:30'); expect(mocks.instances).toHaveBeenCalledTimes(1); ui.unmount();
 });

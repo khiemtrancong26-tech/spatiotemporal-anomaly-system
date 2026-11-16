@@ -11,7 +11,7 @@ const directory = path.join(client, 'src/shared/api/generated');
 await mkdir(directory, { recursive: true });
 await writeFile(path.join(directory, 'openapi.d.ts'), astToString(await openapiTS(pathToFileURL(source))));
 
-const excluded = new Set(['reading-aggregates', 'reading-batches', 'exports', 'review-changes', 'review-mutation-batches']);
+const excluded = new Set(['reading-batches', 'exports', 'review-changes', 'review-mutation-batches']);
 const operations = {};
 const references = new Set();
 function collect(value) {
@@ -50,7 +50,7 @@ for (const [route, methods] of Object.entries(spec.paths)) {
 const schemas = Object.fromEntries([...references].sort().map((name) => [name, spec.components.schemas[name]]));
 await writeFile(path.join(directory, 'contract.json'), JSON.stringify(normalize({ components: { schemas }, operations }), null, 2) + '\n');
 const aliases = [...references].sort().map((name) => `export type ${name} = components['schemas']['${name}'];`);
-const queries = { DatasetsQuery: 'datasets', SensorsQuery: 'sensors', ReadingsQuery: 'readings', AnalysisRunsQuery: 'analysis-runs', AnomaliesQuery: 'anomalies', AdminUsersQuery: 'admin/users' };
+const queries = { DatasetsQuery: 'datasets', SensorsQuery: 'sensors', ReadingsQuery: 'readings', AnalysisRunsQuery: 'analysis-runs', AnomaliesQuery: 'anomalies', AdminUsersQuery: 'admin/users', DatasetProfileQuery: 'datasets/{id}/profile', ReadingAggregatesQuery: 'reading-aggregates' };
 for (const [name, route] of Object.entries(queries)) aliases.push(`export type ${name} = NonNullable<paths['/api/v1/${route}']['get']['parameters']['query']>;`);
 await writeFile(path.join(directory, 'wire.ts'), `// Generated from OpenAPI. Run npm run generate; do not edit.\nimport type { components, paths } from './openapi';\n${aliases.join('\n')}\n`);
 console.log(`Generated ${Object.keys(operations).length} online operations and ${references.size} schemas.`);

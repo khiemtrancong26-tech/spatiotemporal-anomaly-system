@@ -1,0 +1,10 @@
+{
+  "timeZone": "+08:00",
+  "provenance": "Owner-supplied Beijing March 2015 fixture; SHA256 189c1f773f11294d66b06a0097bccfba653496cf08554a733caaf8afdbdd6ff0; upstream coordinate audit remains open",
+  "sampling": {
+    "cadenceSeconds": 3600,
+    "anchor": "2015-02-28T16:00:00.000Z",
+    "expectedFrom": "2015-02-28T16:00:00.000Z",
+    "expectedTo": "2015-03-31T15:00:00.000Z"
+  }
+}

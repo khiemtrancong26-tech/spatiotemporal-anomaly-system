@@ -1,5 +1,7 @@
 # Kế hoạch triển khai Backend P0 online — PM2.5
 
+**C2/D018 ngày16/11/2026:** Profile/quality và hour/day comparison theo trạm đã bổ sung online; [contract](backend/c2-contract-proposal.md), [verification/runbook](backend/c2-verification.md). Trạng thái hiện tại19/22 online operations (26 tổng), B7 còn3 operations, C3/B8 còn chờ. Ma trận20 operations và các dòng hoãn aggregation bên dưới là baseline lịch sử B0–B6; chỉ subset C2 được nâng ưu tiên, không mở toàn P1/LOD. Không đổi DTO/API B1–B6.
+
 **Bổ sung 16/11/2026 — D016:** [Backend Change Plan](backend-change-plan.md) ghi hướng nâng cấp đã được chủ dự án duyệt: **B6 theo contract hiện tại → Exploration tối thiểu → Isolation Forest v2 → nghiệm thu Analyst**, FE/test tích hợp từng chặng. Đây là mở rộng có giới hạn đối với phạm vi dưới đây; các API/feature/timezone mới còn gate, không tự sửa OpenAPI. B0–B8 giữ mã/tiêu chí; B7/B8 không bị hủy. Các dòng hoãn P1 bên dưới là baseline cũ; chỉ subset được chỉ rõ trong Change Plan được nâng ưu tiên sau khi khóa contract.
 
 Ngày lập: 13/11/2026. Cập nhật16/11/2026: **B1–B6 đã triển khai:17/20 operations online có API thật**, gồm health/auth/me/datasets/import/Query/Analysis và Anomaly list/detail/review CAS. Còn3 operations B7; B8 triển khai/tải và ML quality chưa nghiệm thu. Xem [B1](backend/b1-verification.md), [B2](backend/b2-verification.md), [B3](backend/b3-verification.md), [B4](backend/b4-verification.md), [B5](backend/b5-verification.md), [B6 verification](backend/b6-verification.md).

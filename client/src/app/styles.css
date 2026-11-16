@@ -619,6 +619,18 @@ td .button {
 .connection-card .button {
   align-self:flex-start
 }
+.workspace-command-bar { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; margin:0 280px 4px 0 }
+.workspace-command-bar>.workspace-tabs { margin:0 }
+.workspace-command-bar>.workspace-timezone { flex-direction:row; align-items:center; width:auto; white-space:nowrap; font-size:11px }
+.workspace-command-bar>.workspace-timezone select { width:130px; min-height:36px; padding:6px 8px; font-size:12px }
+.workspace-content>[data-testid=applied-filter] { line-height:1.6 }
+@media(max-width:767px) { .workspace-command-bar { margin-right:0 } .workspace-command-bar>.workspace-tabs { width:100% } }
+.exploration-page { padding:var(--space-6); display:grid; gap:14px; min-width:0; overflow-wrap:anywhere }
+.exploration-page p { line-height:1.6 }
+.exploration-page fieldset { padding:12px; border:1px solid var(--border); border-radius:8px }
+.exploration-page .field { max-width:360px }
+.exploration-page svg { display:block; border-bottom:1px solid var(--border) }
+.exploration-page h4 { margin-top:16px }
 .analysis-page {
   padding:var(--space-6);
   min-width:0;

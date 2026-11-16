@@ -18,6 +18,7 @@
     "test:e2e:b4": "npm run test:e2e:b4 --workspace @pm25/server",
     "test:e2e:b5": "npm run test:e2e:b5 --workspace @pm25/server",
     "test:e2e:b6": "npm run test:e2e:b6 --workspace @pm25/server",
+    "test:e2e:c2": "npm run test:e2e:c2 --workspace @pm25/server",
     "verify:detectors": "npm run verify:detectors --workspace @pm25/server"
   },
   "workspaces": [

@@ -85,8 +85,8 @@ test('real B3 import → B4 Workspace filters, UTC+07, both view choices, sensor
   await expect(readingRows).toHaveCount(8);
   await page.getByText('Phạm vi tra cứu', { exact: true }).click();
   await page.getByLabel('Vùng bbox', { exact: true }).fill('106,10,107,11');
-  await page.getByLabel('Từ · UTC+07', { exact: true }).fill('2026-11-14T07:00:00');
-  await page.getByLabel('Đến · UTC+07', { exact: true }).fill('2026-11-14T08:00:00');
+  await page.getByLabel('Từ · UTC+07:00', { exact: true }).fill('2026-11-14T07:00:00');
+  await page.getByLabel('Đến · UTC+07:00', { exact: true }).fill('2026-11-14T08:00:00');
   const filtered = page.waitForResponse(response => response.url().includes('/api/v1/readings?') &&
     new URL(response.url()).searchParams.get('from') === '2026-11-14T00:00:00.000Z' && new URL(response.url()).searchParams.get('to') === '2026-11-14T01:00:00.000Z');
   await page.getByRole('button', { name: 'Áp dụng bộ lọc', exact: true }).click();

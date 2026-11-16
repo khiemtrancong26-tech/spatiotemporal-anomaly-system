@@ -9,6 +9,8 @@
 
 **Bổ sung 16/11/2026:** [D016](decisions.md#d016--ưu-tiên-visual-analytics-và-phạm-vi-nâng-cấp-online-16112026) và [Backend Change Plan](backend-change-plan.md) ghi hướng nâng cấp Visual Analytics đã duyệt. Các API/profile/timezone/feature mới còn gate chi tiết; không coi mô tả dự kiến là schema/module đã triển khai. D010–D015 và báo cáo B1–B5 là quyết định/bằng chứng mới hơn những đoạn draft lịch sử bên dưới.
 
+**Cập nhật C2/D018 (16/11/2026):** G02/G03 và ngân sách khởi đầu C2 đã được chủ dự án duyệt tại [contract C2](backend/c2-contract-proposal.md). Module `server/src/modules/exploration/` giữ Route → Validation → Service → Repository → MongoDB; cung cấp Profile/quality và time aggregation theo trạm. Service điều phối admission/deadline/coverage; Repository dùng `$match/$limit/$group/$dateTrunc`, không lấy trang FE làm toàn scope, không DB trong thuật toán. C2 không có cache collection hay worker/Redis mới; metadata CLI riêng không đổi DTO Dataset/Reading hoặc worker B5. Shared schemas và adapter được migrate đồng bộ. G04/G05 ML v2 tiếp tục mở; bằng chứng ở [C2 verification](backend/c2-verification.md).
+
 ## 1. Architecture Overview
 
 ![Sơ đồ kiến trúc tổng thể](diagrams/system-architecture.png)
@@ -221,7 +223,7 @@ project-root/                           # Monorepo đã dựng
 - BR-08 báo duplicate/conflict và giữ first valid row; BR-15 dùng baseVersion; BR-16 dùng clientMutationId và idempotent receipt.
 - `GET /api/v1/exports` là contract offline prefetch **hoãn ngoài P0 online**; không có bảo đảm toàn dataset được tải chỉ bởi một trang; cần phối hợp Duy trước khi triển khai.
 - Analysis async: `POST /api/v1/analysis-runs` → 202; `GET /api/v1/analysis-runs/{id}` → 200; GET history và anomalies phân trang giữ lại. Không có cancel/retry-job endpoint hoặc progress %; retry tiếp nhận giữ key/payload. API Contract v0.3.0-draft chưa phải implementation.
-- `POST /api/v1/reading-batches` đánh dấu `x-internal` và **hoãn HTTP handler P0**; Import gọi Service/Repository nội bộ, không qua HTTP. `GET /api/v1/reading-aggregates` P1, cũng hoãn.
+- `POST /api/v1/reading-batches` đánh dấu `x-internal` và **hoãn HTTP handler P0**; Import gọi Service/Repository nội bộ, không qua HTTP. **D018/C2 nâng GET `/api/v1/reading-aggregates` sang online cho hour/day theo trạm với contract mới; spatial LOD/phần P1 khác tiếp tục hoãn.**
 
 **Quyền sở hữu:** Khiêm viết Backend/OpenAPI; Tài dùng API list/analysis/review; Duy dùng export/sync; Khải kiểm tra tương ứng `shared-core` và methods.
 

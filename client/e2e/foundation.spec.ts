@@ -28,7 +28,7 @@ test('login, session restoration, workspace filters, logout and admin guard', as
   await page.getByRole('link', { name: 'Mở dữ liệu' }).click();
   await expect(page.getByLabel('Trạm (Sensor ID)')).toHaveValue('sensor-001');
   await page.reload();
-  await expect(page.getByText('Chưa có metadata dataset.', { exact: false })).toBeVisible();
+  await expect(page.getByText('Chưa đọc được Profile dataset.', { exact: false })).toBeVisible();
   await page.goto('/admin/users');
   await expect(page.getByRole('heading', { name: 'Không có quyền truy cập' })).toBeVisible();
   await page.getByRole('button', { name: 'Đăng xuất' }).click();
@@ -47,7 +47,7 @@ test('mobile layout and deep link survive login without inventing metadata', asy
   await page.goto('/workspace/unknown-dataset');
   await login(page);
   await expect(page.getByText('Dataset ID: unknown-dataset', { exact: true })).toBeVisible();
-  await expect(page.getByText('Chưa có metadata dataset.', { exact: false })).toBeVisible();
+  await expect(page.getByText('Chưa đọc được Profile dataset.', { exact: false })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: 'test-results/m2-mobile.png', fullPage: true });
 });

@@ -1,17 +1,19 @@
+import { formatWorkspaceTime, zoneLabel } from './time';
+import type { ExplorationTimeZone } from '@pm25/shared-core';
 import { useEffect, useRef, useState } from 'react';
 import type { Reading } from '../../shared/api/generated/wire';
 import { createHeatmapTransition, heatLayer } from './map-heatmap';
 import { color, cubePoints } from './geometry';
 import { Button, LoadingState } from '../../shared/ui/primitives';
-type View = { rows: Reading[]; selected?: string; marked: Set<string>; scale?: {min:number;max:number} };
-export default function Renderer({ rows, mode, selected, onSelect, marked, spatialHeatmap = false, scale }: View & { spatialHeatmap?:boolean; mode:'map'|'cube'; onSelect:(id:string)=>void }) {
+type View = { zone: ExplorationTimeZone; rows: Reading[]; selected?: string; marked: Set<string>; scale?: {min:number;max:number} };
+export default function Renderer({ rows, mode, selected, onSelect, marked, spatialHeatmap = false, scale, zone = '+07:00' }: Omit<View, 'zone'> & { zone?: ExplorationTimeZone; spatialHeatmap?:boolean; mode:'map'|'cube'; onSelect:(id:string)=>void }) {
   const host = useRef<HTMLDivElement>(null), reset = useRef<()=>void>(()=>{});
   const update = useRef<(view:View)=>void>(()=>{});
-  const input = useRef<View>({rows,selected,marked,scale});
+  const input = useRef<View>({rows,selected,marked,scale,zone});
   const choose = useRef(onSelect);
   const [error,setError] = useState(''), [ready,setReady] = useState(false);
   const heatmap = useRef(spatialHeatmap), toggleHeatmap = useRef<(visible:boolean)=>void>(()=>{});
-  useEffect(()=>{input.current={rows,selected,marked,scale};choose.current=onSelect;update.current(input.current);},[rows,selected,marked,scale,onSelect]);
+  useEffect(()=>{input.current={rows,selected,marked,scale,zone};choose.current=onSelect;update.current(input.current);},[rows,selected,marked,scale,onSelect,zone]);
   useEffect(()=>{heatmap.current=spatialHeatmap;toggleHeatmap.current(spatialHeatmap);},[spatialHeatmap]);
   useEffect(()=>{
     let cancelled=false, cleanup=()=>{};
@@ -48,7 +50,7 @@ export default function Renderer({ rows, mode, selected, onSelect, marked, spati
           const previousCleanup=cleanup;
           const popup=new mapbox.Popup({closeButton:true,closeOnClick:true,maxWidth:'280px'});
           cleanup=()=>{blend.dispose();popup.remove();previousCleanup();};
-          let previousRows:Reading[]|undefined,previousMax:number|undefined;
+          let previousRows:Reading[]|undefined,previousMax:number|undefined,previousZone:ExplorationTimeZone|undefined;
           map.addLayer({id:'readings',type:'circle',source:'readings',paint:{'circle-color':['get','color'],'circle-radius':['interpolate',['linear'],['zoom'],5,['case',['get','selected'],7,3],12,['case',['get','selected'],11,6],16,['case',['get','selected'],13,9]],'circle-opacity':['interpolate',['linear'],['zoom'],5,0.5,12,0.9,15,1],'circle-stroke-width':['case',['get','selected'],3,2],'circle-stroke-color':['case',['get','anomaly'],'#8b00b5',['get','selected'],'#142e50','#ffffff']}});
           map.addLayer({id:'reading-values',type:'symbol',source:'readings',minzoom:13,layout:{'text-field':['concat',['to-string',['get','value']],' µg/m³'],'text-size':12,'text-offset':[0,1.5],'text-anchor':'top'},paint:{'text-color':'#18314c','text-halo-color':'#ffffff','text-halo-width':2}});
           toggleHeatmap.current=visible=>blend.toggle(visible);
@@ -56,7 +58,7 @@ export default function Renderer({ rows, mode, selected, onSelect, marked, spati
             const {min,max}=range(view);
             const data:GeoJSON.FeatureCollection<GeoJSON.Point>={type:'FeatureCollection',features:view.rows.map(r=>({type:'Feature',geometry:{type:'Point',coordinates:r.location.coordinates},properties:{id:r.id,value:r.value,sensorId:r.sensorId,ts:r.ts,color:color(r.value,min,max),selected:r.id===view.selected,anomaly:view.marked.has(r.id)}}))};
             (map.getSource('readings') as import('mapbox-gl').GeoJSONSource).setData(data);
-            if(previousRows!==view.rows || previousMax!==max){blend.stage(data,max);popup.remove();previousRows=view.rows;previousMax=max;}
+            if(previousRows!==view.rows || previousMax!==max || previousZone!==view.zone){blend.stage(data,max);popup.remove();previousRows=view.rows;previousMax=max;previousZone=view.zone;}
             if(!fitted&&view.rows.length){fitted=true;reset.current();}
           };
           map.on('click','readings',event=>{
@@ -66,7 +68,7 @@ export default function Renderer({ rows, mode, selected, onSelect, marked, spati
             const card=document.createElement('div');card.className='station-popup';
             const heading=document.createElement('h3');heading.textContent=`Trạm ${row.sensorId}`;
             const value=document.createElement('strong');value.textContent=`${row.value} µg/m³`;
-            const measured=document.createElement('p');measured.textContent=`Đo thực tế: ${new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',dateStyle:'short',timeStyle:'medium'}).format(new Date(row.ts))} · UTC+07`;
+            const measured=document.createElement('p');measured.textContent=`Đo thực tế: ${formatWorkspaceTime(row.ts, input.current.zone)} · ${zoneLabel(input.current.zone)}`;
             const raw=document.createElement('small');raw.textContent=row.ts;
             card.append(heading,value,measured,raw);
             popup.setLngLat([row.location.coordinates[0],row.location.coordinates[1]]).setDOMContent(card).addTo(map);

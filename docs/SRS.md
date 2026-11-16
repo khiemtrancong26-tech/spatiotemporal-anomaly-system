@@ -324,3 +324,6 @@ Các mục còn lại **không được AI tự xem là đã chốt**. Nhóm tr�
 | `0.3` | 11/11/2026 | Làm rõ auto-cache khi online, sử dụng khi mất mạng đột ngột, tải trước tùy chọn, phạm vi dữ liệu offline, nghiệm thu UC-06; cập nhật FR-11, BR-20–22, NFR-04 |
 | `0.4` | 11/11/2026 | Chốt BR-08 phương án B: giữ bản ghi hợp lệ đầu tiên; báo cáo trùng hoàn toàn/xung đột, loại OPEN-01 khỏi danh sách chưa chốt; cập nhật UC-02 |
 | `0.5` | 12/11/2026 | Ưu tiên khôi phục ngữ cảnh làm việc, bảo toàn outbox/đồng bộ khi gián đoạn, tiêu chí AT-06E/F; giữ mở thông số thời gian và chu kỳ dataset |
+## C2 / D018 — Bổ sung yêu cầu Exploration đã khóa (16/11/2026)
+
+CR-02–05 của [Change Plan](backend-change-plan.md) được cụ thể hóa tại [C2 contract](backend/c2-contract-proposal.md): Analyst xem Profile toàn dataset/scoped, phân biệt source-quality/thiếu station–time/chưa tải, so sánh trạm trên hour/day buckets và đổi timezone hiển thị mà giữ instant UTC. Chỉ subset aggregation này được nâng online; không nâng spatial LOD, Offline/Sync hay ML v2. API đọc chỉ imported, kết quả đầy đủ trong ngân sách hoặc lỗi; sampling phải có cadence/anchor/expected interval tường minh. Nghiệm thu phần mềm qua CSV golden và API/DB thật, không coi spike/flag là ground truth hay xác nhận chất lượng ML.

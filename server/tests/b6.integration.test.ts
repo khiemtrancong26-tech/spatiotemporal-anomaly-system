@@ -202,7 +202,8 @@ describe('B6 actual HTTP/MongoDB Replica Set', () => {
     expect((await f.get('anomalies/opaque')).statusCode).toBe(404);
     expect((await f.patch('opaque', { baseVersion: 1, changes: { note: '' } })).statusCode).toBe(404);
     expect((await f.app.inject({ method: 'DELETE', url: `/api/v1/anomalies/${row!._id}`, headers: f.headers })).statusCode).toBe(405);
-    for (const path of ['reading-aggregates', 'review-changes', 'exports']) expect((await f.get(path)).statusCode).toBe(404);
+    expect((await f.get('reading-aggregates')).statusCode).toBe(400); // D018/C2 promotes only time aggregation.
+    for (const path of ['review-changes', 'exports']) expect((await f.get(path)).statusCode).toBe(404);
     await f.db.collection('users').updateOne({ _id: f.userId }, { $set: { role: 'admin' } });
     expect((await f.patch(String(row!._id), { baseVersion: 1, changes: { note: 'admin allowed' } })).statusCode).toBe(200);
     await f.db.collection('users').updateOne({ _id: f.userId }, { $set: { isActive: false } });

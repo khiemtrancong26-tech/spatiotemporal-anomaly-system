@@ -68,8 +68,8 @@ test('Cube shares one canvas/camera across modes, shows real timestamps and gaps
   await page.getByRole('region', { name: 'Chuỗi giờ của trạm', exact: true }).getByRole('button', { name: '21:00', exact: true }).click();
   await expect(page.locator('.cube-inspector')).toContainText('369');
   await expect(page.locator('.cube-panel')).toContainText('Trung vị 11 trạm khác tại lát: 80');
-  await expect(page.getByRole('region', { name: 'Chuỗi giờ của trạm', exact: true }).getByRole('row').filter({ hasText: '22:00' })).toContainText('Thiếu mẫu');
-  await expect(page.getByRole('region', { name: 'Chuỗi giờ của trạm', exact: true }).getByRole('row').filter({ hasText: '23:00' })).toContainText('Thiếu mẫu');
+  await expect(page.getByRole('region', { name: 'Chuỗi giờ của trạm', exact: true }).getByRole('row').filter({ hasText: '22:00' })).toContainText('Không có reading tại mốc');
+  await expect(page.getByRole('region', { name: 'Chuỗi giờ của trạm', exact: true }).getByRole('row').filter({ hasText: '23:00' })).toContainText('Không có reading tại mốc');
   await page.getByLabel('Múi giờ Cube', { exact: true }).selectOption('7');
   await expect(page.getByLabel('Lát thời gian Cube', { exact: true })).toHaveValue(beijing(26, 21));
   await expect(page.locator('.cube-inspector')).toContainText('20:00');

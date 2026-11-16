@@ -18,6 +18,8 @@
     "test:e2e:b2": "playwright test --config playwright.config.ts b2.spec.ts",
     "db:indexes": "tsx --env-file-if-exists=../.env scripts/ensure-indexes.ts",
     "db:seed": "tsx --env-file-if-exists=../.env scripts/seed-demo.ts",
+    "db:exploration": "tsx --env-file-if-exists=../.env scripts/configure-exploration.ts",
+    "test:e2e:c2": "playwright test --config playwright.config.ts c2.spec.ts",
     "check": "npm run typecheck && npm run lint && npm test && npm run build",
     "test:e2e:b3": "playwright test --config playwright.config.ts b3.spec.ts",
     "test:e2e:b4": "playwright test --config playwright.config.ts b4.spec.ts",
@@ -26,6 +28,7 @@
     "benchmark:analysis": "node --expose-gc --import tsx scripts/benchmark-analysis.ts",
     "prebenchmark:analysis": "npm run build --workspace @pm25/server",
     "benchmark:query": "node --expose-gc --import tsx scripts/benchmark-query.ts",
+    "benchmark:exploration": "node --import tsx scripts/benchmark-exploration.ts",
     "pretypecheck": "npm run build --workspace @pm25/shared-core",
     "prebuild": "npm run build --workspace @pm25/shared-core",
     "pretest": "npm run build --workspace @pm25/shared-core",
@@ -53,11 +56,12 @@
     "@fastify/cors": "11.4.3",
     "@fastify/multipart": "10.1.8",
     "@fastify/rate-limit": "11.2.2",
+    "@pm25/shared-core": "0.1.0",
     "csv-parse": "7.0.3",
     "fastify": "5.12.8",
     "fastify-plugin": "6.0.1",
     "jose": "6.2.17",
     "mongodb": "7.9.0",
-    "@pm25/shared-core": "0.1.0"
+    "zod": "4.6.7"
   }
 }

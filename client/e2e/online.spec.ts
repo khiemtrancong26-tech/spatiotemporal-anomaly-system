@@ -211,7 +211,7 @@ test('M4 shares selection across views, paginates and applies UTC filters with f
   await page.screenshot({ path: 'test-results/m4-mobile.png', fullPage: true });
   await page.locator('summary.filter-heading').click();
   await page.getByLabel('Trạm (Sensor ID)').fill('no-data');
-  await page.getByLabel('Từ · UTC+07', { exact: true }).fill('2026-01-01T07:00:00');
+  await page.getByLabel('Từ · UTC+07:00', { exact: true }).fill('2026-01-01T07:00:00');
   await page.getByRole('button', { name: 'Áp dụng bộ lọc' }).click();
   await expect(page.getByText('Không có phép đo trong khoảng đã chọn.')).toBeVisible();
   await expect(page.getByText('Reading: reading-001', { exact: true })).toHaveCount(0);
@@ -554,7 +554,7 @@ test('map timeline carries only fresh actual readings, changes maxAge and plays 
  await expect(page.getByTestId('snapshot-status')).toContainText('2 trạm có mẫu');
  await page.getByLabel('Xem chi tiết trạm tại thời điểm này',{exact:true}).selectOption('b0');
  await expect(page.getByText('Reading: b0',{exact:true})).toBeVisible();
- await expect(page.getByText('08:00:00 11/11/26 · UTC+07',{exact:true})).toBeVisible();
+ await expect(page.getByText('08:00:00 11/11/26 · UTC+07:00',{exact:true})).toBeVisible();
  await page.getByLabel('Độ cũ tối đa',{exact:true}).selectOption('0.5');
  await expect(page.getByTestId('snapshot-status')).toContainText('1 trạm có mẫu');
  expect(requests.at(-1)?.searchParams.get('from')).toBe('2026-11-11T01:30:00.000Z');

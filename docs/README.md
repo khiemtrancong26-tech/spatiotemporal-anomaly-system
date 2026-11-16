@@ -25,6 +25,7 @@ Tài liệu phân tích yêu cầu, thiết kế và phối hợp phát triển 
 | **Technical Decisions** | [decisions.md](decisions.md) | Các quyết định đã chốt, lựa chọn đang mở và lý do thay đổi | Đã có; cần cập nhật khi quyết định mới được duyệt |
 | **Backend Change Plan — Visual Analytics** | [backend-change-plan.md](backend-change-plan.md) | Requirements/API/module impacts và thứ tự B6 → Exploration → ML v2 → nghiệm thu; FE/test từng chặng | D016 ngày16/11/2026 đã duyệt hướng; G01–G06 còn chốt trước triển khai phần phụ thuộc |
 | **Backend B6/C1 — Kết quả** | [backend/b6-verification.md](backend/b6-verification.md) | Anomaly list/detail, completed visibility, review CAS/conflict và golden Beijing CSV |17/20 online operations; FE/API/DB thật, C2/C3/G02–G05 chưa triển khai |
+| **C2 Data Exploration — Kết quả** | [contract D018](backend/c2-contract-proposal.md) · [verification/runbook](backend/c2-verification.md) · [query measurements](backend/c2-query-measurements.json) | Profile/quality, metadata CLI, coverage/timezone, per-station hour/day comparison và FE |19/22 online operations; C2 API/DB thật, G02/G03 khóa; C3/G04/G05 và B7/B8 còn chờ. Các số/status phía trên là lịch sử từng mốc |
 
 
 ## 2. Sơ đồ thiết kế

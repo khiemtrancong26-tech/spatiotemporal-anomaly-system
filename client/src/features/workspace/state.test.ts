@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import { createWorkspaceStore } from './state';
 import { parseWorkspaceFilters, vietnamTimeToUtc } from './filters';
+import { formatWorkspaceTime } from './time';
 
 it('keeps filters across tabs, resets selection on filtering and clears scope on dataset change', () => {
   const store = createWorkspaceStore();
@@ -23,6 +24,17 @@ it('does not share workspace state between sessions', () => {
   const b = createWorkspaceStore();
   a.getState().openDataset('private-dataset');
   expect(b.getState().datasetId).toBeUndefined();
+});
+
+it('uses one workspace timezone without changing applied instants, selection or a review draft', () => {
+  const s = createWorkspaceStore(); s.getState().openDataset('a');
+  const filters = parseWorkspaceFilters({ sensorId: '', bbox: '', from: '2015-03-01T00:00', to: '2015-03-01T00:00' }, '+08:00');
+  s.getState().applyFilters(filters); s.getState().selectReading('reading'); s.getState().setReviewDirty(true);
+  s.getState().setTimeZone('UTC');
+  expect(s.getState()).toMatchObject({ timeZone: 'UTC', timeZoneChosen: true, filters, selectedReadingId: 'reading', reviewDirty: true });
+  expect(filters.from).toBe('2015-02-28T16:00:00.000Z');
+  expect(formatWorkspaceTime(filters.from!, '+08:00')).toContain('00:00'); expect(formatWorkspaceTime(filters.from!, 'UTC')).toContain('16:00');
+  s.getState().openDataset('b'); expect(s.getState()).toMatchObject({ timeZone: '+07:00', timeZoneChosen: false });
 });
 
 it('converts Vietnam local time across UTC day boundaries and rejects normalized invalid dates', () => {

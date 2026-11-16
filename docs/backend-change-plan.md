@@ -2,7 +2,9 @@
 
 Ngày lập: **16/11/2026**. Quyết định: **D016**, chủ dự án trả lời “ok duyệt” cho phần đánh giá/điều chỉnh đề xuất AI trong chat. **Đã duyệt định hướng và thứ tự ưu tiên; chưa khóa các API/DTO, công thức feature hoặc giá trị vận hành mới.** Đây là kế hoạch thay đổi, chưa phải bằng chứng đã triển khai các hạng mục bên dưới.
 
-**Cập nhật triển khai C1/B6 cùng ngày:** chủ dự án giao thực hiện3 Anomaly operations theo contract hiện tại và cung cấp CSV12 trạm. C1 đã có implementation/bằng chứng tại [B6 verification](backend/b6-verification.md), [D017](decisions.md#d017--b6c1-publication-và-review-online-16112026). Golden bytes/checksum/events đã xác minh và đưa vào repo; upstream/coordinate-source audit chưa hoàn tất. C2/C3 và G02–G05 chưa được khóa hay triển khai.
+**Cập nhật triển khai C1/B6 cùng ngày:** C1 đã có implementation/bằng chứng tại [B6 verification](backend/b6-verification.md), D017. Golden bytes/checksum/events đã xác minh và đưa vào repo; upstream/coordinate-source audit chưa hoàn tất.
+
+**Cập nhật C2/D018:** chủ dự án duyệt cả3 nhóm tại [contract C2](backend/c2-contract-proposal.md); G02/G03 và cấu hình khởi đầu C2 thuộc G06 đã khóa. Profile/quality, per-station hour/day comparison, metadata CLI và FE timezone/loaded-vs-total đã triển khai tại module `exploration/`; [C2 verification](backend/c2-verification.md) ghi tests/số đo và giới hạn. C3/G04/G05, upstream audit, tải/SLA tổng thể vẫn mở.
 
 ## 1. Mục tiêu và quan hệ với kế hoạch hiện tại
 
@@ -150,7 +152,7 @@ Khiêm chịu orchestration/API/persistence; Khải chịu feature/model và tes
 - [x] Liên kết cập nhật phạm vi SRS/SDD/kế hoạch hiện tại; giữ OpenAPI/runtime nguyên trạng trong lượt lập kế hoạch.
 - [ ] G01: xác minh CSV/provenance/checksum/expected facts; lập fixture manifest có thể tái tính, giữ synthetic fixtures riêng.
 - [x] Phần golden G01: đã nhận đúng file trong `.local/demo-datasets`, copy byte-identical sang test fixture, pin SHA256 và có test facts/grid/events độc lập; không coi đó là đã kiểm định upstream/nguồn tọa độ cho ML v2.
-- [ ] G02/G03: chốt Requirement/API Exploration, timezone/cadence/empty/coverage và resource budgets trước C2.
+- [x] G02/G03: chủ dự án duyệt contract C2/D018, timezone/cadence/empty/coverage và resource budgets khởi đầu; không suy thành gate ML v2 đã đóng.
 - [ ] G04/G05: Feature Contract, nguồn/split/model/version selection trước C3. Có thể review song song C1; không phải điều kiện chặn bắt đầu B6.
 
 **Endpoint:** chưa tạo/sửa endpoint. **Dependency:** baseline docs/source, file nghiệm thu; chủ dự án quyết định các lựa chọn nghiệp vụ còn mở.
@@ -182,19 +184,19 @@ Khiêm chịu orchestration/API/persistence; Khải chịu feature/model và tes
 
 **Mục tiêu:** Analyst biết dữ liệu có gì, thiếu gì và so sánh trạm trên cùng phạm vi có đủ thông tin để diễn giải.
 
-**Endpoint:** Profile mới và/hoặc nâng draft reading-aggregates theo G02/G03 đã duyệt; chưa chốt URL/payload bổ sung ngoài candidate mục4.
+**Đã triển khai theo D018:** [bằng chứng/runbook C2](backend/c2-verification.md). **Endpoint đã khóa:** GET `/api/v1/datasets/{id}/profile`, GET `/api/v1/reading-aggregates`; response DTO riêng, không thay DTO B1–B6. Các tên file `profile.*`/`aggregates.*` trong impact table là đề xuất trước gate; implementation gom feature đọc Exploration vào `server/src/modules/exploration/` để chia sẻ admission/deadline/coverage, giữ tầng kiến trúc.
 
 **C2a — Profile/quality:**
 
-- [ ] Chỉ dữ liệu imported; profile toàn dataset/scoped theo spec được khóa; count/time-range/station reference đúng nguồn authoritative.
-- [ ] Tách ba loại missing ở mục3.1, expected cadence/anchor do nguồn đã xác nhận; unknown không thành0. Quy tắc nguồn metadata/timezone và persistence qua gate G02.
-- [ ] FE thể hiện total/scoped/loaded riêng, timezone nhãn nhất quán, không suy ra raw-quality từ riêng readings đã giữ.
+- [x] Chỉ dữ liệu imported; profile toàn dataset/scoped, count/time-range/station reference từ MongoDB; recheck publication.
+- [x] Tách ba loại missing; cadence/anchor/expected interval cấu hình CLI tường minh/versioned, unknown giữ null/reason; source missing-value chưa phân loại không thành0.
+- [x] FE tách total/scoped Server và raw loaded của Map/Cube; timezone workspace nhất quán, không suy raw-quality từ readings đã giữ.
 
 **C2b — Aggregation/comparison:**
 
-- [ ] Cùng dataset/filter/time, series định danh trạm, bucket count/mean/empty/coverage đúng G03; derived aggregate không đóng giả Reading.
-- [ ] Giới hạn query/bucket/series/bytes/time explicit; timeout/budget exhausted không trả complete giả. Không tự mở spatial LOD hoặc materialized-cache layer.
-- [ ] Mỗi API bàn giao cùng generated adapter/fixture/test để Tài nối chart/timeline/station comparison ngay, không đợi ML v2.
+- [x] Cùng dataset/filter/time, series định danh trạm, bucket count/mean/empty/coverage theo D018; derived aggregate không đóng giả Reading.
+- [x] Bounded readings/series/cells/bytes/deadline/concurrency; overflow422, busy/deadline503, không truncate. Có failpoint Mongo thật và explain/số đo500k; chưa nhận load/SLA.
+- [x] OpenAPI/shared schemas/generated adapter/fixtures/tests đồng bộ; FE Profile và so sánh trạm dùng API thật; mock C2 trả unavailable, không chờ ML v2.
 
 **Dependency:** G01 cho golden thật; G02 trước C2a, G03 trước C2b; B4 và imported visibility. C2a và C2b có thể giao riêng theo gate; B6 không bị chặn bởi chúng.
 

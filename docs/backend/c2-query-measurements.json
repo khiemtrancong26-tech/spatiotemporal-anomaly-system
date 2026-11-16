@@ -1,0 +1,3598 @@
+{
+  "measuredAt": "2026-11-16T09:23:36.542Z",
+  "node": "v24.14.1",
+  "mongodb": "9.0.4",
+  "platform": "win32 10.0.26300",
+  "cpu": "AMD Ryzen 5 5500U with Radeon Graphics         ",
+  "logicalCpus": 12,
+  "physicalRamBytes": 16469520384,
+  "scope": "Disposable single-node Replica Set; real localhost HTTP/JWT and production query pipeline. Golden bytes seeded directly for query timing (B3 import correctness is integration/E2E). Synthetic 500k/20 stations at 1-minute cadence. Three sequential calls/case; first call included, no load/SLA claim. Sampled Node process includes HTTP client and validation, excludes mongod; not an isolated backend peak. No model inference or training.",
+  "results": [
+    {
+      "mode": "golden-csv-seed",
+      "readings": 8782,
+      "stations": 12,
+      "cases": [
+        {
+          "kind": "profile",
+          "status": 200,
+          "samplesMs": [
+            152.83,
+            61.61,
+            55.78
+          ],
+          "responseBytes": 1388,
+          "sampledNodeRssGrowthBytes": 6066176,
+          "sampledNodeHeapGrowthBytes": 18088720,
+          "indexes": [
+            "uq_readings_dataset_sensor_ts",
+            "ix_readings_dataset_ts_id"
+          ],
+          "explain": {
+            "explainVersion": "1",
+            "stages": [
+              {
+                "$cursor": {
+                  "queryPlanner": {
+                    "namespace": "c2_disposable_measurements.readings",
+                    "parsedQuery": {
+                      "$and": [
+                        {
+                          "datasetId": {
+                            "$eq": "6afacb62aa0f4c8ec24f404a"
+                          }
+                        },
+                        {
+                          "sensorId": {
+                            "$in": [
+                              "6afacb62aa0f4c8ec24f404b",
+                              "6afacb62aa0f4c8ec24f404c",
+                              "6afacb62aa0f4c8ec24f404d",
+                              "6afacb62aa0f4c8ec24f404e",
+                              "6afacb62aa0f4c8ec24f404f",
+                              "6afacb62aa0f4c8ec24f4050",
+                              "6afacb62aa0f4c8ec24f4051",
+                              "6afacb62aa0f4c8ec24f4052",
+                              "6afacb62aa0f4c8ec24f4053",
+                              "6afacb62aa0f4c8ec24f4054",
+                              "6afacb62aa0f4c8ec24f4055",
+                              "6afacb62aa0f4c8ec24f4056"
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "indexFilterSet": false,
+                    "queryHash": "739349F5",
+                    "planCacheShapeHash": "739349F5",
+                    "planCacheKey": "81869261",
+                    "optimizationTimeMillis": 1,
+                    "optimizationTimeMicros": 1014,
+                    "cursorType": "regular",
+                    "maxIndexedOrSolutionsReached": false,
+                    "maxIndexedAndSolutionsReached": false,
+                    "maxScansToExplodeReached": false,
+                    "prunedSimilarIndexes": false,
+                    "winningPlan": {
+                      "isCached": true,
+                      "stage": "LIMIT",
+                      "limitAmount": 500001,
+                      "inputStage": {
+                        "stage": "PROJECTION_SIMPLE",
+                        "transformBy": {
+                          "sensorId": 1,
+                          "ts": 1,
+                          "value": 1,
+                          "_id": 0
+                        },
+                        "inputStage": {
+                          "stage": "FETCH",
+                          "nss": "c2_disposable_measurements.readings",
+                          "inputStage": {
+                            "stage": "IXSCAN",
+                            "nss": "c2_disposable_measurements.readings",
+                            "keyPattern": {
+                              "datasetId": 1,
+                              "sensorId": 1,
+                              "ts": 1
+                            },
+                            "indexName": "uq_readings_dataset_sensor_ts",
+                            "isMultiKey": false,
+                            "multiKeyPaths": {
+                              "datasetId": [],
+                              "sensorId": [],
+                              "ts": []
+                            },
+                            "isUnique": true,
+                            "isSparse": false,
+                            "isPartial": false,
+                            "indexVersion": 2,
+                            "direction": "forward",
+                            "indexBounds": {
+                              "datasetId": [
+                                "[ObjectId('6afacb62aa0f4c8ec24f404a'), ObjectId('6afacb62aa0f4c8ec24f404a')]"
+                              ],
+                              "sensorId": [
+                                "[ObjectId('6afacb62aa0f4c8ec24f404b'), ObjectId('6afacb62aa0f4c8ec24f404b')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404c'), ObjectId('6afacb62aa0f4c8ec24f404c')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404d'), ObjectId('6afacb62aa0f4c8ec24f404d')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404e'), ObjectId('6afacb62aa0f4c8ec24f404e')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404f'), ObjectId('6afacb62aa0f4c8ec24f404f')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4050'), ObjectId('6afacb62aa0f4c8ec24f4050')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4051'), ObjectId('6afacb62aa0f4c8ec24f4051')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4052'), ObjectId('6afacb62aa0f4c8ec24f4052')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4053'), ObjectId('6afacb62aa0f4c8ec24f4053')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4054'), ObjectId('6afacb62aa0f4c8ec24f4054')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4055'), ObjectId('6afacb62aa0f4c8ec24f4055')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4056'), ObjectId('6afacb62aa0f4c8ec24f4056')]"
+                              ],
+                              "ts": [
+                                "[MinKey, MaxKey]"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "rejectedPlans": [
+                      {
+                        "isCached": false,
+                        "stage": "LIMIT",
+                        "limitAmount": 500001,
+                        "inputStage": {
+                          "stage": "PROJECTION_SIMPLE",
+                          "transformBy": {
+                            "sensorId": 1,
+                            "ts": 1,
+                            "value": 1,
+                            "_id": 0
+                          },
+                          "inputStage": {
+                            "stage": "FETCH",
+                            "filter": {
+                              "sensorId": {
+                                "$in": [
+                                  "6afacb62aa0f4c8ec24f404b",
+                                  "6afacb62aa0f4c8ec24f404c",
+                                  "6afacb62aa0f4c8ec24f404d",
+                                  "6afacb62aa0f4c8ec24f404e",
+                                  "6afacb62aa0f4c8ec24f404f",
+                                  "6afacb62aa0f4c8ec24f4050",
+                                  "6afacb62aa0f4c8ec24f4051",
+                                  "6afacb62aa0f4c8ec24f4052",
+                                  "6afacb62aa0f4c8ec24f4053",
+                                  "6afacb62aa0f4c8ec24f4054",
+                                  "6afacb62aa0f4c8ec24f4055",
+                                  "6afacb62aa0f4c8ec24f4056"
+                                ]
+                              }
+                            },
+                            "nss": "c2_disposable_measurements.readings",
+                            "inputStage": {
+                              "stage": "IXSCAN",
+                              "nss": "c2_disposable_measurements.readings",
+                              "keyPattern": {
+                                "datasetId": 1,
+                                "ts": 1,
+                                "_id": 1
+                              },
+                              "indexName": "ix_readings_dataset_ts_id",
+                              "isMultiKey": false,
+                              "multiKeyPaths": {
+                                "datasetId": [],
+                                "ts": [],
+                                "_id": []
+                              },
+                              "isUnique": false,
+                              "isSparse": false,
+                              "isPartial": false,
+                              "indexVersion": 2,
+                              "direction": "forward",
+                              "indexBounds": {
+                                "datasetId": [
+                                  "[ObjectId('6afacb62aa0f4c8ec24f404a'), ObjectId('6afacb62aa0f4c8ec24f404a')]"
+                                ],
+                                "ts": [
+                                  "[MinKey, MaxKey]"
+                                ],
+                                "_id": [
+                                  "[MinKey, MaxKey]"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "executionStats": {
+                    "executionSuccess": true,
+                    "nReturned": 8782,
+                    "executionTimeMillis": 47,
+                    "executionTimeMicros": 47535,
+                    "totalKeysExamined": 8782,
+                    "totalDocsExamined": 8782,
+                    "executionStages": {
+                      "isCached": true,
+                      "stage": "LIMIT",
+                      "nReturned": 8782,
+                      "executionTimeMillisEstimate": 26,
+                      "works": 8783,
+                      "advanced": 8782,
+                      "needTime": 0,
+                      "needYield": 0,
+                      "saveState": 5,
+                      "restoreState": 4,
+                      "isEOF": 1,
+                      "limitAmount": 500001,
+                      "inputStage": {
+                        "stage": "PROJECTION_SIMPLE",
+                        "nReturned": 8782,
+                        "executionTimeMillisEstimate": 26,
+                        "works": 8783,
+                        "advanced": 8782,
+                        "needTime": 0,
+                        "needYield": 0,
+                        "saveState": 5,
+                        "restoreState": 4,
+                        "isEOF": 1,
+                        "transformBy": {
+                          "sensorId": 1,
+                          "ts": 1,
+                          "value": 1,
+                          "_id": 0
+                        },
+                        "inputStage": {
+                          "stage": "FETCH",
+                          "nReturned": 8782,
+                          "executionTimeMillisEstimate": 22,
+                          "works": 8783,
+                          "advanced": 8782,
+                          "needTime": 0,
+                          "needYield": 0,
+                          "saveState": 5,
+                          "restoreState": 4,
+                          "isEOF": 1,
+                          "nss": "c2_disposable_measurements.readings",
+                          "docsExamined": 8782,
+                          "alreadyHasObj": 0,
+                          "inputStage": {
+                            "stage": "IXSCAN",
+                            "nReturned": 8782,
+                            "executionTimeMillisEstimate": 8,
+                            "works": 8783,
+                            "advanced": 8782,
+                            "needTime": 0,
+                            "needYield": 0,
+                            "saveState": 5,
+                            "restoreState": 4,
+                            "isEOF": 1,
+                            "nss": "c2_disposable_measurements.readings",
+                            "keyPattern": {
+                              "datasetId": 1,
+                              "sensorId": 1,
+                              "ts": 1
+                            },
+                            "indexName": "uq_readings_dataset_sensor_ts",
+                            "isMultiKey": false,
+                            "multiKeyPaths": {
+                              "datasetId": [],
+                              "sensorId": [],
+                              "ts": []
+                            },
+                            "isUnique": true,
+                            "isSparse": false,
+                            "isPartial": false,
+                            "indexVersion": 2,
+                            "direction": "forward",
+                            "indexBounds": {
+                              "datasetId": [
+                                "[ObjectId('6afacb62aa0f4c8ec24f404a'), ObjectId('6afacb62aa0f4c8ec24f404a')]"
+                              ],
+                              "sensorId": [
+                                "[ObjectId('6afacb62aa0f4c8ec24f404b'), ObjectId('6afacb62aa0f4c8ec24f404b')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404c'), ObjectId('6afacb62aa0f4c8ec24f404c')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404d'), ObjectId('6afacb62aa0f4c8ec24f404d')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404e'), ObjectId('6afacb62aa0f4c8ec24f404e')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404f'), ObjectId('6afacb62aa0f4c8ec24f404f')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4050'), ObjectId('6afacb62aa0f4c8ec24f4050')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4051'), ObjectId('6afacb62aa0f4c8ec24f4051')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4052'), ObjectId('6afacb62aa0f4c8ec24f4052')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4053'), ObjectId('6afacb62aa0f4c8ec24f4053')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4054'), ObjectId('6afacb62aa0f4c8ec24f4054')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4055'), ObjectId('6afacb62aa0f4c8ec24f4055')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4056'), ObjectId('6afacb62aa0f4c8ec24f4056')]"
+                              ],
+                              "ts": [
+                                "[MinKey, MaxKey]"
+                              ]
+                            },
+                            "keysExamined": 8782,
+                            "seeks": 1,
+                            "dupsTested": 0,
+                            "dupsDropped": 0,
+                            "peakTrackedMemBytes": 0
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "nReturned": 8782,
+                "executionTimeMillisEstimate": 36
+              },
+              {
+                "$group": {
+                  "_id": {
+                    "sensor": "$sensorId",
+                    "bucket": {
+                      "$const": 0
+                    }
+                  },
+                  "count": {
+                    "$sum": {
+                      "$const": 1
+                    }
+                  },
+                  "sum": {
+                    "$sum": "$value"
+                  },
+                  "min": {
+                    "$min": "$value"
+                  },
+                  "max": {
+                    "$max": "$value"
+                  },
+                  "from": {
+                    "$min": "$ts"
+                  },
+                  "to": {
+                    "$max": "$ts"
+                  },
+                  "observed": {
+                    "$sum": {
+                      "$cond": [
+                        {
+                          "$and": [
+                            {
+                              "$gte": [
+                                "$ts",
+                                {
+                                  "$const": "2015-02-28T16:00:00.000Z"
+                                }
+                              ]
+                            },
+                            {
+                              "$lte": [
+                                "$ts",
+                                {
+                                  "$const": "2015-03-31T15:00:00.000Z"
+                                }
+                              ]
+                            },
+                            {
+                              "$eq": [
+                                {
+                                  "$mod": [
+                                    {
+                                      "$subtract": [
+                                        {
+                                          "$convert": {
+                                            "input": "$ts",
+                                            "to": {
+                                              "$const": "long"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "$const": 1425139200000
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "$const": 3600000
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$const": 0
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "$const": 1
+                        },
+                        {
+                          "$const": 0
+                        }
+                      ]
+                    }
+                  },
+                  "$willBeMerged": false
+                },
+                "nReturned": 12,
+                "executionTimeMillisEstimate": 42,
+                "maxAccumulatorMemoryUsageBytes": {
+                  "count": 2784,
+                  "sum": 2784,
+                  "min": 2112,
+                  "max": 2112,
+                  "from": 2112,
+                  "to": 2112,
+                  "observed": 2784
+                },
+                "totalOutputDataSizeBytes": 7992,
+                "usedDisk": false,
+                "spills": 0,
+                "spilledDataStorageSize": 0,
+                "spilledBytes": 0,
+                "spilledRecords": 0,
+                "peakTrackedMemBytes": 17856
+              }
+            ],
+            "queryShapeHash": "D2AC58E0EA934DE719BB4C3E730E9341DDFFCF243F3B281DEB784754293FEAF7",
+            "peakTrackedMemBytes": 17856,
+            "serverInfo": {
+              "host": "CKhiEM",
+              "port": 50097,
+              "version": "9.0.4",
+              "gitVersion": "64ade602b836c9adeffba7fa038c887ffab56196"
+            },
+            "serverParameters": {
+              "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+              "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+              "internalQueryProhibitBlockingMergeOnMongoS": 0,
+              "internalQueryFrameworkControl": "trySbeRestricted",
+              "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+            },
+            "command": {
+              "aggregate": "readings",
+              "pipeline": [
+                {
+                  "$match": {
+                    "datasetId": "6afacb62aa0f4c8ec24f404a",
+                    "sensorId": {
+                      "$in": [
+                        "6afacb62aa0f4c8ec24f404b",
+                        "6afacb62aa0f4c8ec24f404c",
+                        "6afacb62aa0f4c8ec24f404d",
+                        "6afacb62aa0f4c8ec24f404e",
+                        "6afacb62aa0f4c8ec24f404f",
+                        "6afacb62aa0f4c8ec24f4050",
+                        "6afacb62aa0f4c8ec24f4051",
+                        "6afacb62aa0f4c8ec24f4052",
+                        "6afacb62aa0f4c8ec24f4053",
+                        "6afacb62aa0f4c8ec24f4054",
+                        "6afacb62aa0f4c8ec24f4055",
+                        "6afacb62aa0f4c8ec24f4056"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "$limit": 500001
+                },
+                {
+                  "$group": {
+                    "_id": {
+                      "sensor": "$sensorId",
+                      "bucket": {
+                        "$literal": 0
+                      }
+                    },
+                    "count": {
+                      "$sum": 1
+                    },
+                    "sum": {
+                      "$sum": "$value"
+                    },
+                    "min": {
+                      "$min": "$value"
+                    },
+                    "max": {
+                      "$max": "$value"
+                    },
+                    "from": {
+                      "$min": "$ts"
+                    },
+                    "to": {
+                      "$max": "$ts"
+                    },
+                    "observed": {
+                      "$sum": {
+                        "$cond": [
+                          {
+                            "$and": [
+                              {
+                                "$gte": [
+                                  "$ts",
+                                  "2015-02-28T16:00:00.000Z"
+                                ]
+                              },
+                              {
+                                "$lte": [
+                                  "$ts",
+                                  "2015-03-31T15:00:00.000Z"
+                                ]
+                              },
+                              {
+                                "$eq": [
+                                  {
+                                    "$mod": [
+                                      {
+                                        "$subtract": [
+                                          {
+                                            "$toLong": "$ts"
+                                          },
+                                          1425139200000
+                                        ]
+                                      },
+                                      3600000
+                                    ]
+                                  },
+                                  0
+                                ]
+                              }
+                            ]
+                          },
+                          1,
+                          0
+                        ]
+                      }
+                    }
+                  }
+                }
+              ],
+              "allowDiskUse": false,
+              "cursor": {},
+              "maxTimeMS": 5000,
+              "$db": "c2_disposable_measurements"
+            },
+            "ok": 1,
+            "$clusterTime": {
+              "clusterTime": {
+                "$timestamp": "7708697333965258840"
+              },
+              "signature": {
+                "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                "keyId": 0
+              }
+            },
+            "operationTime": {
+              "$timestamp": "7708697333965258840"
+            }
+          }
+        },
+        {
+          "kind": "hour",
+          "status": 200,
+          "samplesMs": [
+            431.76,
+            286.08,
+            269.43
+          ],
+          "responseBytes": 2133843,
+          "sampledNodeRssGrowthBytes": 117682176,
+          "sampledNodeHeapGrowthBytes": 72925880,
+          "indexes": [
+            "uq_readings_dataset_sensor_ts",
+            "ix_readings_dataset_ts_id"
+          ],
+          "explain": {
+            "explainVersion": "1",
+            "stages": [
+              {
+                "$cursor": {
+                  "queryPlanner": {
+                    "namespace": "c2_disposable_measurements.readings",
+                    "parsedQuery": {
+                      "$and": [
+                        {
+                          "datasetId": {
+                            "$eq": "6afacb62aa0f4c8ec24f404a"
+                          }
+                        },
+                        {
+                          "ts": {
+                            "$lte": "2015-03-31T15:00:00.000Z"
+                          }
+                        },
+                        {
+                          "ts": {
+                            "$gte": "2015-02-28T16:00:00.000Z"
+                          }
+                        },
+                        {
+                          "sensorId": {
+                            "$in": [
+                              "6afacb62aa0f4c8ec24f404b",
+                              "6afacb62aa0f4c8ec24f404c",
+                              "6afacb62aa0f4c8ec24f404d",
+                              "6afacb62aa0f4c8ec24f404e",
+                              "6afacb62aa0f4c8ec24f404f",
+                              "6afacb62aa0f4c8ec24f4050",
+                              "6afacb62aa0f4c8ec24f4051",
+                              "6afacb62aa0f4c8ec24f4052",
+                              "6afacb62aa0f4c8ec24f4053",
+                              "6afacb62aa0f4c8ec24f4054",
+                              "6afacb62aa0f4c8ec24f4055",
+                              "6afacb62aa0f4c8ec24f4056"
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "indexFilterSet": false,
+                    "queryHash": "B8D62344",
+                    "planCacheShapeHash": "B8D62344",
+                    "planCacheKey": "4E4F298E",
+                    "optimizationTimeMillis": 1,
+                    "optimizationTimeMicros": 1297,
+                    "cursorType": "regular",
+                    "maxIndexedOrSolutionsReached": false,
+                    "maxIndexedAndSolutionsReached": false,
+                    "maxScansToExplodeReached": false,
+                    "prunedSimilarIndexes": false,
+                    "winningPlan": {
+                      "isCached": true,
+                      "stage": "LIMIT",
+                      "limitAmount": 500001,
+                      "inputStage": {
+                        "stage": "PROJECTION_SIMPLE",
+                        "transformBy": {
+                          "sensorId": 1,
+                          "ts": 1,
+                          "value": 1,
+                          "_id": 0
+                        },
+                        "inputStage": {
+                          "stage": "FETCH",
+                          "nss": "c2_disposable_measurements.readings",
+                          "inputStage": {
+                            "stage": "IXSCAN",
+                            "nss": "c2_disposable_measurements.readings",
+                            "keyPattern": {
+                              "datasetId": 1,
+                              "sensorId": 1,
+                              "ts": 1
+                            },
+                            "indexName": "uq_readings_dataset_sensor_ts",
+                            "isMultiKey": false,
+                            "multiKeyPaths": {
+                              "datasetId": [],
+                              "sensorId": [],
+                              "ts": []
+                            },
+                            "isUnique": true,
+                            "isSparse": false,
+                            "isPartial": false,
+                            "indexVersion": 2,
+                            "direction": "forward",
+                            "indexBounds": {
+                              "datasetId": [
+                                "[ObjectId('6afacb62aa0f4c8ec24f404a'), ObjectId('6afacb62aa0f4c8ec24f404a')]"
+                              ],
+                              "sensorId": [
+                                "[ObjectId('6afacb62aa0f4c8ec24f404b'), ObjectId('6afacb62aa0f4c8ec24f404b')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404c'), ObjectId('6afacb62aa0f4c8ec24f404c')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404d'), ObjectId('6afacb62aa0f4c8ec24f404d')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404e'), ObjectId('6afacb62aa0f4c8ec24f404e')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404f'), ObjectId('6afacb62aa0f4c8ec24f404f')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4050'), ObjectId('6afacb62aa0f4c8ec24f4050')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4051'), ObjectId('6afacb62aa0f4c8ec24f4051')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4052'), ObjectId('6afacb62aa0f4c8ec24f4052')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4053'), ObjectId('6afacb62aa0f4c8ec24f4053')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4054'), ObjectId('6afacb62aa0f4c8ec24f4054')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4055'), ObjectId('6afacb62aa0f4c8ec24f4055')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4056'), ObjectId('6afacb62aa0f4c8ec24f4056')]"
+                              ],
+                              "ts": [
+                                "[new Date(1425139200000), new Date(1427814000000)]"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "rejectedPlans": [
+                      {
+                        "isCached": false,
+                        "stage": "LIMIT",
+                        "limitAmount": 500001,
+                        "inputStage": {
+                          "stage": "PROJECTION_SIMPLE",
+                          "transformBy": {
+                            "sensorId": 1,
+                            "ts": 1,
+                            "value": 1,
+                            "_id": 0
+                          },
+                          "inputStage": {
+                            "stage": "FETCH",
+                            "filter": {
+                              "sensorId": {
+                                "$in": [
+                                  "6afacb62aa0f4c8ec24f404b",
+                                  "6afacb62aa0f4c8ec24f404c",
+                                  "6afacb62aa0f4c8ec24f404d",
+                                  "6afacb62aa0f4c8ec24f404e",
+                                  "6afacb62aa0f4c8ec24f404f",
+                                  "6afacb62aa0f4c8ec24f4050",
+                                  "6afacb62aa0f4c8ec24f4051",
+                                  "6afacb62aa0f4c8ec24f4052",
+                                  "6afacb62aa0f4c8ec24f4053",
+                                  "6afacb62aa0f4c8ec24f4054",
+                                  "6afacb62aa0f4c8ec24f4055",
+                                  "6afacb62aa0f4c8ec24f4056"
+                                ]
+                              }
+                            },
+                            "nss": "c2_disposable_measurements.readings",
+                            "inputStage": {
+                              "stage": "IXSCAN",
+                              "nss": "c2_disposable_measurements.readings",
+                              "keyPattern": {
+                                "datasetId": 1,
+                                "ts": 1,
+                                "_id": 1
+                              },
+                              "indexName": "ix_readings_dataset_ts_id",
+                              "isMultiKey": false,
+                              "multiKeyPaths": {
+                                "datasetId": [],
+                                "ts": [],
+                                "_id": []
+                              },
+                              "isUnique": false,
+                              "isSparse": false,
+                              "isPartial": false,
+                              "indexVersion": 2,
+                              "direction": "forward",
+                              "indexBounds": {
+                                "datasetId": [
+                                  "[ObjectId('6afacb62aa0f4c8ec24f404a'), ObjectId('6afacb62aa0f4c8ec24f404a')]"
+                                ],
+                                "ts": [
+                                  "[new Date(1425139200000), new Date(1427814000000)]"
+                                ],
+                                "_id": [
+                                  "[MinKey, MaxKey]"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "executionStats": {
+                    "executionSuccess": true,
+                    "nReturned": 8782,
+                    "executionTimeMillis": 105,
+                    "executionTimeMicros": 105241,
+                    "totalKeysExamined": 8782,
+                    "totalDocsExamined": 8782,
+                    "executionStages": {
+                      "isCached": true,
+                      "stage": "LIMIT",
+                      "nReturned": 8782,
+                      "executionTimeMillisEstimate": 18,
+                      "works": 8783,
+                      "advanced": 8782,
+                      "needTime": 0,
+                      "needYield": 0,
+                      "saveState": 4,
+                      "restoreState": 3,
+                      "isEOF": 1,
+                      "limitAmount": 500001,
+                      "inputStage": {
+                        "stage": "PROJECTION_SIMPLE",
+                        "nReturned": 8782,
+                        "executionTimeMillisEstimate": 18,
+                        "works": 8783,
+                        "advanced": 8782,
+                        "needTime": 0,
+                        "needYield": 0,
+                        "saveState": 4,
+                        "restoreState": 3,
+                        "isEOF": 1,
+                        "transformBy": {
+                          "sensorId": 1,
+                          "ts": 1,
+                          "value": 1,
+                          "_id": 0
+                        },
+                        "inputStage": {
+                          "stage": "FETCH",
+                          "nReturned": 8782,
+                          "executionTimeMillisEstimate": 18,
+                          "works": 8783,
+                          "advanced": 8782,
+                          "needTime": 0,
+                          "needYield": 0,
+                          "saveState": 4,
+                          "restoreState": 3,
+                          "isEOF": 1,
+                          "nss": "c2_disposable_measurements.readings",
+                          "docsExamined": 8782,
+                          "alreadyHasObj": 0,
+                          "inputStage": {
+                            "stage": "IXSCAN",
+                            "nReturned": 8782,
+                            "executionTimeMillisEstimate": 10,
+                            "works": 8783,
+                            "advanced": 8782,
+                            "needTime": 0,
+                            "needYield": 0,
+                            "saveState": 4,
+                            "restoreState": 3,
+                            "isEOF": 1,
+                            "nss": "c2_disposable_measurements.readings",
+                            "keyPattern": {
+                              "datasetId": 1,
+                              "sensorId": 1,
+                              "ts": 1
+                            },
+                            "indexName": "uq_readings_dataset_sensor_ts",
+                            "isMultiKey": false,
+                            "multiKeyPaths": {
+                              "datasetId": [],
+                              "sensorId": [],
+                              "ts": []
+                            },
+                            "isUnique": true,
+                            "isSparse": false,
+                            "isPartial": false,
+                            "indexVersion": 2,
+                            "direction": "forward",
+                            "indexBounds": {
+                              "datasetId": [
+                                "[ObjectId('6afacb62aa0f4c8ec24f404a'), ObjectId('6afacb62aa0f4c8ec24f404a')]"
+                              ],
+                              "sensorId": [
+                                "[ObjectId('6afacb62aa0f4c8ec24f404b'), ObjectId('6afacb62aa0f4c8ec24f404b')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404c'), ObjectId('6afacb62aa0f4c8ec24f404c')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404d'), ObjectId('6afacb62aa0f4c8ec24f404d')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404e'), ObjectId('6afacb62aa0f4c8ec24f404e')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404f'), ObjectId('6afacb62aa0f4c8ec24f404f')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4050'), ObjectId('6afacb62aa0f4c8ec24f4050')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4051'), ObjectId('6afacb62aa0f4c8ec24f4051')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4052'), ObjectId('6afacb62aa0f4c8ec24f4052')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4053'), ObjectId('6afacb62aa0f4c8ec24f4053')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4054'), ObjectId('6afacb62aa0f4c8ec24f4054')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4055'), ObjectId('6afacb62aa0f4c8ec24f4055')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4056'), ObjectId('6afacb62aa0f4c8ec24f4056')]"
+                              ],
+                              "ts": [
+                                "[new Date(1425139200000), new Date(1427814000000)]"
+                              ]
+                            },
+                            "keysExamined": 8782,
+                            "seeks": 1,
+                            "dupsTested": 0,
+                            "dupsDropped": 0,
+                            "peakTrackedMemBytes": 0
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "nReturned": 8782,
+                "executionTimeMillisEstimate": 20
+              },
+              {
+                "$group": {
+                  "_id": {
+                    "sensor": "$sensorId",
+                    "bucket": {
+                      "$convert": {
+                        "input": {
+                          "$dateTrunc": {
+                            "date": "$ts",
+                            "unit": {
+                              "$const": "hour"
+                            },
+                            "timezone": {
+                              "$const": "+08:00"
+                            }
+                          }
+                        },
+                        "to": {
+                          "$const": "long"
+                        }
+                      }
+                    }
+                  },
+                  "count": {
+                    "$sum": {
+                      "$const": 1
+                    }
+                  },
+                  "sum": {
+                    "$sum": "$value"
+                  },
+                  "min": {
+                    "$min": "$value"
+                  },
+                  "max": {
+                    "$max": "$value"
+                  },
+                  "from": {
+                    "$min": "$ts"
+                  },
+                  "to": {
+                    "$max": "$ts"
+                  },
+                  "observed": {
+                    "$sum": {
+                      "$cond": [
+                        {
+                          "$and": [
+                            {
+                              "$gte": [
+                                "$ts",
+                                {
+                                  "$const": "2015-02-28T16:00:00.000Z"
+                                }
+                              ]
+                            },
+                            {
+                              "$lte": [
+                                "$ts",
+                                {
+                                  "$const": "2015-03-31T15:00:00.000Z"
+                                }
+                              ]
+                            },
+                            {
+                              "$eq": [
+                                {
+                                  "$mod": [
+                                    {
+                                      "$subtract": [
+                                        {
+                                          "$convert": {
+                                            "input": "$ts",
+                                            "to": {
+                                              "$const": "long"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "$const": 1425139200000
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "$const": 3600000
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$const": 0
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "$const": 1
+                        },
+                        {
+                          "$const": 0
+                        }
+                      ]
+                    }
+                  },
+                  "$willBeMerged": false
+                },
+                "nReturned": 8782,
+                "executionTimeMillisEstimate": 98,
+                "maxAccumulatorMemoryUsageBytes": {
+                  "count": 2037424,
+                  "sum": 2037424,
+                  "min": 1545632,
+                  "max": 1545632,
+                  "from": 1545632,
+                  "to": 1545632,
+                  "observed": 2037424
+                },
+                "totalOutputDataSizeBytes": 5848812,
+                "usedDisk": false,
+                "spills": 0,
+                "spilledDataStorageSize": 0,
+                "spilledBytes": 0,
+                "spilledRecords": 0,
+                "peakTrackedMemBytes": 13067616
+              }
+            ],
+            "queryShapeHash": "5A2326B746B795859AB2B42D5A693EEAE618E06B4E52CB27D0E209F9D465F19C",
+            "peakTrackedMemBytes": 13067616,
+            "serverInfo": {
+              "host": "CKhiEM",
+              "port": 50097,
+              "version": "9.0.4",
+              "gitVersion": "64ade602b836c9adeffba7fa038c887ffab56196"
+            },
+            "serverParameters": {
+              "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+              "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+              "internalQueryProhibitBlockingMergeOnMongoS": 0,
+              "internalQueryFrameworkControl": "trySbeRestricted",
+              "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+            },
+            "command": {
+              "aggregate": "readings",
+              "pipeline": [
+                {
+                  "$match": {
+                    "datasetId": "6afacb62aa0f4c8ec24f404a",
+                    "sensorId": {
+                      "$in": [
+                        "6afacb62aa0f4c8ec24f404b",
+                        "6afacb62aa0f4c8ec24f404c",
+                        "6afacb62aa0f4c8ec24f404d",
+                        "6afacb62aa0f4c8ec24f404e",
+                        "6afacb62aa0f4c8ec24f404f",
+                        "6afacb62aa0f4c8ec24f4050",
+                        "6afacb62aa0f4c8ec24f4051",
+                        "6afacb62aa0f4c8ec24f4052",
+                        "6afacb62aa0f4c8ec24f4053",
+                        "6afacb62aa0f4c8ec24f4054",
+                        "6afacb62aa0f4c8ec24f4055",
+                        "6afacb62aa0f4c8ec24f4056"
+                      ]
+                    },
+                    "ts": {
+                      "$gte": "2015-02-28T16:00:00.000Z",
+                      "$lte": "2015-03-31T15:00:00.000Z"
+                    }
+                  }
+                },
+                {
+                  "$limit": 500001
+                },
+                {
+                  "$group": {
+                    "_id": {
+                      "sensor": "$sensorId",
+                      "bucket": {
+                        "$toLong": {
+                          "$dateTrunc": {
+                            "date": "$ts",
+                            "unit": "hour",
+                            "timezone": "+08:00"
+                          }
+                        }
+                      }
+                    },
+                    "count": {
+                      "$sum": 1
+                    },
+                    "sum": {
+                      "$sum": "$value"
+                    },
+                    "min": {
+                      "$min": "$value"
+                    },
+                    "max": {
+                      "$max": "$value"
+                    },
+                    "from": {
+                      "$min": "$ts"
+                    },
+                    "to": {
+                      "$max": "$ts"
+                    },
+                    "observed": {
+                      "$sum": {
+                        "$cond": [
+                          {
+                            "$and": [
+                              {
+                                "$gte": [
+                                  "$ts",
+                                  "2015-02-28T16:00:00.000Z"
+                                ]
+                              },
+                              {
+                                "$lte": [
+                                  "$ts",
+                                  "2015-03-31T15:00:00.000Z"
+                                ]
+                              },
+                              {
+                                "$eq": [
+                                  {
+                                    "$mod": [
+                                      {
+                                        "$subtract": [
+                                          {
+                                            "$toLong": "$ts"
+                                          },
+                                          1425139200000
+                                        ]
+                                      },
+                                      3600000
+                                    ]
+                                  },
+                                  0
+                                ]
+                              }
+                            ]
+                          },
+                          1,
+                          0
+                        ]
+                      }
+                    }
+                  }
+                }
+              ],
+              "allowDiskUse": false,
+              "cursor": {},
+              "maxTimeMS": 5000,
+              "$db": "c2_disposable_measurements"
+            },
+            "ok": 1,
+            "$clusterTime": {
+              "clusterTime": {
+                "$timestamp": "7708697333965258840"
+              },
+              "signature": {
+                "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                "keyId": 0
+              }
+            },
+            "operationTime": {
+              "$timestamp": "7708697333965258840"
+            }
+          }
+        },
+        {
+          "kind": "day",
+          "status": 200,
+          "samplesMs": [
+            83.09,
+            75.37,
+            75.85
+          ],
+          "responseBytes": 95893,
+          "sampledNodeRssGrowthBytes": 311296,
+          "sampledNodeHeapGrowthBytes": 9983464,
+          "indexes": [
+            "uq_readings_dataset_sensor_ts",
+            "ix_readings_dataset_ts_id"
+          ],
+          "explain": {
+            "explainVersion": "1",
+            "stages": [
+              {
+                "$cursor": {
+                  "queryPlanner": {
+                    "namespace": "c2_disposable_measurements.readings",
+                    "parsedQuery": {
+                      "$and": [
+                        {
+                          "datasetId": {
+                            "$eq": "6afacb62aa0f4c8ec24f404a"
+                          }
+                        },
+                        {
+                          "ts": {
+                            "$lte": "2015-03-31T15:00:00.000Z"
+                          }
+                        },
+                        {
+                          "ts": {
+                            "$gte": "2015-02-28T16:00:00.000Z"
+                          }
+                        },
+                        {
+                          "sensorId": {
+                            "$in": [
+                              "6afacb62aa0f4c8ec24f404b",
+                              "6afacb62aa0f4c8ec24f404c",
+                              "6afacb62aa0f4c8ec24f404d",
+                              "6afacb62aa0f4c8ec24f404e",
+                              "6afacb62aa0f4c8ec24f404f",
+                              "6afacb62aa0f4c8ec24f4050",
+                              "6afacb62aa0f4c8ec24f4051",
+                              "6afacb62aa0f4c8ec24f4052",
+                              "6afacb62aa0f4c8ec24f4053",
+                              "6afacb62aa0f4c8ec24f4054",
+                              "6afacb62aa0f4c8ec24f4055",
+                              "6afacb62aa0f4c8ec24f4056"
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "indexFilterSet": false,
+                    "queryHash": "B8D62344",
+                    "planCacheShapeHash": "B8D62344",
+                    "planCacheKey": "4E4F298E",
+                    "optimizationTimeMillis": 1,
+                    "optimizationTimeMicros": 1087,
+                    "cursorType": "regular",
+                    "maxIndexedOrSolutionsReached": false,
+                    "maxIndexedAndSolutionsReached": false,
+                    "maxScansToExplodeReached": false,
+                    "prunedSimilarIndexes": false,
+                    "winningPlan": {
+                      "isCached": true,
+                      "stage": "LIMIT",
+                      "limitAmount": 500001,
+                      "inputStage": {
+                        "stage": "PROJECTION_SIMPLE",
+                        "transformBy": {
+                          "sensorId": 1,
+                          "ts": 1,
+                          "value": 1,
+                          "_id": 0
+                        },
+                        "inputStage": {
+                          "stage": "FETCH",
+                          "nss": "c2_disposable_measurements.readings",
+                          "inputStage": {
+                            "stage": "IXSCAN",
+                            "nss": "c2_disposable_measurements.readings",
+                            "keyPattern": {
+                              "datasetId": 1,
+                              "sensorId": 1,
+                              "ts": 1
+                            },
+                            "indexName": "uq_readings_dataset_sensor_ts",
+                            "isMultiKey": false,
+                            "multiKeyPaths": {
+                              "datasetId": [],
+                              "sensorId": [],
+                              "ts": []
+                            },
+                            "isUnique": true,
+                            "isSparse": false,
+                            "isPartial": false,
+                            "indexVersion": 2,
+                            "direction": "forward",
+                            "indexBounds": {
+                              "datasetId": [
+                                "[ObjectId('6afacb62aa0f4c8ec24f404a'), ObjectId('6afacb62aa0f4c8ec24f404a')]"
+                              ],
+                              "sensorId": [
+                                "[ObjectId('6afacb62aa0f4c8ec24f404b'), ObjectId('6afacb62aa0f4c8ec24f404b')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404c'), ObjectId('6afacb62aa0f4c8ec24f404c')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404d'), ObjectId('6afacb62aa0f4c8ec24f404d')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404e'), ObjectId('6afacb62aa0f4c8ec24f404e')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404f'), ObjectId('6afacb62aa0f4c8ec24f404f')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4050'), ObjectId('6afacb62aa0f4c8ec24f4050')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4051'), ObjectId('6afacb62aa0f4c8ec24f4051')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4052'), ObjectId('6afacb62aa0f4c8ec24f4052')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4053'), ObjectId('6afacb62aa0f4c8ec24f4053')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4054'), ObjectId('6afacb62aa0f4c8ec24f4054')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4055'), ObjectId('6afacb62aa0f4c8ec24f4055')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4056'), ObjectId('6afacb62aa0f4c8ec24f4056')]"
+                              ],
+                              "ts": [
+                                "[new Date(1425139200000), new Date(1427814000000)]"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "rejectedPlans": [
+                      {
+                        "isCached": false,
+                        "stage": "LIMIT",
+                        "limitAmount": 500001,
+                        "inputStage": {
+                          "stage": "PROJECTION_SIMPLE",
+                          "transformBy": {
+                            "sensorId": 1,
+                            "ts": 1,
+                            "value": 1,
+                            "_id": 0
+                          },
+                          "inputStage": {
+                            "stage": "FETCH",
+                            "filter": {
+                              "sensorId": {
+                                "$in": [
+                                  "6afacb62aa0f4c8ec24f404b",
+                                  "6afacb62aa0f4c8ec24f404c",
+                                  "6afacb62aa0f4c8ec24f404d",
+                                  "6afacb62aa0f4c8ec24f404e",
+                                  "6afacb62aa0f4c8ec24f404f",
+                                  "6afacb62aa0f4c8ec24f4050",
+                                  "6afacb62aa0f4c8ec24f4051",
+                                  "6afacb62aa0f4c8ec24f4052",
+                                  "6afacb62aa0f4c8ec24f4053",
+                                  "6afacb62aa0f4c8ec24f4054",
+                                  "6afacb62aa0f4c8ec24f4055",
+                                  "6afacb62aa0f4c8ec24f4056"
+                                ]
+                              }
+                            },
+                            "nss": "c2_disposable_measurements.readings",
+                            "inputStage": {
+                              "stage": "IXSCAN",
+                              "nss": "c2_disposable_measurements.readings",
+                              "keyPattern": {
+                                "datasetId": 1,
+                                "ts": 1,
+                                "_id": 1
+                              },
+                              "indexName": "ix_readings_dataset_ts_id",
+                              "isMultiKey": false,
+                              "multiKeyPaths": {
+                                "datasetId": [],
+                                "ts": [],
+                                "_id": []
+                              },
+                              "isUnique": false,
+                              "isSparse": false,
+                              "isPartial": false,
+                              "indexVersion": 2,
+                              "direction": "forward",
+                              "indexBounds": {
+                                "datasetId": [
+                                  "[ObjectId('6afacb62aa0f4c8ec24f404a'), ObjectId('6afacb62aa0f4c8ec24f404a')]"
+                                ],
+                                "ts": [
+                                  "[new Date(1425139200000), new Date(1427814000000)]"
+                                ],
+                                "_id": [
+                                  "[MinKey, MaxKey]"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "executionStats": {
+                    "executionSuccess": true,
+                    "nReturned": 8782,
+                    "executionTimeMillis": 56,
+                    "executionTimeMicros": 56960,
+                    "totalKeysExamined": 8782,
+                    "totalDocsExamined": 8782,
+                    "executionStages": {
+                      "isCached": true,
+                      "stage": "LIMIT",
+                      "nReturned": 8782,
+                      "executionTimeMillisEstimate": 14,
+                      "works": 8783,
+                      "advanced": 8782,
+                      "needTime": 0,
+                      "needYield": 0,
+                      "saveState": 4,
+                      "restoreState": 3,
+                      "isEOF": 1,
+                      "limitAmount": 500001,
+                      "inputStage": {
+                        "stage": "PROJECTION_SIMPLE",
+                        "nReturned": 8782,
+                        "executionTimeMillisEstimate": 14,
+                        "works": 8783,
+                        "advanced": 8782,
+                        "needTime": 0,
+                        "needYield": 0,
+                        "saveState": 4,
+                        "restoreState": 3,
+                        "isEOF": 1,
+                        "transformBy": {
+                          "sensorId": 1,
+                          "ts": 1,
+                          "value": 1,
+                          "_id": 0
+                        },
+                        "inputStage": {
+                          "stage": "FETCH",
+                          "nReturned": 8782,
+                          "executionTimeMillisEstimate": 14,
+                          "works": 8783,
+                          "advanced": 8782,
+                          "needTime": 0,
+                          "needYield": 0,
+                          "saveState": 4,
+                          "restoreState": 3,
+                          "isEOF": 1,
+                          "nss": "c2_disposable_measurements.readings",
+                          "docsExamined": 8782,
+                          "alreadyHasObj": 0,
+                          "inputStage": {
+                            "stage": "IXSCAN",
+                            "nReturned": 8782,
+                            "executionTimeMillisEstimate": 0,
+                            "works": 8783,
+                            "advanced": 8782,
+                            "needTime": 0,
+                            "needYield": 0,
+                            "saveState": 4,
+                            "restoreState": 3,
+                            "isEOF": 1,
+                            "nss": "c2_disposable_measurements.readings",
+                            "keyPattern": {
+                              "datasetId": 1,
+                              "sensorId": 1,
+                              "ts": 1
+                            },
+                            "indexName": "uq_readings_dataset_sensor_ts",
+                            "isMultiKey": false,
+                            "multiKeyPaths": {
+                              "datasetId": [],
+                              "sensorId": [],
+                              "ts": []
+                            },
+                            "isUnique": true,
+                            "isSparse": false,
+                            "isPartial": false,
+                            "indexVersion": 2,
+                            "direction": "forward",
+                            "indexBounds": {
+                              "datasetId": [
+                                "[ObjectId('6afacb62aa0f4c8ec24f404a'), ObjectId('6afacb62aa0f4c8ec24f404a')]"
+                              ],
+                              "sensorId": [
+                                "[ObjectId('6afacb62aa0f4c8ec24f404b'), ObjectId('6afacb62aa0f4c8ec24f404b')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404c'), ObjectId('6afacb62aa0f4c8ec24f404c')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404d'), ObjectId('6afacb62aa0f4c8ec24f404d')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404e'), ObjectId('6afacb62aa0f4c8ec24f404e')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f404f'), ObjectId('6afacb62aa0f4c8ec24f404f')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4050'), ObjectId('6afacb62aa0f4c8ec24f4050')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4051'), ObjectId('6afacb62aa0f4c8ec24f4051')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4052'), ObjectId('6afacb62aa0f4c8ec24f4052')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4053'), ObjectId('6afacb62aa0f4c8ec24f4053')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4054'), ObjectId('6afacb62aa0f4c8ec24f4054')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4055'), ObjectId('6afacb62aa0f4c8ec24f4055')]",
+                                "[ObjectId('6afacb62aa0f4c8ec24f4056'), ObjectId('6afacb62aa0f4c8ec24f4056')]"
+                              ],
+                              "ts": [
+                                "[new Date(1425139200000), new Date(1427814000000)]"
+                              ]
+                            },
+                            "keysExamined": 8782,
+                            "seeks": 1,
+                            "dupsTested": 0,
+                            "dupsDropped": 0,
+                            "peakTrackedMemBytes": 0
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "nReturned": 8782,
+                "executionTimeMillisEstimate": 15
+              },
+              {
+                "$group": {
+                  "_id": {
+                    "sensor": "$sensorId",
+                    "bucket": {
+                      "$convert": {
+                        "input": {
+                          "$dateTrunc": {
+                            "date": "$ts",
+                            "unit": {
+                              "$const": "day"
+                            },
+                            "timezone": {
+                              "$const": "+08:00"
+                            }
+                          }
+                        },
+                        "to": {
+                          "$const": "long"
+                        }
+                      }
+                    }
+                  },
+                  "count": {
+                    "$sum": {
+                      "$const": 1
+                    }
+                  },
+                  "sum": {
+                    "$sum": "$value"
+                  },
+                  "min": {
+                    "$min": "$value"
+                  },
+                  "max": {
+                    "$max": "$value"
+                  },
+                  "from": {
+                    "$min": "$ts"
+                  },
+                  "to": {
+                    "$max": "$ts"
+                  },
+                  "observed": {
+                    "$sum": {
+                      "$cond": [
+                        {
+                          "$and": [
+                            {
+                              "$gte": [
+                                "$ts",
+                                {
+                                  "$const": "2015-02-28T16:00:00.000Z"
+                                }
+                              ]
+                            },
+                            {
+                              "$lte": [
+                                "$ts",
+                                {
+                                  "$const": "2015-03-31T15:00:00.000Z"
+                                }
+                              ]
+                            },
+                            {
+                              "$eq": [
+                                {
+                                  "$mod": [
+                                    {
+                                      "$subtract": [
+                                        {
+                                          "$convert": {
+                                            "input": "$ts",
+                                            "to": {
+                                              "$const": "long"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "$const": 1425139200000
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "$const": 3600000
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$const": 0
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "$const": 1
+                        },
+                        {
+                          "$const": 0
+                        }
+                      ]
+                    }
+                  },
+                  "$willBeMerged": false
+                },
+                "nReturned": 372,
+                "executionTimeMillisEstimate": 45,
+                "maxAccumulatorMemoryUsageBytes": {
+                  "count": 86304,
+                  "sum": 86304,
+                  "min": 65472,
+                  "max": 65472,
+                  "from": 65472,
+                  "to": 65472,
+                  "observed": 86304
+                },
+                "totalOutputDataSizeBytes": 247752,
+                "usedDisk": false,
+                "spills": 0,
+                "spilledDataStorageSize": 0,
+                "spilledBytes": 0,
+                "spilledRecords": 0,
+                "peakTrackedMemBytes": 553536
+              }
+            ],
+            "queryShapeHash": "5A2326B746B795859AB2B42D5A693EEAE618E06B4E52CB27D0E209F9D465F19C",
+            "peakTrackedMemBytes": 553536,
+            "serverInfo": {
+              "host": "CKhiEM",
+              "port": 50097,
+              "version": "9.0.4",
+              "gitVersion": "64ade602b836c9adeffba7fa038c887ffab56196"
+            },
+            "serverParameters": {
+              "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+              "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+              "internalQueryProhibitBlockingMergeOnMongoS": 0,
+              "internalQueryFrameworkControl": "trySbeRestricted",
+              "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+            },
+            "command": {
+              "aggregate": "readings",
+              "pipeline": [
+                {
+                  "$match": {
+                    "datasetId": "6afacb62aa0f4c8ec24f404a",
+                    "sensorId": {
+                      "$in": [
+                        "6afacb62aa0f4c8ec24f404b",
+                        "6afacb62aa0f4c8ec24f404c",
+                        "6afacb62aa0f4c8ec24f404d",
+                        "6afacb62aa0f4c8ec24f404e",
+                        "6afacb62aa0f4c8ec24f404f",
+                        "6afacb62aa0f4c8ec24f4050",
+                        "6afacb62aa0f4c8ec24f4051",
+                        "6afacb62aa0f4c8ec24f4052",
+                        "6afacb62aa0f4c8ec24f4053",
+                        "6afacb62aa0f4c8ec24f4054",
+                        "6afacb62aa0f4c8ec24f4055",
+                        "6afacb62aa0f4c8ec24f4056"
+                      ]
+                    },
+                    "ts": {
+                      "$gte": "2015-02-28T16:00:00.000Z",
+                      "$lte": "2015-03-31T15:00:00.000Z"
+                    }
+                  }
+                },
+                {
+                  "$limit": 500001
+                },
+                {
+                  "$group": {
+                    "_id": {
+                      "sensor": "$sensorId",
+                      "bucket": {
+                        "$toLong": {
+                          "$dateTrunc": {
+                            "date": "$ts",
+                            "unit": "day",
+                            "timezone": "+08:00"
+                          }
+                        }
+                      }
+                    },
+                    "count": {
+                      "$sum": 1
+                    },
+                    "sum": {
+                      "$sum": "$value"
+                    },
+                    "min": {
+                      "$min": "$value"
+                    },
+                    "max": {
+                      "$max": "$value"
+                    },
+                    "from": {
+                      "$min": "$ts"
+                    },
+                    "to": {
+                      "$max": "$ts"
+                    },
+                    "observed": {
+                      "$sum": {
+                        "$cond": [
+                          {
+                            "$and": [
+                              {
+                                "$gte": [
+                                  "$ts",
+                                  "2015-02-28T16:00:00.000Z"
+                                ]
+                              },
+                              {
+                                "$lte": [
+                                  "$ts",
+                                  "2015-03-31T15:00:00.000Z"
+                                ]
+                              },
+                              {
+                                "$eq": [
+                                  {
+                                    "$mod": [
+                                      {
+                                        "$subtract": [
+                                          {
+                                            "$toLong": "$ts"
+                                          },
+                                          1425139200000
+                                        ]
+                                      },
+                                      3600000
+                                    ]
+                                  },
+                                  0
+                                ]
+                              }
+                            ]
+                          },
+                          1,
+                          0
+                        ]
+                      }
+                    }
+                  }
+                }
+              ],
+              "allowDiskUse": false,
+              "cursor": {},
+              "maxTimeMS": 5000,
+              "$db": "c2_disposable_measurements"
+            },
+            "ok": 1,
+            "$clusterTime": {
+              "clusterTime": {
+                "$timestamp": "7708697333965258840"
+              },
+              "signature": {
+                "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                "keyId": 0
+              }
+            },
+            "operationTime": {
+              "$timestamp": "7708697333965258840"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "mode": "synthetic-500000",
+      "readings": 500000,
+      "stations": 20,
+      "cases": [
+        {
+          "kind": "profile",
+          "status": 200,
+          "samplesMs": [
+            2335.23,
+            2337.54,
+            2500.97
+          ],
+          "responseBytes": 1341,
+          "sampledNodeRssGrowthBytes": 700416,
+          "sampledNodeHeapGrowthBytes": 1870616,
+          "indexes": [
+            "uq_readings_dataset_sensor_ts",
+            "ix_readings_dataset_ts_id"
+          ],
+          "explain": {
+            "explainVersion": "1",
+            "stages": [
+              {
+                "$cursor": {
+                  "queryPlanner": {
+                    "namespace": "c2_disposable_measurements.readings",
+                    "parsedQuery": {
+                      "$and": [
+                        {
+                          "datasetId": {
+                            "$eq": "6afacb64aa0f4c8ec24f62a5"
+                          }
+                        },
+                        {
+                          "sensorId": {
+                            "$in": [
+                              "6afacb64aa0f4c8ec24f62a6",
+                              "6afacb64aa0f4c8ec24f62a7",
+                              "6afacb64aa0f4c8ec24f62a8",
+                              "6afacb64aa0f4c8ec24f62a9",
+                              "6afacb64aa0f4c8ec24f62aa",
+                              "6afacb64aa0f4c8ec24f62ab",
+                              "6afacb64aa0f4c8ec24f62ac",
+                              "6afacb64aa0f4c8ec24f62ad",
+                              "6afacb64aa0f4c8ec24f62ae",
+                              "6afacb64aa0f4c8ec24f62af",
+                              "6afacb64aa0f4c8ec24f62b0",
+                              "6afacb64aa0f4c8ec24f62b1",
+                              "6afacb64aa0f4c8ec24f62b2",
+                              "6afacb64aa0f4c8ec24f62b3",
+                              "6afacb64aa0f4c8ec24f62b4",
+                              "6afacb64aa0f4c8ec24f62b5",
+                              "6afacb64aa0f4c8ec24f62b6",
+                              "6afacb64aa0f4c8ec24f62b7",
+                              "6afacb64aa0f4c8ec24f62b8",
+                              "6afacb64aa0f4c8ec24f62b9"
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "indexFilterSet": false,
+                    "queryHash": "739349F5",
+                    "planCacheShapeHash": "739349F5",
+                    "planCacheKey": "81869261",
+                    "optimizationTimeMillis": 1,
+                    "optimizationTimeMicros": 1813,
+                    "cursorType": "regular",
+                    "maxIndexedOrSolutionsReached": false,
+                    "maxIndexedAndSolutionsReached": false,
+                    "maxScansToExplodeReached": false,
+                    "prunedSimilarIndexes": false,
+                    "winningPlan": {
+                      "isCached": true,
+                      "stage": "LIMIT",
+                      "limitAmount": 500001,
+                      "inputStage": {
+                        "stage": "PROJECTION_SIMPLE",
+                        "transformBy": {
+                          "sensorId": 1,
+                          "ts": 1,
+                          "value": 1,
+                          "_id": 0
+                        },
+                        "inputStage": {
+                          "stage": "FETCH",
+                          "nss": "c2_disposable_measurements.readings",
+                          "inputStage": {
+                            "stage": "IXSCAN",
+                            "nss": "c2_disposable_measurements.readings",
+                            "keyPattern": {
+                              "datasetId": 1,
+                              "sensorId": 1,
+                              "ts": 1
+                            },
+                            "indexName": "uq_readings_dataset_sensor_ts",
+                            "isMultiKey": false,
+                            "multiKeyPaths": {
+                              "datasetId": [],
+                              "sensorId": [],
+                              "ts": []
+                            },
+                            "isUnique": true,
+                            "isSparse": false,
+                            "isPartial": false,
+                            "indexVersion": 2,
+                            "direction": "forward",
+                            "indexBounds": {
+                              "datasetId": [
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a5'), ObjectId('6afacb64aa0f4c8ec24f62a5')]"
+                              ],
+                              "sensorId": [
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a6'), ObjectId('6afacb64aa0f4c8ec24f62a6')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a7'), ObjectId('6afacb64aa0f4c8ec24f62a7')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a8'), ObjectId('6afacb64aa0f4c8ec24f62a8')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a9'), ObjectId('6afacb64aa0f4c8ec24f62a9')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62aa'), ObjectId('6afacb64aa0f4c8ec24f62aa')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ab'), ObjectId('6afacb64aa0f4c8ec24f62ab')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ac'), ObjectId('6afacb64aa0f4c8ec24f62ac')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ad'), ObjectId('6afacb64aa0f4c8ec24f62ad')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ae'), ObjectId('6afacb64aa0f4c8ec24f62ae')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62af'), ObjectId('6afacb64aa0f4c8ec24f62af')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b0'), ObjectId('6afacb64aa0f4c8ec24f62b0')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b1'), ObjectId('6afacb64aa0f4c8ec24f62b1')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b2'), ObjectId('6afacb64aa0f4c8ec24f62b2')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b3'), ObjectId('6afacb64aa0f4c8ec24f62b3')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b4'), ObjectId('6afacb64aa0f4c8ec24f62b4')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b5'), ObjectId('6afacb64aa0f4c8ec24f62b5')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b6'), ObjectId('6afacb64aa0f4c8ec24f62b6')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b7'), ObjectId('6afacb64aa0f4c8ec24f62b7')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b8'), ObjectId('6afacb64aa0f4c8ec24f62b8')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b9'), ObjectId('6afacb64aa0f4c8ec24f62b9')]"
+                              ],
+                              "ts": [
+                                "[MinKey, MaxKey]"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "rejectedPlans": [
+                      {
+                        "isCached": false,
+                        "stage": "LIMIT",
+                        "limitAmount": 500001,
+                        "inputStage": {
+                          "stage": "PROJECTION_SIMPLE",
+                          "transformBy": {
+                            "sensorId": 1,
+                            "ts": 1,
+                            "value": 1,
+                            "_id": 0
+                          },
+                          "inputStage": {
+                            "stage": "FETCH",
+                            "filter": {
+                              "sensorId": {
+                                "$in": [
+                                  "6afacb64aa0f4c8ec24f62a6",
+                                  "6afacb64aa0f4c8ec24f62a7",
+                                  "6afacb64aa0f4c8ec24f62a8",
+                                  "6afacb64aa0f4c8ec24f62a9",
+                                  "6afacb64aa0f4c8ec24f62aa",
+                                  "6afacb64aa0f4c8ec24f62ab",
+                                  "6afacb64aa0f4c8ec24f62ac",
+                                  "6afacb64aa0f4c8ec24f62ad",
+                                  "6afacb64aa0f4c8ec24f62ae",
+                                  "6afacb64aa0f4c8ec24f62af",
+                                  "6afacb64aa0f4c8ec24f62b0",
+                                  "6afacb64aa0f4c8ec24f62b1",
+                                  "6afacb64aa0f4c8ec24f62b2",
+                                  "6afacb64aa0f4c8ec24f62b3",
+                                  "6afacb64aa0f4c8ec24f62b4",
+                                  "6afacb64aa0f4c8ec24f62b5",
+                                  "6afacb64aa0f4c8ec24f62b6",
+                                  "6afacb64aa0f4c8ec24f62b7",
+                                  "6afacb64aa0f4c8ec24f62b8",
+                                  "6afacb64aa0f4c8ec24f62b9"
+                                ]
+                              }
+                            },
+                            "nss": "c2_disposable_measurements.readings",
+                            "inputStage": {
+                              "stage": "IXSCAN",
+                              "nss": "c2_disposable_measurements.readings",
+                              "keyPattern": {
+                                "datasetId": 1,
+                                "ts": 1,
+                                "_id": 1
+                              },
+                              "indexName": "ix_readings_dataset_ts_id",
+                              "isMultiKey": false,
+                              "multiKeyPaths": {
+                                "datasetId": [],
+                                "ts": [],
+                                "_id": []
+                              },
+                              "isUnique": false,
+                              "isSparse": false,
+                              "isPartial": false,
+                              "indexVersion": 2,
+                              "direction": "forward",
+                              "indexBounds": {
+                                "datasetId": [
+                                  "[ObjectId('6afacb64aa0f4c8ec24f62a5'), ObjectId('6afacb64aa0f4c8ec24f62a5')]"
+                                ],
+                                "ts": [
+                                  "[MinKey, MaxKey]"
+                                ],
+                                "_id": [
+                                  "[MinKey, MaxKey]"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "executionStats": {
+                    "executionSuccess": true,
+                    "nReturned": 500000,
+                    "executionTimeMillis": 2813,
+                    "executionTimeMicros": 2813578,
+                    "totalKeysExamined": 500000,
+                    "totalDocsExamined": 500000,
+                    "executionStages": {
+                      "isCached": true,
+                      "stage": "LIMIT",
+                      "nReturned": 500000,
+                      "executionTimeMillisEstimate": 1543,
+                      "works": 500001,
+                      "advanced": 500000,
+                      "needTime": 0,
+                      "needYield": 0,
+                      "saveState": 144,
+                      "restoreState": 143,
+                      "isEOF": 1,
+                      "limitAmount": 500001,
+                      "inputStage": {
+                        "stage": "PROJECTION_SIMPLE",
+                        "nReturned": 500000,
+                        "executionTimeMillisEstimate": 1513,
+                        "works": 500001,
+                        "advanced": 500000,
+                        "needTime": 0,
+                        "needYield": 0,
+                        "saveState": 144,
+                        "restoreState": 143,
+                        "isEOF": 1,
+                        "transformBy": {
+                          "sensorId": 1,
+                          "ts": 1,
+                          "value": 1,
+                          "_id": 0
+                        },
+                        "inputStage": {
+                          "stage": "FETCH",
+                          "nReturned": 500000,
+                          "executionTimeMillisEstimate": 1327,
+                          "works": 500001,
+                          "advanced": 500000,
+                          "needTime": 0,
+                          "needYield": 0,
+                          "saveState": 144,
+                          "restoreState": 143,
+                          "isEOF": 1,
+                          "nss": "c2_disposable_measurements.readings",
+                          "docsExamined": 500000,
+                          "alreadyHasObj": 0,
+                          "inputStage": {
+                            "stage": "IXSCAN",
+                            "nReturned": 500000,
+                            "executionTimeMillisEstimate": 620,
+                            "works": 500001,
+                            "advanced": 500000,
+                            "needTime": 0,
+                            "needYield": 0,
+                            "saveState": 144,
+                            "restoreState": 143,
+                            "isEOF": 1,
+                            "nss": "c2_disposable_measurements.readings",
+                            "keyPattern": {
+                              "datasetId": 1,
+                              "sensorId": 1,
+                              "ts": 1
+                            },
+                            "indexName": "uq_readings_dataset_sensor_ts",
+                            "isMultiKey": false,
+                            "multiKeyPaths": {
+                              "datasetId": [],
+                              "sensorId": [],
+                              "ts": []
+                            },
+                            "isUnique": true,
+                            "isSparse": false,
+                            "isPartial": false,
+                            "indexVersion": 2,
+                            "direction": "forward",
+                            "indexBounds": {
+                              "datasetId": [
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a5'), ObjectId('6afacb64aa0f4c8ec24f62a5')]"
+                              ],
+                              "sensorId": [
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a6'), ObjectId('6afacb64aa0f4c8ec24f62a6')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a7'), ObjectId('6afacb64aa0f4c8ec24f62a7')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a8'), ObjectId('6afacb64aa0f4c8ec24f62a8')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a9'), ObjectId('6afacb64aa0f4c8ec24f62a9')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62aa'), ObjectId('6afacb64aa0f4c8ec24f62aa')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ab'), ObjectId('6afacb64aa0f4c8ec24f62ab')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ac'), ObjectId('6afacb64aa0f4c8ec24f62ac')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ad'), ObjectId('6afacb64aa0f4c8ec24f62ad')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ae'), ObjectId('6afacb64aa0f4c8ec24f62ae')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62af'), ObjectId('6afacb64aa0f4c8ec24f62af')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b0'), ObjectId('6afacb64aa0f4c8ec24f62b0')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b1'), ObjectId('6afacb64aa0f4c8ec24f62b1')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b2'), ObjectId('6afacb64aa0f4c8ec24f62b2')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b3'), ObjectId('6afacb64aa0f4c8ec24f62b3')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b4'), ObjectId('6afacb64aa0f4c8ec24f62b4')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b5'), ObjectId('6afacb64aa0f4c8ec24f62b5')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b6'), ObjectId('6afacb64aa0f4c8ec24f62b6')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b7'), ObjectId('6afacb64aa0f4c8ec24f62b7')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b8'), ObjectId('6afacb64aa0f4c8ec24f62b8')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b9'), ObjectId('6afacb64aa0f4c8ec24f62b9')]"
+                              ],
+                              "ts": [
+                                "[MinKey, MaxKey]"
+                              ]
+                            },
+                            "keysExamined": 500000,
+                            "seeks": 1,
+                            "dupsTested": 0,
+                            "dupsDropped": 0,
+                            "peakTrackedMemBytes": 0
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "nReturned": 500000,
+                "executionTimeMillisEstimate": 1861
+              },
+              {
+                "$group": {
+                  "_id": {
+                    "sensor": "$sensorId",
+                    "bucket": {
+                      "$const": 0
+                    }
+                  },
+                  "count": {
+                    "$sum": {
+                      "$const": 1
+                    }
+                  },
+                  "sum": {
+                    "$sum": "$value"
+                  },
+                  "min": {
+                    "$min": "$value"
+                  },
+                  "max": {
+                    "$max": "$value"
+                  },
+                  "from": {
+                    "$min": "$ts"
+                  },
+                  "to": {
+                    "$max": "$ts"
+                  },
+                  "observed": {
+                    "$sum": {
+                      "$cond": [
+                        {
+                          "$and": [
+                            {
+                              "$gte": [
+                                "$ts",
+                                {
+                                  "$const": "2026-11-01T00:00:00.000Z"
+                                }
+                              ]
+                            },
+                            {
+                              "$lte": [
+                                "$ts",
+                                {
+                                  "$const": "2026-11-18T08:39:00.000Z"
+                                }
+                              ]
+                            },
+                            {
+                              "$eq": [
+                                {
+                                  "$mod": [
+                                    {
+                                      "$subtract": [
+                                        {
+                                          "$convert": {
+                                            "input": "$ts",
+                                            "to": {
+                                              "$const": "long"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "$const": 1793491200000
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "$const": 60000
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$const": 0
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "$const": 1
+                        },
+                        {
+                          "$const": 0
+                        }
+                      ]
+                    }
+                  },
+                  "$willBeMerged": false
+                },
+                "nReturned": 20,
+                "executionTimeMillisEstimate": 2799,
+                "maxAccumulatorMemoryUsageBytes": {
+                  "count": 4640,
+                  "sum": 4640,
+                  "min": 3520,
+                  "max": 3520,
+                  "from": 3520,
+                  "to": 3520,
+                  "observed": 4640
+                },
+                "totalOutputDataSizeBytes": 13320,
+                "usedDisk": false,
+                "spills": 0,
+                "spilledDataStorageSize": 0,
+                "spilledBytes": 0,
+                "spilledRecords": 0,
+                "peakTrackedMemBytes": 29760
+              }
+            ],
+            "queryShapeHash": "D2AC58E0EA934DE719BB4C3E730E9341DDFFCF243F3B281DEB784754293FEAF7",
+            "peakTrackedMemBytes": 29760,
+            "serverInfo": {
+              "host": "CKhiEM",
+              "port": 50097,
+              "version": "9.0.4",
+              "gitVersion": "64ade602b836c9adeffba7fa038c887ffab56196"
+            },
+            "serverParameters": {
+              "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+              "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+              "internalQueryProhibitBlockingMergeOnMongoS": 0,
+              "internalQueryFrameworkControl": "trySbeRestricted",
+              "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+            },
+            "command": {
+              "aggregate": "readings",
+              "pipeline": [
+                {
+                  "$match": {
+                    "datasetId": "6afacb64aa0f4c8ec24f62a5",
+                    "sensorId": {
+                      "$in": [
+                        "6afacb64aa0f4c8ec24f62a6",
+                        "6afacb64aa0f4c8ec24f62a7",
+                        "6afacb64aa0f4c8ec24f62a8",
+                        "6afacb64aa0f4c8ec24f62a9",
+                        "6afacb64aa0f4c8ec24f62aa",
+                        "6afacb64aa0f4c8ec24f62ab",
+                        "6afacb64aa0f4c8ec24f62ac",
+                        "6afacb64aa0f4c8ec24f62ad",
+                        "6afacb64aa0f4c8ec24f62ae",
+                        "6afacb64aa0f4c8ec24f62af",
+                        "6afacb64aa0f4c8ec24f62b0",
+                        "6afacb64aa0f4c8ec24f62b1",
+                        "6afacb64aa0f4c8ec24f62b2",
+                        "6afacb64aa0f4c8ec24f62b3",
+                        "6afacb64aa0f4c8ec24f62b4",
+                        "6afacb64aa0f4c8ec24f62b5",
+                        "6afacb64aa0f4c8ec24f62b6",
+                        "6afacb64aa0f4c8ec24f62b7",
+                        "6afacb64aa0f4c8ec24f62b8",
+                        "6afacb64aa0f4c8ec24f62b9"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "$limit": 500001
+                },
+                {
+                  "$group": {
+                    "_id": {
+                      "sensor": "$sensorId",
+                      "bucket": {
+                        "$literal": 0
+                      }
+                    },
+                    "count": {
+                      "$sum": 1
+                    },
+                    "sum": {
+                      "$sum": "$value"
+                    },
+                    "min": {
+                      "$min": "$value"
+                    },
+                    "max": {
+                      "$max": "$value"
+                    },
+                    "from": {
+                      "$min": "$ts"
+                    },
+                    "to": {
+                      "$max": "$ts"
+                    },
+                    "observed": {
+                      "$sum": {
+                        "$cond": [
+                          {
+                            "$and": [
+                              {
+                                "$gte": [
+                                  "$ts",
+                                  "2026-11-01T00:00:00.000Z"
+                                ]
+                              },
+                              {
+                                "$lte": [
+                                  "$ts",
+                                  "2026-11-18T08:39:00.000Z"
+                                ]
+                              },
+                              {
+                                "$eq": [
+                                  {
+                                    "$mod": [
+                                      {
+                                        "$subtract": [
+                                          {
+                                            "$toLong": "$ts"
+                                          },
+                                          1793491200000
+                                        ]
+                                      },
+                                      60000
+                                    ]
+                                  },
+                                  0
+                                ]
+                              }
+                            ]
+                          },
+                          1,
+                          0
+                        ]
+                      }
+                    }
+                  }
+                }
+              ],
+              "allowDiskUse": false,
+              "cursor": {},
+              "maxTimeMS": 5000,
+              "$db": "c2_disposable_measurements"
+            },
+            "ok": 1,
+            "$clusterTime": {
+              "clusterTime": {
+                "$timestamp": "7708697415569637429"
+              },
+              "signature": {
+                "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                "keyId": 0
+              }
+            },
+            "operationTime": {
+              "$timestamp": "7708697415569637429"
+            }
+          }
+        },
+        {
+          "kind": "hour",
+          "status": 200,
+          "samplesMs": [
+            3458.32,
+            2986.14,
+            3295.78
+          ],
+          "responseBytes": 2023767,
+          "sampledNodeRssGrowthBytes": 180019200,
+          "sampledNodeHeapGrowthBytes": 57568360,
+          "indexes": [
+            "uq_readings_dataset_sensor_ts",
+            "ix_readings_dataset_ts_id"
+          ],
+          "explain": {
+            "explainVersion": "1",
+            "stages": [
+              {
+                "$cursor": {
+                  "queryPlanner": {
+                    "namespace": "c2_disposable_measurements.readings",
+                    "parsedQuery": {
+                      "$and": [
+                        {
+                          "datasetId": {
+                            "$eq": "6afacb64aa0f4c8ec24f62a5"
+                          }
+                        },
+                        {
+                          "ts": {
+                            "$lte": "2026-11-18T08:39:00.000Z"
+                          }
+                        },
+                        {
+                          "ts": {
+                            "$gte": "2026-11-01T00:00:00.000Z"
+                          }
+                        },
+                        {
+                          "sensorId": {
+                            "$in": [
+                              "6afacb64aa0f4c8ec24f62a6",
+                              "6afacb64aa0f4c8ec24f62a7",
+                              "6afacb64aa0f4c8ec24f62a8",
+                              "6afacb64aa0f4c8ec24f62a9",
+                              "6afacb64aa0f4c8ec24f62aa",
+                              "6afacb64aa0f4c8ec24f62ab",
+                              "6afacb64aa0f4c8ec24f62ac",
+                              "6afacb64aa0f4c8ec24f62ad",
+                              "6afacb64aa0f4c8ec24f62ae",
+                              "6afacb64aa0f4c8ec24f62af",
+                              "6afacb64aa0f4c8ec24f62b0",
+                              "6afacb64aa0f4c8ec24f62b1",
+                              "6afacb64aa0f4c8ec24f62b2",
+                              "6afacb64aa0f4c8ec24f62b3",
+                              "6afacb64aa0f4c8ec24f62b4",
+                              "6afacb64aa0f4c8ec24f62b5",
+                              "6afacb64aa0f4c8ec24f62b6",
+                              "6afacb64aa0f4c8ec24f62b7",
+                              "6afacb64aa0f4c8ec24f62b8",
+                              "6afacb64aa0f4c8ec24f62b9"
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "indexFilterSet": false,
+                    "queryHash": "B8D62344",
+                    "planCacheShapeHash": "B8D62344",
+                    "planCacheKey": "4E4F298E",
+                    "optimizationTimeMillis": 1,
+                    "optimizationTimeMicros": 1859,
+                    "cursorType": "regular",
+                    "maxIndexedOrSolutionsReached": false,
+                    "maxIndexedAndSolutionsReached": false,
+                    "maxScansToExplodeReached": false,
+                    "prunedSimilarIndexes": false,
+                    "winningPlan": {
+                      "isCached": true,
+                      "stage": "LIMIT",
+                      "limitAmount": 500001,
+                      "inputStage": {
+                        "stage": "PROJECTION_SIMPLE",
+                        "transformBy": {
+                          "sensorId": 1,
+                          "ts": 1,
+                          "value": 1,
+                          "_id": 0
+                        },
+                        "inputStage": {
+                          "stage": "FETCH",
+                          "nss": "c2_disposable_measurements.readings",
+                          "inputStage": {
+                            "stage": "IXSCAN",
+                            "nss": "c2_disposable_measurements.readings",
+                            "keyPattern": {
+                              "datasetId": 1,
+                              "sensorId": 1,
+                              "ts": 1
+                            },
+                            "indexName": "uq_readings_dataset_sensor_ts",
+                            "isMultiKey": false,
+                            "multiKeyPaths": {
+                              "datasetId": [],
+                              "sensorId": [],
+                              "ts": []
+                            },
+                            "isUnique": true,
+                            "isSparse": false,
+                            "isPartial": false,
+                            "indexVersion": 2,
+                            "direction": "forward",
+                            "indexBounds": {
+                              "datasetId": [
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a5'), ObjectId('6afacb64aa0f4c8ec24f62a5')]"
+                              ],
+                              "sensorId": [
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a6'), ObjectId('6afacb64aa0f4c8ec24f62a6')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a7'), ObjectId('6afacb64aa0f4c8ec24f62a7')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a8'), ObjectId('6afacb64aa0f4c8ec24f62a8')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a9'), ObjectId('6afacb64aa0f4c8ec24f62a9')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62aa'), ObjectId('6afacb64aa0f4c8ec24f62aa')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ab'), ObjectId('6afacb64aa0f4c8ec24f62ab')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ac'), ObjectId('6afacb64aa0f4c8ec24f62ac')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ad'), ObjectId('6afacb64aa0f4c8ec24f62ad')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ae'), ObjectId('6afacb64aa0f4c8ec24f62ae')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62af'), ObjectId('6afacb64aa0f4c8ec24f62af')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b0'), ObjectId('6afacb64aa0f4c8ec24f62b0')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b1'), ObjectId('6afacb64aa0f4c8ec24f62b1')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b2'), ObjectId('6afacb64aa0f4c8ec24f62b2')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b3'), ObjectId('6afacb64aa0f4c8ec24f62b3')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b4'), ObjectId('6afacb64aa0f4c8ec24f62b4')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b5'), ObjectId('6afacb64aa0f4c8ec24f62b5')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b6'), ObjectId('6afacb64aa0f4c8ec24f62b6')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b7'), ObjectId('6afacb64aa0f4c8ec24f62b7')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b8'), ObjectId('6afacb64aa0f4c8ec24f62b8')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b9'), ObjectId('6afacb64aa0f4c8ec24f62b9')]"
+                              ],
+                              "ts": [
+                                "[new Date(1793491200000), new Date(1794991140000)]"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "rejectedPlans": [
+                      {
+                        "isCached": false,
+                        "stage": "LIMIT",
+                        "limitAmount": 500001,
+                        "inputStage": {
+                          "stage": "PROJECTION_SIMPLE",
+                          "transformBy": {
+                            "sensorId": 1,
+                            "ts": 1,
+                            "value": 1,
+                            "_id": 0
+                          },
+                          "inputStage": {
+                            "stage": "FETCH",
+                            "filter": {
+                              "sensorId": {
+                                "$in": [
+                                  "6afacb64aa0f4c8ec24f62a6",
+                                  "6afacb64aa0f4c8ec24f62a7",
+                                  "6afacb64aa0f4c8ec24f62a8",
+                                  "6afacb64aa0f4c8ec24f62a9",
+                                  "6afacb64aa0f4c8ec24f62aa",
+                                  "6afacb64aa0f4c8ec24f62ab",
+                                  "6afacb64aa0f4c8ec24f62ac",
+                                  "6afacb64aa0f4c8ec24f62ad",
+                                  "6afacb64aa0f4c8ec24f62ae",
+                                  "6afacb64aa0f4c8ec24f62af",
+                                  "6afacb64aa0f4c8ec24f62b0",
+                                  "6afacb64aa0f4c8ec24f62b1",
+                                  "6afacb64aa0f4c8ec24f62b2",
+                                  "6afacb64aa0f4c8ec24f62b3",
+                                  "6afacb64aa0f4c8ec24f62b4",
+                                  "6afacb64aa0f4c8ec24f62b5",
+                                  "6afacb64aa0f4c8ec24f62b6",
+                                  "6afacb64aa0f4c8ec24f62b7",
+                                  "6afacb64aa0f4c8ec24f62b8",
+                                  "6afacb64aa0f4c8ec24f62b9"
+                                ]
+                              }
+                            },
+                            "nss": "c2_disposable_measurements.readings",
+                            "inputStage": {
+                              "stage": "IXSCAN",
+                              "nss": "c2_disposable_measurements.readings",
+                              "keyPattern": {
+                                "datasetId": 1,
+                                "ts": 1,
+                                "_id": 1
+                              },
+                              "indexName": "ix_readings_dataset_ts_id",
+                              "isMultiKey": false,
+                              "multiKeyPaths": {
+                                "datasetId": [],
+                                "ts": [],
+                                "_id": []
+                              },
+                              "isUnique": false,
+                              "isSparse": false,
+                              "isPartial": false,
+                              "indexVersion": 2,
+                              "direction": "forward",
+                              "indexBounds": {
+                                "datasetId": [
+                                  "[ObjectId('6afacb64aa0f4c8ec24f62a5'), ObjectId('6afacb64aa0f4c8ec24f62a5')]"
+                                ],
+                                "ts": [
+                                  "[new Date(1793491200000), new Date(1794991140000)]"
+                                ],
+                                "_id": [
+                                  "[MinKey, MaxKey]"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "executionStats": {
+                    "executionSuccess": true,
+                    "nReturned": 500000,
+                    "executionTimeMillis": 2888,
+                    "executionTimeMicros": 2888696,
+                    "totalKeysExamined": 500000,
+                    "totalDocsExamined": 500000,
+                    "executionStages": {
+                      "isCached": true,
+                      "stage": "LIMIT",
+                      "nReturned": 500000,
+                      "executionTimeMillisEstimate": 1392,
+                      "works": 500001,
+                      "advanced": 500000,
+                      "needTime": 0,
+                      "needYield": 0,
+                      "saveState": 134,
+                      "restoreState": 133,
+                      "isEOF": 1,
+                      "limitAmount": 500001,
+                      "inputStage": {
+                        "stage": "PROJECTION_SIMPLE",
+                        "nReturned": 500000,
+                        "executionTimeMillisEstimate": 1377,
+                        "works": 500001,
+                        "advanced": 500000,
+                        "needTime": 0,
+                        "needYield": 0,
+                        "saveState": 134,
+                        "restoreState": 133,
+                        "isEOF": 1,
+                        "transformBy": {
+                          "sensorId": 1,
+                          "ts": 1,
+                          "value": 1,
+                          "_id": 0
+                        },
+                        "inputStage": {
+                          "stage": "FETCH",
+                          "nReturned": 500000,
+                          "executionTimeMillisEstimate": 1230,
+                          "works": 500001,
+                          "advanced": 500000,
+                          "needTime": 0,
+                          "needYield": 0,
+                          "saveState": 134,
+                          "restoreState": 133,
+                          "isEOF": 1,
+                          "nss": "c2_disposable_measurements.readings",
+                          "docsExamined": 500000,
+                          "alreadyHasObj": 0,
+                          "inputStage": {
+                            "stage": "IXSCAN",
+                            "nReturned": 500000,
+                            "executionTimeMillisEstimate": 488,
+                            "works": 500001,
+                            "advanced": 500000,
+                            "needTime": 0,
+                            "needYield": 0,
+                            "saveState": 134,
+                            "restoreState": 133,
+                            "isEOF": 1,
+                            "nss": "c2_disposable_measurements.readings",
+                            "keyPattern": {
+                              "datasetId": 1,
+                              "sensorId": 1,
+                              "ts": 1
+                            },
+                            "indexName": "uq_readings_dataset_sensor_ts",
+                            "isMultiKey": false,
+                            "multiKeyPaths": {
+                              "datasetId": [],
+                              "sensorId": [],
+                              "ts": []
+                            },
+                            "isUnique": true,
+                            "isSparse": false,
+                            "isPartial": false,
+                            "indexVersion": 2,
+                            "direction": "forward",
+                            "indexBounds": {
+                              "datasetId": [
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a5'), ObjectId('6afacb64aa0f4c8ec24f62a5')]"
+                              ],
+                              "sensorId": [
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a6'), ObjectId('6afacb64aa0f4c8ec24f62a6')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a7'), ObjectId('6afacb64aa0f4c8ec24f62a7')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a8'), ObjectId('6afacb64aa0f4c8ec24f62a8')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a9'), ObjectId('6afacb64aa0f4c8ec24f62a9')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62aa'), ObjectId('6afacb64aa0f4c8ec24f62aa')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ab'), ObjectId('6afacb64aa0f4c8ec24f62ab')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ac'), ObjectId('6afacb64aa0f4c8ec24f62ac')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ad'), ObjectId('6afacb64aa0f4c8ec24f62ad')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ae'), ObjectId('6afacb64aa0f4c8ec24f62ae')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62af'), ObjectId('6afacb64aa0f4c8ec24f62af')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b0'), ObjectId('6afacb64aa0f4c8ec24f62b0')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b1'), ObjectId('6afacb64aa0f4c8ec24f62b1')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b2'), ObjectId('6afacb64aa0f4c8ec24f62b2')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b3'), ObjectId('6afacb64aa0f4c8ec24f62b3')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b4'), ObjectId('6afacb64aa0f4c8ec24f62b4')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b5'), ObjectId('6afacb64aa0f4c8ec24f62b5')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b6'), ObjectId('6afacb64aa0f4c8ec24f62b6')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b7'), ObjectId('6afacb64aa0f4c8ec24f62b7')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b8'), ObjectId('6afacb64aa0f4c8ec24f62b8')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b9'), ObjectId('6afacb64aa0f4c8ec24f62b9')]"
+                              ],
+                              "ts": [
+                                "[new Date(1793491200000), new Date(1794991140000)]"
+                              ]
+                            },
+                            "keysExamined": 500000,
+                            "seeks": 1,
+                            "dupsTested": 0,
+                            "dupsDropped": 0,
+                            "peakTrackedMemBytes": 0
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "nReturned": 500000,
+                "executionTimeMillisEstimate": 1695
+              },
+              {
+                "$group": {
+                  "_id": {
+                    "sensor": "$sensorId",
+                    "bucket": {
+                      "$convert": {
+                        "input": {
+                          "$dateTrunc": {
+                            "date": "$ts",
+                            "unit": {
+                              "$const": "hour"
+                            },
+                            "timezone": {
+                              "$const": "+08:00"
+                            }
+                          }
+                        },
+                        "to": {
+                          "$const": "long"
+                        }
+                      }
+                    }
+                  },
+                  "count": {
+                    "$sum": {
+                      "$const": 1
+                    }
+                  },
+                  "sum": {
+                    "$sum": "$value"
+                  },
+                  "min": {
+                    "$min": "$value"
+                  },
+                  "max": {
+                    "$max": "$value"
+                  },
+                  "from": {
+                    "$min": "$ts"
+                  },
+                  "to": {
+                    "$max": "$ts"
+                  },
+                  "observed": {
+                    "$sum": {
+                      "$cond": [
+                        {
+                          "$and": [
+                            {
+                              "$gte": [
+                                "$ts",
+                                {
+                                  "$const": "2026-11-01T00:00:00.000Z"
+                                }
+                              ]
+                            },
+                            {
+                              "$lte": [
+                                "$ts",
+                                {
+                                  "$const": "2026-11-18T08:39:00.000Z"
+                                }
+                              ]
+                            },
+                            {
+                              "$eq": [
+                                {
+                                  "$mod": [
+                                    {
+                                      "$subtract": [
+                                        {
+                                          "$convert": {
+                                            "input": "$ts",
+                                            "to": {
+                                              "$const": "long"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "$const": 1793491200000
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "$const": 60000
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$const": 0
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "$const": 1
+                        },
+                        {
+                          "$const": 0
+                        }
+                      ]
+                    }
+                  },
+                  "$willBeMerged": false
+                },
+                "nReturned": 8340,
+                "executionTimeMillisEstimate": 2872,
+                "maxAccumulatorMemoryUsageBytes": {
+                  "count": 1934880,
+                  "sum": 1934880,
+                  "min": 1467840,
+                  "max": 1467840,
+                  "from": 1467840,
+                  "to": 1467840,
+                  "observed": 1934880
+                },
+                "totalOutputDataSizeBytes": 5554440,
+                "usedDisk": false,
+                "spills": 0,
+                "spilledDataStorageSize": 0,
+                "spilledBytes": 0,
+                "spilledRecords": 0,
+                "peakTrackedMemBytes": 12409920
+              }
+            ],
+            "queryShapeHash": "5A2326B746B795859AB2B42D5A693EEAE618E06B4E52CB27D0E209F9D465F19C",
+            "peakTrackedMemBytes": 12409920,
+            "serverInfo": {
+              "host": "CKhiEM",
+              "port": 50097,
+              "version": "9.0.4",
+              "gitVersion": "64ade602b836c9adeffba7fa038c887ffab56196"
+            },
+            "serverParameters": {
+              "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+              "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+              "internalQueryProhibitBlockingMergeOnMongoS": 0,
+              "internalQueryFrameworkControl": "trySbeRestricted",
+              "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+            },
+            "command": {
+              "aggregate": "readings",
+              "pipeline": [
+                {
+                  "$match": {
+                    "datasetId": "6afacb64aa0f4c8ec24f62a5",
+                    "sensorId": {
+                      "$in": [
+                        "6afacb64aa0f4c8ec24f62a6",
+                        "6afacb64aa0f4c8ec24f62a7",
+                        "6afacb64aa0f4c8ec24f62a8",
+                        "6afacb64aa0f4c8ec24f62a9",
+                        "6afacb64aa0f4c8ec24f62aa",
+                        "6afacb64aa0f4c8ec24f62ab",
+                        "6afacb64aa0f4c8ec24f62ac",
+                        "6afacb64aa0f4c8ec24f62ad",
+                        "6afacb64aa0f4c8ec24f62ae",
+                        "6afacb64aa0f4c8ec24f62af",
+                        "6afacb64aa0f4c8ec24f62b0",
+                        "6afacb64aa0f4c8ec24f62b1",
+                        "6afacb64aa0f4c8ec24f62b2",
+                        "6afacb64aa0f4c8ec24f62b3",
+                        "6afacb64aa0f4c8ec24f62b4",
+                        "6afacb64aa0f4c8ec24f62b5",
+                        "6afacb64aa0f4c8ec24f62b6",
+                        "6afacb64aa0f4c8ec24f62b7",
+                        "6afacb64aa0f4c8ec24f62b8",
+                        "6afacb64aa0f4c8ec24f62b9"
+                      ]
+                    },
+                    "ts": {
+                      "$gte": "2026-11-01T00:00:00.000Z",
+                      "$lte": "2026-11-18T08:39:00.000Z"
+                    }
+                  }
+                },
+                {
+                  "$limit": 500001
+                },
+                {
+                  "$group": {
+                    "_id": {
+                      "sensor": "$sensorId",
+                      "bucket": {
+                        "$toLong": {
+                          "$dateTrunc": {
+                            "date": "$ts",
+                            "unit": "hour",
+                            "timezone": "+08:00"
+                          }
+                        }
+                      }
+                    },
+                    "count": {
+                      "$sum": 1
+                    },
+                    "sum": {
+                      "$sum": "$value"
+                    },
+                    "min": {
+                      "$min": "$value"
+                    },
+                    "max": {
+                      "$max": "$value"
+                    },
+                    "from": {
+                      "$min": "$ts"
+                    },
+                    "to": {
+                      "$max": "$ts"
+                    },
+                    "observed": {
+                      "$sum": {
+                        "$cond": [
+                          {
+                            "$and": [
+                              {
+                                "$gte": [
+                                  "$ts",
+                                  "2026-11-01T00:00:00.000Z"
+                                ]
+                              },
+                              {
+                                "$lte": [
+                                  "$ts",
+                                  "2026-11-18T08:39:00.000Z"
+                                ]
+                              },
+                              {
+                                "$eq": [
+                                  {
+                                    "$mod": [
+                                      {
+                                        "$subtract": [
+                                          {
+                                            "$toLong": "$ts"
+                                          },
+                                          1793491200000
+                                        ]
+                                      },
+                                      60000
+                                    ]
+                                  },
+                                  0
+                                ]
+                              }
+                            ]
+                          },
+                          1,
+                          0
+                        ]
+                      }
+                    }
+                  }
+                }
+              ],
+              "allowDiskUse": false,
+              "cursor": {},
+              "maxTimeMS": 5000,
+              "$db": "c2_disposable_measurements"
+            },
+            "ok": 1,
+            "$clusterTime": {
+              "clusterTime": {
+                "$timestamp": "7708697505763950593"
+              },
+              "signature": {
+                "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                "keyId": 0
+              }
+            },
+            "operationTime": {
+              "$timestamp": "7708697505763950593"
+            }
+          }
+        },
+        {
+          "kind": "day",
+          "status": 200,
+          "samplesMs": [
+            3100.77,
+            3067.27,
+            3060.34
+          ],
+          "responseBytes": 90716,
+          "sampledNodeRssGrowthBytes": 372736,
+          "sampledNodeHeapGrowthBytes": 458408,
+          "indexes": [
+            "uq_readings_dataset_sensor_ts",
+            "ix_readings_dataset_ts_id"
+          ],
+          "explain": {
+            "explainVersion": "1",
+            "stages": [
+              {
+                "$cursor": {
+                  "queryPlanner": {
+                    "namespace": "c2_disposable_measurements.readings",
+                    "parsedQuery": {
+                      "$and": [
+                        {
+                          "datasetId": {
+                            "$eq": "6afacb64aa0f4c8ec24f62a5"
+                          }
+                        },
+                        {
+                          "ts": {
+                            "$lte": "2026-11-18T08:39:00.000Z"
+                          }
+                        },
+                        {
+                          "ts": {
+                            "$gte": "2026-11-01T00:00:00.000Z"
+                          }
+                        },
+                        {
+                          "sensorId": {
+                            "$in": [
+                              "6afacb64aa0f4c8ec24f62a6",
+                              "6afacb64aa0f4c8ec24f62a7",
+                              "6afacb64aa0f4c8ec24f62a8",
+                              "6afacb64aa0f4c8ec24f62a9",
+                              "6afacb64aa0f4c8ec24f62aa",
+                              "6afacb64aa0f4c8ec24f62ab",
+                              "6afacb64aa0f4c8ec24f62ac",
+                              "6afacb64aa0f4c8ec24f62ad",
+                              "6afacb64aa0f4c8ec24f62ae",
+                              "6afacb64aa0f4c8ec24f62af",
+                              "6afacb64aa0f4c8ec24f62b0",
+                              "6afacb64aa0f4c8ec24f62b1",
+                              "6afacb64aa0f4c8ec24f62b2",
+                              "6afacb64aa0f4c8ec24f62b3",
+                              "6afacb64aa0f4c8ec24f62b4",
+                              "6afacb64aa0f4c8ec24f62b5",
+                              "6afacb64aa0f4c8ec24f62b6",
+                              "6afacb64aa0f4c8ec24f62b7",
+                              "6afacb64aa0f4c8ec24f62b8",
+                              "6afacb64aa0f4c8ec24f62b9"
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "indexFilterSet": false,
+                    "queryHash": "B8D62344",
+                    "planCacheShapeHash": "B8D62344",
+                    "planCacheKey": "4E4F298E",
+                    "optimizationTimeMillis": 1,
+                    "optimizationTimeMicros": 1066,
+                    "cursorType": "regular",
+                    "maxIndexedOrSolutionsReached": false,
+                    "maxIndexedAndSolutionsReached": false,
+                    "maxScansToExplodeReached": false,
+                    "prunedSimilarIndexes": false,
+                    "winningPlan": {
+                      "isCached": true,
+                      "stage": "LIMIT",
+                      "limitAmount": 500001,
+                      "inputStage": {
+                        "stage": "PROJECTION_SIMPLE",
+                        "transformBy": {
+                          "sensorId": 1,
+                          "ts": 1,
+                          "value": 1,
+                          "_id": 0
+                        },
+                        "inputStage": {
+                          "stage": "FETCH",
+                          "nss": "c2_disposable_measurements.readings",
+                          "inputStage": {
+                            "stage": "IXSCAN",
+                            "nss": "c2_disposable_measurements.readings",
+                            "keyPattern": {
+                              "datasetId": 1,
+                              "sensorId": 1,
+                              "ts": 1
+                            },
+                            "indexName": "uq_readings_dataset_sensor_ts",
+                            "isMultiKey": false,
+                            "multiKeyPaths": {
+                              "datasetId": [],
+                              "sensorId": [],
+                              "ts": []
+                            },
+                            "isUnique": true,
+                            "isSparse": false,
+                            "isPartial": false,
+                            "indexVersion": 2,
+                            "direction": "forward",
+                            "indexBounds": {
+                              "datasetId": [
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a5'), ObjectId('6afacb64aa0f4c8ec24f62a5')]"
+                              ],
+                              "sensorId": [
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a6'), ObjectId('6afacb64aa0f4c8ec24f62a6')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a7'), ObjectId('6afacb64aa0f4c8ec24f62a7')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a8'), ObjectId('6afacb64aa0f4c8ec24f62a8')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a9'), ObjectId('6afacb64aa0f4c8ec24f62a9')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62aa'), ObjectId('6afacb64aa0f4c8ec24f62aa')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ab'), ObjectId('6afacb64aa0f4c8ec24f62ab')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ac'), ObjectId('6afacb64aa0f4c8ec24f62ac')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ad'), ObjectId('6afacb64aa0f4c8ec24f62ad')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ae'), ObjectId('6afacb64aa0f4c8ec24f62ae')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62af'), ObjectId('6afacb64aa0f4c8ec24f62af')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b0'), ObjectId('6afacb64aa0f4c8ec24f62b0')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b1'), ObjectId('6afacb64aa0f4c8ec24f62b1')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b2'), ObjectId('6afacb64aa0f4c8ec24f62b2')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b3'), ObjectId('6afacb64aa0f4c8ec24f62b3')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b4'), ObjectId('6afacb64aa0f4c8ec24f62b4')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b5'), ObjectId('6afacb64aa0f4c8ec24f62b5')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b6'), ObjectId('6afacb64aa0f4c8ec24f62b6')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b7'), ObjectId('6afacb64aa0f4c8ec24f62b7')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b8'), ObjectId('6afacb64aa0f4c8ec24f62b8')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b9'), ObjectId('6afacb64aa0f4c8ec24f62b9')]"
+                              ],
+                              "ts": [
+                                "[new Date(1793491200000), new Date(1794991140000)]"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "rejectedPlans": [
+                      {
+                        "isCached": false,
+                        "stage": "LIMIT",
+                        "limitAmount": 500001,
+                        "inputStage": {
+                          "stage": "PROJECTION_SIMPLE",
+                          "transformBy": {
+                            "sensorId": 1,
+                            "ts": 1,
+                            "value": 1,
+                            "_id": 0
+                          },
+                          "inputStage": {
+                            "stage": "FETCH",
+                            "filter": {
+                              "sensorId": {
+                                "$in": [
+                                  "6afacb64aa0f4c8ec24f62a6",
+                                  "6afacb64aa0f4c8ec24f62a7",
+                                  "6afacb64aa0f4c8ec24f62a8",
+                                  "6afacb64aa0f4c8ec24f62a9",
+                                  "6afacb64aa0f4c8ec24f62aa",
+                                  "6afacb64aa0f4c8ec24f62ab",
+                                  "6afacb64aa0f4c8ec24f62ac",
+                                  "6afacb64aa0f4c8ec24f62ad",
+                                  "6afacb64aa0f4c8ec24f62ae",
+                                  "6afacb64aa0f4c8ec24f62af",
+                                  "6afacb64aa0f4c8ec24f62b0",
+                                  "6afacb64aa0f4c8ec24f62b1",
+                                  "6afacb64aa0f4c8ec24f62b2",
+                                  "6afacb64aa0f4c8ec24f62b3",
+                                  "6afacb64aa0f4c8ec24f62b4",
+                                  "6afacb64aa0f4c8ec24f62b5",
+                                  "6afacb64aa0f4c8ec24f62b6",
+                                  "6afacb64aa0f4c8ec24f62b7",
+                                  "6afacb64aa0f4c8ec24f62b8",
+                                  "6afacb64aa0f4c8ec24f62b9"
+                                ]
+                              }
+                            },
+                            "nss": "c2_disposable_measurements.readings",
+                            "inputStage": {
+                              "stage": "IXSCAN",
+                              "nss": "c2_disposable_measurements.readings",
+                              "keyPattern": {
+                                "datasetId": 1,
+                                "ts": 1,
+                                "_id": 1
+                              },
+                              "indexName": "ix_readings_dataset_ts_id",
+                              "isMultiKey": false,
+                              "multiKeyPaths": {
+                                "datasetId": [],
+                                "ts": [],
+                                "_id": []
+                              },
+                              "isUnique": false,
+                              "isSparse": false,
+                              "isPartial": false,
+                              "indexVersion": 2,
+                              "direction": "forward",
+                              "indexBounds": {
+                                "datasetId": [
+                                  "[ObjectId('6afacb64aa0f4c8ec24f62a5'), ObjectId('6afacb64aa0f4c8ec24f62a5')]"
+                                ],
+                                "ts": [
+                                  "[new Date(1793491200000), new Date(1794991140000)]"
+                                ],
+                                "_id": [
+                                  "[MinKey, MaxKey]"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "executionStats": {
+                    "executionSuccess": true,
+                    "nReturned": 500000,
+                    "executionTimeMillis": 3280,
+                    "executionTimeMicros": 3280433,
+                    "totalKeysExamined": 500000,
+                    "totalDocsExamined": 500000,
+                    "executionStages": {
+                      "isCached": true,
+                      "stage": "LIMIT",
+                      "nReturned": 500000,
+                      "executionTimeMillisEstimate": 1325,
+                      "works": 500001,
+                      "advanced": 500000,
+                      "needTime": 0,
+                      "needYield": 0,
+                      "saveState": 130,
+                      "restoreState": 129,
+                      "isEOF": 1,
+                      "limitAmount": 500001,
+                      "inputStage": {
+                        "stage": "PROJECTION_SIMPLE",
+                        "nReturned": 500000,
+                        "executionTimeMillisEstimate": 1308,
+                        "works": 500001,
+                        "advanced": 500000,
+                        "needTime": 0,
+                        "needYield": 0,
+                        "saveState": 130,
+                        "restoreState": 129,
+                        "isEOF": 1,
+                        "transformBy": {
+                          "sensorId": 1,
+                          "ts": 1,
+                          "value": 1,
+                          "_id": 0
+                        },
+                        "inputStage": {
+                          "stage": "FETCH",
+                          "nReturned": 500000,
+                          "executionTimeMillisEstimate": 1136,
+                          "works": 500001,
+                          "advanced": 500000,
+                          "needTime": 0,
+                          "needYield": 0,
+                          "saveState": 130,
+                          "restoreState": 129,
+                          "isEOF": 1,
+                          "nss": "c2_disposable_measurements.readings",
+                          "docsExamined": 500000,
+                          "alreadyHasObj": 0,
+                          "inputStage": {
+                            "stage": "IXSCAN",
+                            "nReturned": 500000,
+                            "executionTimeMillisEstimate": 506,
+                            "works": 500001,
+                            "advanced": 500000,
+                            "needTime": 0,
+                            "needYield": 0,
+                            "saveState": 130,
+                            "restoreState": 129,
+                            "isEOF": 1,
+                            "nss": "c2_disposable_measurements.readings",
+                            "keyPattern": {
+                              "datasetId": 1,
+                              "sensorId": 1,
+                              "ts": 1
+                            },
+                            "indexName": "uq_readings_dataset_sensor_ts",
+                            "isMultiKey": false,
+                            "multiKeyPaths": {
+                              "datasetId": [],
+                              "sensorId": [],
+                              "ts": []
+                            },
+                            "isUnique": true,
+                            "isSparse": false,
+                            "isPartial": false,
+                            "indexVersion": 2,
+                            "direction": "forward",
+                            "indexBounds": {
+                              "datasetId": [
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a5'), ObjectId('6afacb64aa0f4c8ec24f62a5')]"
+                              ],
+                              "sensorId": [
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a6'), ObjectId('6afacb64aa0f4c8ec24f62a6')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a7'), ObjectId('6afacb64aa0f4c8ec24f62a7')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a8'), ObjectId('6afacb64aa0f4c8ec24f62a8')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62a9'), ObjectId('6afacb64aa0f4c8ec24f62a9')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62aa'), ObjectId('6afacb64aa0f4c8ec24f62aa')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ab'), ObjectId('6afacb64aa0f4c8ec24f62ab')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ac'), ObjectId('6afacb64aa0f4c8ec24f62ac')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ad'), ObjectId('6afacb64aa0f4c8ec24f62ad')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62ae'), ObjectId('6afacb64aa0f4c8ec24f62ae')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62af'), ObjectId('6afacb64aa0f4c8ec24f62af')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b0'), ObjectId('6afacb64aa0f4c8ec24f62b0')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b1'), ObjectId('6afacb64aa0f4c8ec24f62b1')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b2'), ObjectId('6afacb64aa0f4c8ec24f62b2')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b3'), ObjectId('6afacb64aa0f4c8ec24f62b3')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b4'), ObjectId('6afacb64aa0f4c8ec24f62b4')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b5'), ObjectId('6afacb64aa0f4c8ec24f62b5')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b6'), ObjectId('6afacb64aa0f4c8ec24f62b6')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b7'), ObjectId('6afacb64aa0f4c8ec24f62b7')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b8'), ObjectId('6afacb64aa0f4c8ec24f62b8')]",
+                                "[ObjectId('6afacb64aa0f4c8ec24f62b9'), ObjectId('6afacb64aa0f4c8ec24f62b9')]"
+                              ],
+                              "ts": [
+                                "[new Date(1793491200000), new Date(1794991140000)]"
+                              ]
+                            },
+                            "keysExamined": 500000,
+                            "seeks": 1,
+                            "dupsTested": 0,
+                            "dupsDropped": 0,
+                            "peakTrackedMemBytes": 0
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "nReturned": 500000,
+                "executionTimeMillisEstimate": 1672
+              },
+              {
+                "$group": {
+                  "_id": {
+                    "sensor": "$sensorId",
+                    "bucket": {
+                      "$convert": {
+                        "input": {
+                          "$dateTrunc": {
+                            "date": "$ts",
+                            "unit": {
+                              "$const": "day"
+                            },
+                            "timezone": {
+                              "$const": "+08:00"
+                            }
+                          }
+                        },
+                        "to": {
+                          "$const": "long"
+                        }
+                      }
+                    }
+                  },
+                  "count": {
+                    "$sum": {
+                      "$const": 1
+                    }
+                  },
+                  "sum": {
+                    "$sum": "$value"
+                  },
+                  "min": {
+                    "$min": "$value"
+                  },
+                  "max": {
+                    "$max": "$value"
+                  },
+                  "from": {
+                    "$min": "$ts"
+                  },
+                  "to": {
+                    "$max": "$ts"
+                  },
+                  "observed": {
+                    "$sum": {
+                      "$cond": [
+                        {
+                          "$and": [
+                            {
+                              "$gte": [
+                                "$ts",
+                                {
+                                  "$const": "2026-11-01T00:00:00.000Z"
+                                }
+                              ]
+                            },
+                            {
+                              "$lte": [
+                                "$ts",
+                                {
+                                  "$const": "2026-11-18T08:39:00.000Z"
+                                }
+                              ]
+                            },
+                            {
+                              "$eq": [
+                                {
+                                  "$mod": [
+                                    {
+                                      "$subtract": [
+                                        {
+                                          "$convert": {
+                                            "input": "$ts",
+                                            "to": {
+                                              "$const": "long"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "$const": 1793491200000
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "$const": 60000
+                                    }
+                                  ]
+                                },
+                                {
+                                  "$const": 0
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "$const": 1
+                        },
+                        {
+                          "$const": 0
+                        }
+                      ]
+                    }
+                  },
+                  "$willBeMerged": false
+                },
+                "nReturned": 360,
+                "executionTimeMillisEstimate": 3270,
+                "maxAccumulatorMemoryUsageBytes": {
+                  "count": 83520,
+                  "sum": 83520,
+                  "min": 63360,
+                  "max": 63360,
+                  "from": 63360,
+                  "to": 63360,
+                  "observed": 83520
+                },
+                "totalOutputDataSizeBytes": 239760,
+                "usedDisk": false,
+                "spills": 0,
+                "spilledDataStorageSize": 0,
+                "spilledBytes": 0,
+                "spilledRecords": 0,
+                "peakTrackedMemBytes": 535680
+              }
+            ],
+            "queryShapeHash": "5A2326B746B795859AB2B42D5A693EEAE618E06B4E52CB27D0E209F9D465F19C",
+            "peakTrackedMemBytes": 535680,
+            "serverInfo": {
+              "host": "CKhiEM",
+              "port": 50097,
+              "version": "9.0.4",
+              "gitVersion": "64ade602b836c9adeffba7fa038c887ffab56196"
+            },
+            "serverParameters": {
+              "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+              "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+              "internalQueryProhibitBlockingMergeOnMongoS": 0,
+              "internalQueryFrameworkControl": "trySbeRestricted",
+              "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+            },
+            "command": {
+              "aggregate": "readings",
+              "pipeline": [
+                {
+                  "$match": {
+                    "datasetId": "6afacb64aa0f4c8ec24f62a5",
+                    "sensorId": {
+                      "$in": [
+                        "6afacb64aa0f4c8ec24f62a6",
+                        "6afacb64aa0f4c8ec24f62a7",
+                        "6afacb64aa0f4c8ec24f62a8",
+                        "6afacb64aa0f4c8ec24f62a9",
+                        "6afacb64aa0f4c8ec24f62aa",
+                        "6afacb64aa0f4c8ec24f62ab",
+                        "6afacb64aa0f4c8ec24f62ac",
+                        "6afacb64aa0f4c8ec24f62ad",
+                        "6afacb64aa0f4c8ec24f62ae",
+                        "6afacb64aa0f4c8ec24f62af",
+                        "6afacb64aa0f4c8ec24f62b0",
+                        "6afacb64aa0f4c8ec24f62b1",
+                        "6afacb64aa0f4c8ec24f62b2",
+                        "6afacb64aa0f4c8ec24f62b3",
+                        "6afacb64aa0f4c8ec24f62b4",
+                        "6afacb64aa0f4c8ec24f62b5",
+                        "6afacb64aa0f4c8ec24f62b6",
+                        "6afacb64aa0f4c8ec24f62b7",
+                        "6afacb64aa0f4c8ec24f62b8",
+                        "6afacb64aa0f4c8ec24f62b9"
+                      ]
+                    },
+                    "ts": {
+                      "$gte": "2026-11-01T00:00:00.000Z",
+                      "$lte": "2026-11-18T08:39:00.000Z"
+                    }
+                  }
+                },
+                {
+                  "$limit": 500001
+                },
+                {
+                  "$group": {
+                    "_id": {
+                      "sensor": "$sensorId",
+                      "bucket": {
+                        "$toLong": {
+                          "$dateTrunc": {
+                            "date": "$ts",
+                            "unit": "day",
+                            "timezone": "+08:00"
+                          }
+                        }
+                      }
+                    },
+                    "count": {
+                      "$sum": 1
+                    },
+                    "sum": {
+                      "$sum": "$value"
+                    },
+                    "min": {
+                      "$min": "$value"
+                    },
+                    "max": {
+                      "$max": "$value"
+                    },
+                    "from": {
+                      "$min": "$ts"
+                    },
+                    "to": {
+                      "$max": "$ts"
+                    },
+                    "observed": {
+                      "$sum": {
+                        "$cond": [
+                          {
+                            "$and": [
+                              {
+                                "$gte": [
+                                  "$ts",
+                                  "2026-11-01T00:00:00.000Z"
+                                ]
+                              },
+                              {
+                                "$lte": [
+                                  "$ts",
+                                  "2026-11-18T08:39:00.000Z"
+                                ]
+                              },
+                              {
+                                "$eq": [
+                                  {
+                                    "$mod": [
+                                      {
+                                        "$subtract": [
+                                          {
+                                            "$toLong": "$ts"
+                                          },
+                                          1793491200000
+                                        ]
+                                      },
+                                      60000
+                                    ]
+                                  },
+                                  0
+                                ]
+                              }
+                            ]
+                          },
+                          1,
+                          0
+                        ]
+                      }
+                    }
+                  }
+                }
+              ],
+              "allowDiskUse": false,
+              "cursor": {},
+              "maxTimeMS": 5000,
+              "$db": "c2_disposable_measurements"
+            },
+            "ok": 1,
+            "$clusterTime": {
+              "clusterTime": {
+                "$timestamp": "7708697548713623553"
+              },
+              "signature": {
+                "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                "keyId": 0
+              }
+            },
+            "operationTime": {
+              "$timestamp": "7708697548713623553"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

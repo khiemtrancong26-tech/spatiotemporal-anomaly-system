@@ -48,6 +48,9 @@ Phần này cập nhật các đề xuất import/receipt cũ bên dưới theo 
 - Không trả passwordHash trong bất kỳ response.
 
 ### `datasets`
+
+**D018/C2:** field nội bộ tùy chọn `explorationMetadata: {version: positive integer, source:'configured', timeZone:'UTC'|'+07:00'|'+08:00', provenance:string, sampling:null|{cadenceSeconds,anchor,expectedFrom,expectedTo}}`. Các timestamp metadata là UTC ISO strings đã validate; readings.ts tiếp tục BSON Date. CLI chỉ cập nhật imported dataset bằng atomic update pipeline tăng version; `$literal` cho input. Chưa có metadata thì không backfill/đoán cadence, Profile trả source=fallback/+07:00/version=null/sampling=null. Metadata không xuất qua Dataset DTO cũ, chỉ Profile và metadataVersion của Aggregates. Không thêm collection/index C2; giữ14 indexes online, unique(datasetId,sensorId,ts) bảo đảm observedSlots không đếm trùng. Explain/số đo pipeline production ở [C2 measurements](backend/c2-query-measurements.json); không phải load/SLA hoặc nguồn tọa độ đã kiểm định.
+
 ```js
 { _id: ObjectId('...'), name: 'PM2.5 Example', sourceFilename: 'demo.csv',
   status: 'imported', createdBy: ObjectId('...'), createdAt: ISODate('2026-11-11T01:00:00Z'),

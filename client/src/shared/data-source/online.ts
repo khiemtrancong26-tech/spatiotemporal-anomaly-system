@@ -18,6 +18,7 @@ export function createOnlineDataSource(options: OnlineAdapterOptions): OnlineDat
       me: async (opts) => (await request<W.UserResponse>('get_api_v1_users_me', opts)).data,
     },
     datasets: {
+      profile: async (id, query, opts) => (await request<W.DatasetProfileResponse>('get_api_v1_datasets_by_id_profile', { ...opts, path: { id }, query: { ...query, bbox: bbox(query.bbox) } })).data,
       list: (query, opts) => request<W.DatasetPage>('get_api_v1_datasets', { ...opts, query }),
       upload: async (body, opts) => (await request<W.SingleDataset>('post_api_v1_datasets', { ...opts, body })).data,
       validation: (id, opts) => request<W.ValidationReport>('get_api_v1_datasets_by_id_validation', { ...opts, path: { id } }),
@@ -26,6 +27,7 @@ export function createOnlineDataSource(options: OnlineAdapterOptions): OnlineDat
     },
     sensors: { list: (query, opts) => request<W.SensorPage>('get_api_v1_sensors', { ...opts, query: { ...query, bbox: bbox(query.bbox) } }) },
     readings: { list: (query, opts) => request<W.ReadingPage>('get_api_v1_readings', { ...opts, query: { ...query, bbox: bbox(query.bbox) } }) },
+    aggregates: { get: async (query, opts) => (await request<W.ReadingAggregationResponse>('get_api_v1_reading_aggregates', { ...opts, query: { ...query, bbox: bbox(query.bbox) } })).data },
     analysis: {
       get: async (id, opts) => (await request<W.AnalysisCreateResponse>('get_api_v1_analysis_runs_id', { ...opts, path: { id } })).data,
       list: (query, opts) => request<W.AnalysisRunPage>('get_api_v1_analysis_runs', { ...opts, query }),

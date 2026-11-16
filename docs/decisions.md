@@ -20,6 +20,7 @@
 | D015 | B5 dùng MongoDB-backed worker trên Replica Set hiện có; chưa thêm Redis/BullMQ | Chủ dự án chọn hướng thực thi khi yêu cầu B5 ngày 15/11/2026 |
 | D016 | Ưu tiên B6 → Exploration tối thiểu → Isolation Forest v2 → nghiệm thu Analyst; FE/test theo từng chặng | Chủ dự án duyệt phần điều chỉnh đề xuất AI ngày 16/11/2026; các contract/feature gates chi tiết còn mở |
 | D017 | B6/C1 triển khai Anomaly API, completed visibility và review CAS; golden Beijing CSV đã kiểm chứng bytes/facts | Theo yêu cầu triển khai B6 ngày16/11/2026, giữ OpenAPI và baseline B1–B5 |
+| D018 | C2 Profile/quality, per-station aggregation, timezone/coverage tường minh và ngân sách bounded | Chủ dự án duyệt cả3 nhóm A/B/C của contract C2 ngày16/11/2026; không mở ML v2 |
 
 ## Quyết định chưa hoàn tất
 
@@ -153,3 +154,12 @@
 - **Tính nhất quán:** Không công bố anomalies của run queued/running/failed; chỉ đánh dấu completed sau khi lưu đầy đủ, dùng unique `(analysisRunId, readingId)` và trạng thái/attempt guard chống duplicate. Không hứa exactly-once execution hay một transaction khổng lồ.
 - **Tách workload:** Phân trang `GET /readings` cho FE (mặc định 100/trang, FE M4 tự giới hạn 2.000 readings/phiên) không giới hạn phạm vi Analysis Server. Kịch bản dataset 500.000 readings và run xét 30.000 chỉ là **ví dụ**, không phải limit hay benchmark đã đạt. FE M5 chỉ tải anomalies sau completed, theo trang.
 - **Không đưa Kafka/Spark** vào MVP tại B0 vì chưa xác định nhu cầu streaming/distributed computing; benchmark CPU/RAM/throughput và quyết định worker topology thuộc B5/B8.
+## D018 — C2 Data Exploration: API, coverage và ngân sách
+
+Ngày 16/11/2026: chủ dự án duyệt rõ cả ba nhóm A/B/C trong [C2 contract](backend/c2-contract-proposal.md). G02/G03 và phần thông số khởi đầu C2 của G06 đã khóa; đây không phải phê duyệt ML v2 G04/G05 hoặc SLA.
+
+- Thêm GET `/api/v1/datasets/{id}/profile`, nâng draft GET `/api/v1/reading-aggregates` sang online với response per-station/bucket mới. Migration có chủ đích của operation P1 chưa triển khai; giữ API/DTO B1–B6, shared core models cũ, worker/model/run/receipt/review v1.
+- Scope UTC Z đóng, filter sensorIds query repeated/bbox; profile full + scoped, sourceQuality riêng với missing-value unknown, sampling coverage có denominator tường minh. Bucket `[start,end)`, query `[from,to]`, rỗng count0/mean null, không nội suy.
+- Timezone cố định UTC/+07:00/+08:00; metadata versioned cấu hình CLI riêng trên imported dataset, Profile DTO riêng. Không suy cadence/timezone từ tên file. Chưa cấu hình thì fallback hiển thị +07:00 và coverage unknown. Beijing metadata theo fixture/hash được khai báo tường minh, không sửa DB người dùng từ tests.
+- Tối đa500.000 readings,20 series,20.000 cells,5 MiB response,5s/operation,2 operations/process, giờ31 ngày/ngày366 ngày theo UTC duration. Env chỉ hạ các ngưỡng trong cấu hình ban đầu. 422 budget/scope,503 busy/deadline; không truncate rồi báo complete.
+- Giữ Fastify/TypeScript/native MongoDB modular monolith. Khiêm Backend/contract, Tài Frontend, Cường runtime/kiểm thử/đo tải, Khải review dữ liệu; C2 chưa sửa ML. Có schema/adapter/regression/Replica Set/E2E/số đo trước công bố hoàn tất.

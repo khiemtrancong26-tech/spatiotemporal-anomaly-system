@@ -16,6 +16,7 @@ import type { ImportTestHooks } from './modules/datasets/import.types.js';
 import { analysisRoutes } from './modules/analysis/index.js';
 import type { AnalysisEngine, AnalysisTestHooks } from './modules/analysis/analysis.types.js';
 import { anomalyRoutes } from './modules/anomalies/index.js';
+import { explorationRoutes } from './modules/exploration/index.js';
 
 interface AppOptions {
   config?: ServerConfig;
@@ -68,6 +69,7 @@ export function buildApp(options: AppOptions = {}) {
   app.register(datasetRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret, imports: config.imports,
     ...(options.importTestHooks ? { importTestHooks: options.importTestHooks } : {}) });
   app.register(queryRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret });
+  app.register(explorationRoutes, { prefix: '/api/v1', config: config.exploration });
   app.register(anomalyRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret });
   app.register(analysisRoutes, { prefix: '/api/v1', config: config.analysis, cursorSecret: config.cursorSecret,
     ...(options.analysisTestHooks ? { testHooks: options.analysisTestHooks } : {}),
