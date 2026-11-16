@@ -148,10 +148,5 @@ with sync_playwright() as p:
         page.set_content((OUT/(name+'.html')).read_text(encoding='utf8').replace('<link rel="stylesheet" href="design.css"/>','<style>'+css+'</style>'),wait_until='load')
         page.screenshot(path=str(OUT/(name+'-desktop.png')),full_page=True)
         page.close()
-    for name in ['01-exploration','02-analysis-setup','04-anomalies-list','05-review-detail']:
-        page=browser.new_page(viewport={'width':390,'height':844},device_scale_factor=1,is_mobile=True,has_touch=True)
-        page.set_content((OUT/(name+'.html')).read_text(encoding='utf8').replace('<link rel="stylesheet" href="design.css"/>','<style>'+css+'</style>'),wait_until='load')
-        page.screenshot(path=str(OUT/(name+'-mobile.png')),full_page=True)
-        page.close()
     browser.close()
 print(json.dumps({'generated':[str(f) for f in sorted(OUT.glob('*.png'))],'offline_zscore_flags':len(flags)},ensure_ascii=False,indent=2))
