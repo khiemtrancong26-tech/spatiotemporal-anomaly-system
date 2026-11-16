@@ -7,10 +7,10 @@ import { DataSourceError, errorMessage } from '../../shared/api/errors';
 import type { Anomaly, AnomaliesQuery } from '../../shared/api/generated/wire';
 import type { WorkspaceFilters } from '../workspace/state';
 function Review({ item, saved }: { item: Anomaly; saved: (a: Anomaly) => void }) {
-  const { data, workspace } = useServices();
+  const { data, workspace, connectivity } = useServices();
   const [base, setBase] = useState(item), [status, setStatus] = useState(item.status), [note, setNote] = useState(item.note);
   const [conflict, setConflict] = useState(false), [latest, setLatest] = useState<Anomaly>();
-  const [pending, setPending] = useState(false), [error, setError] = useState(''), [success, setSuccess] = useState(false);
+  const [pending, setPending] = useState(false), [error, setError] = useState(''), [success, setSuccess] = useState(false), [localSaved, setLocalSaved] = useState(false);
   const active = useRef<AbortController | undefined>(undefined);
   const dirty = status !== base.status || note !== base.note;
   useEffect(() => { workspace.getState().setReviewDirty(dirty || conflict); return () => workspace.getState().setReviewDirty(false); }, [workspace, dirty, conflict]);
@@ -25,11 +25,33 @@ function Review({ item, saved }: { item: Anomaly; saved: (a: Anomaly) => void })
   async function save() {
     if (pending || conflict || !dirty) return;
     const controller = new AbortController(); active.current = controller; setPending(true); setError(''); setSuccess(false);
-    try { const a = await data.anomalies.review(base.id, { baseVersion: base.version, changes: { status, note } }, { signal: controller.signal }); if (controller.signal.aborted) return; if (a.id !== base.id || a.datasetId !== base.datasetId || a.version <= base.version) throw new Error('Response không khớp'); setBase(a); setStatus(a.status); setNote(a.note); setSuccess(true); saved(a); }
-    catch (e) { if (!controller.signal.aborted) { setError(errorMessage(e)); if (e instanceof DataSourceError && e.status === 409) { setConflict(true); setLatest(undefined); await loadLatest(); } } }
+    try {
+      const connectionStatus = connectivity?.getSnapshot().status;
+      const pendingReviews = data.offlineReviews ? await data.offlineReviews.listPending() : [];
+      const hasPendingLocalReview = pendingReviews.some((mutation) => mutation.anomalyId === base.id);
+      const browserOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      if ((connectionStatus !== undefined && connectionStatus !== 'online') || browserOffline || hasPendingLocalReview) {
+        if (!data.offlineReviews) throw new Error('Chức năng lưu review offline chưa được khởi tạo.');
+        await data.offlineReviews.queue(base.id, { status, note });
+        if (controller.signal.aborted) return;
+        const localAnomaly = { ...base, status, note };
+        setBase(localAnomaly);
+        setStatus(localAnomaly.status);
+        setNote(localAnomaly.note);
+        setLocalSaved(true);
+        setSuccess(false);
+        saved(localAnomaly);
+        return;
+      }
+      const a = await data.anomalies.review(base.id, { baseVersion: base.version, changes: { status, note } }, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (a.id !== base.id || a.datasetId !== base.datasetId || a.version <= base.version) throw new Error('Response không khớp');
+      setBase(a); setStatus(a.status); setNote(a.note); setSuccess(true); setLocalSaved(false); saved(a);
+    }
+    catch (e) { if (!controller.signal.aborted) { setError(e instanceof Error && !(e instanceof DataSourceError) ? e.message : errorMessage(e)); if (e instanceof DataSourceError && e.status === 409) { setConflict(true); setLatest(undefined); await loadLatest(); } } }
     finally { if (!controller.signal.aborted) setPending(false); }
   }
-  return <section className="card analysis-page anomalies-page"><h3>Chi tiết {base.id}</h3><p>Reading: {base.readingId} · Sensor: {base.sensorId} · Run: {base.analysisRunId}</p><p>{base.ts} (UTC) · Lon/Lat: {base.location.coordinates.join(', ')}</p><p>{base.family} / {base.method} · Score {base.score} · Severity {base.severity} · Version {base.version} · Cập nhật: {base.updatedAt}</p><p>Xem giá trị reading trong workspace khi phép đo đã được tải.</p><label className="field">Review status<select aria-label="Review status" disabled={pending} value={status} onChange={e => { setStatus(e.target.value as Anomaly['status']); setSuccess(false); }}><option>open</option><option>confirmed</option><option>false_positive</option></select></label><label className="field">Ghi chú<textarea aria-label="Ghi chú" disabled={pending} value={note} onChange={e => { setNote(e.target.value); setSuccess(false); }} /></label><Button disabled={pending || conflict || !dirty} onClick={() => { void save(); }}>Lưu review</Button>{success && <p role="status">Server đã xác nhận lưu review.</p>}{error && <p role="alert">{error} Bản sửa vẫn được giữ. Lỗi mạng không chứng minh Server chưa lưu; ứng dụng không tự gửi lại.</p>}{conflict && <div><p role="alert">Xung đột phiên bản. Không tự ghi đè hoặc tự gửi lại.</p>{latest ? <><p>Server v{latest.version}: {latest.status} · {latest.note || '(ghi chú rỗng)'}</p><p>Bản của bạn: {status} · {note || '(ghi chú rỗng)'}</p><Button disabled={pending} onClick={() => { setBase(latest); setStatus(latest.status); setNote(latest.note); setConflict(false); setError(''); saved(latest); }}>Bỏ bản sửa, dùng Server</Button><Button disabled={pending} onClick={() => { setBase(latest); setConflict(false); setError(''); }}>Giữ bản sửa trên version mới</Button><p>Sau khi giữ bản sửa, kiểm tra lại rồi bấm Lưu review.</p></> : <Button disabled={pending} onClick={() => { void loadLatest(); }}>Đọc lại bản Server</Button>}</div>}<Button variant="secondary" disabled={dirty || conflict || pending} onClick={() => { workspace.getState().selectReading(base.readingId); workspace.getState().selectTab('visualization'); }}>Xem reading trên workspace</Button></section>;
+  return <section className="card analysis-page anomalies-page"><h3>Chi tiết {base.id}</h3><p>Reading: {base.readingId} · Sensor: {base.sensorId} · Run: {base.analysisRunId}</p><p>{base.ts} (UTC) · Lon/Lat: {base.location.coordinates.join(', ')}</p><p>{base.family} / {base.method} · Score {base.score} · Severity {base.severity} · Version {base.version} · Cập nhật: {base.updatedAt}</p><p>Xem giá trị reading trong workspace khi phép đo đã được tải.</p><label className="field">Review status<select aria-label="Review status" disabled={pending} value={status} onChange={e => { setStatus(e.target.value as Anomaly['status']); setSuccess(false); }}><option>open</option><option>confirmed</option><option>false_positive</option></select></label><label className="field">Ghi chú<textarea aria-label="Ghi chú" disabled={pending} value={note} onChange={e => { setNote(e.target.value); setSuccess(false); }} /></label><Button disabled={pending || conflict || !dirty} onClick={() => { void save(); }}>Lưu review</Button>{success && <p role="status">Server đã xác nhận lưu review.</p>}{localSaved && <p role="status">Đã lưu review trên thiết bị. Thay đổi đang chờ Backend hỗ trợ đồng bộ.</p>}{error && <p role="alert">{error} Bản sửa vẫn được giữ. Lỗi mạng không chứng minh Server chưa lưu; ứng dụng không tự gửi lại.</p>}{conflict && <div><p role="alert">Xung đột phiên bản. Không tự ghi đè hoặc tự gửi lại.</p>{latest ? <><p>Server v{latest.version}: {latest.status} · {latest.note || '(ghi chú rỗng)'}</p><p>Bản của bạn: {status} · {note || '(ghi chú rỗng)'}</p><Button disabled={pending} onClick={() => { setBase(latest); setStatus(latest.status); setNote(latest.note); setConflict(false); setError(''); saved(latest); }}>Bỏ bản sửa, dùng Server</Button><Button disabled={pending} onClick={() => { setBase(latest); setConflict(false); setError(''); }}>Giữ bản sửa trên version mới</Button><p>Sau khi giữ bản sửa, kiểm tra lại rồi bấm Lưu review.</p></> : <Button disabled={pending} onClick={() => { void loadLatest(); }}>Đọc lại bản Server</Button>}</div>}<Button variant="secondary" disabled={dirty || conflict || pending} onClick={() => { workspace.getState().selectReading(base.readingId); workspace.getState().selectTab('visualization'); }}>Xem reading trên workspace</Button></section>;
 }
 export function AnomaliesPage({ datasetId, filters, runId, initialAnomalyId }: { datasetId: string; filters: WorkspaceFilters; runId?: string; initialAnomalyId?: string }) {
   const { data, workspace } = useServices();

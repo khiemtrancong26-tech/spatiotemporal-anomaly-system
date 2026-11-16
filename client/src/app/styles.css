@@ -2143,3 +2143,14 @@ details[open]>summary {
 @media(max-width:599px){.cube-explorer{padding:10px}.cube-explorer h2{font-size:17px;line-height:24px}.cube-submodes{gap:6px}.cube-submodes .button{font-size:12px;padding:7px 10px;min-height:40px}.cube-heading{display:block;margin:8px 0 12px}.cube-heading>.field{margin-top:10px}.cube-heading p{font-size:11px}.cube-filters{gap:8px;padding:10px}.cube-filters>.field,.cube-filters>.field:has(input){flex-basis:100%;width:100%}.cube-explorer input,.cube-explorer select{min-height:40px}.cube-renderer.renderer-surface,.cube-canvas{height:440px}.cube-panel{grid-template-columns:minmax(0,1fr)}.cube-camera-controls{left:8px;right:8px;top:8px}.cube-camera-controls>span{font-size:9px;padding:5px}.cube-camera-controls>.button{font-size:10px;padding:4px 6px;min-height:32px}.cube-label{font-size:8px}.cube-axis{font-size:9px}.cube-tooltip{width:225px;top:50px}.cube-timeline{gap:6px;padding:8px}.cube-timeline>.button{font-size:11px;padding:6px 8px}.cube-time-select{flex:1;min-width:100px}.cube-slider{flex-basis:100%;order:5}.cube-timeline>.field{flex-basis:100%}.cube-coverage{font-size:10px}.cube-explorer .warning-message{font-size:11px}}
 
 .cube-coverage>.button{min-height:28px;padding:4px 8px;font-size:11px;margin-left:auto}
+
+
+/* Offline-first connection notice */
+.offline-status-banner {
+  border-bottom: 1px solid #f1d08a;
+  background: #fff7e6;
+  color: #704b00;
+  padding: 9px 20px;
+  font-size: 13px;
+  line-height: 1.45;
+}

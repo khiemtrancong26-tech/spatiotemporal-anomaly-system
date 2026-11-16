@@ -5,6 +5,8 @@ import { createContext, useContext, useState, type PropsWithChildren } from 'rea
 import { createStore } from 'zustand/vanilla';
 import { useStore } from 'zustand';
 import type { OnlineDataSource } from '../shared/data-source/types';
+import type { ConnectivityService } from '../offline/connectivity';
+import type { OfflineCacheAccess, OfflineReviewAccess } from '../offline/data-source';
 import type { MockControls } from '../mocks/transport';
 import type { AppConfig } from './config';
 
@@ -13,7 +15,8 @@ export interface Services {
   session?: Session;
   workspace?: ReturnType<typeof createWorkspaceStore>;
   datasets?: Map<string, Dataset>;
-  data: OnlineDataSource;
+  data: OnlineDataSource & { offlineCache?: OfflineCacheAccess; offlineReviews?: OfflineReviewAccess };
+  connectivity?: ConnectivityService;
   config: AppConfig;
   mock?: MockControls;
   preview: ReturnType<typeof createPreviewStore>;

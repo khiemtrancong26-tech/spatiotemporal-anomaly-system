@@ -7,12 +7,49 @@ import { useStore } from 'zustand';
 import { useServices } from '../../app/services';
 import { Button, Field, PageTitle } from '../../shared/ui/primitives';
 import { parseWorkspaceFilters } from './filters';
+import { loadWorkspaceSnapshot, saveWorkspaceSnapshot } from '../../offline/workspace-storage';
 import type { WorkspaceTab } from './state';
 export function WorkspacePage({ datasetId, runId, selectRun }: { datasetId: string; runId?: string; selectRun: (id?: string) => void }) {
-  const { workspace, datasets } = useServices();
+  const { workspace, datasets, session } = useServices();
+  const ownerScope = useStore(session.store, (value) => value.user?.id);
   const state = useStore(workspace);
-  useEffect(() => { workspace.getState().openDataset(datasetId); }, [workspace, datasetId]);
-  useEffect(() => { if (runId) workspace.getState().selectTab('analysis'); }, [workspace, runId]);
+  const [workspaceHydrated, setWorkspaceHydrated] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setWorkspaceHydrated(false);
+    workspace.getState().openDataset(datasetId);
+    if (!ownerScope) {
+      setWorkspaceHydrated(true);
+      return () => { cancelled = true; };
+    }
+    void loadWorkspaceSnapshot(ownerScope, datasetId).then((snapshot) => {
+      if (cancelled) return;
+      if (snapshot && workspace.getState().datasetId === datasetId) {
+        workspace.getState().applyFilters(snapshot.filters);
+        workspace.getState().selectTab(runId ? 'analysis' : snapshot.tab);
+        workspace.getState().selectReading(snapshot.selectedReadingId);
+        const local = (utc?: string) => utc ? new Date(Date.parse(utc) + 7 * 3600_000).toISOString().slice(0, 19) : '';
+        setDraft({
+          sensorId: snapshot.filters.sensorId ?? '',
+          bbox: snapshot.filters.bbox?.join(',') ?? '',
+          from: local(snapshot.filters.from),
+          to: local(snapshot.filters.to),
+        });
+      } else if (runId) {
+        workspace.getState().selectTab('analysis');
+      }
+      setWorkspaceHydrated(true);
+    }).catch(() => {
+      if (cancelled) return;
+      if (runId) workspace.getState().selectTab('analysis');
+      setWorkspaceHydrated(true);
+    });
+    return () => { cancelled = true; };
+  }, [workspace, datasetId, ownerScope, runId]);
+  useEffect(() => {
+    if (!ownerScope || !workspaceHydrated || state.datasetId !== datasetId) return;
+    void saveWorkspaceSnapshot(ownerScope, state).catch(() => undefined);
+  }, [ownerScope, workspaceHydrated, workspace, datasetId, state.datasetId, state.filters, state.tab, state.selectedReadingId]);
   const [draft, setDraft] = useState(() => {
     const filters = workspace.getState().datasetId === datasetId ? workspace.getState().filters : {};
     const local = (utc?: string) => utc ? new Date(Date.parse(utc) + 7 * 3600_000).toISOString().slice(0, 19) : '';

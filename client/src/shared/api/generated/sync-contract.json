@@ -1,0 +1,699 @@
+{
+  "components": {
+    "schemas": {
+      "Anomaly": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "datasetId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "sensorId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "readingId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "analysisRunId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC ISO 8601 with Z; payload normalized by server"
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Point"
+                ]
+              },
+              "coordinates": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "number"
+                },
+                "description": "[longitude, latitude], WGS84"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "coordinates"
+            ]
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "statistical",
+              "ml"
+            ]
+          },
+          "method": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "description": "Finite detector-specific score, not air-quality probability"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "confirmed",
+              "false_positive"
+            ]
+          },
+          "note": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC ISO 8601 with Z; payload normalized by server"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "datasetId",
+          "sensorId",
+          "readingId",
+          "analysisRunId",
+          "ts",
+          "location",
+          "family",
+          "method",
+          "score",
+          "severity",
+          "status",
+          "note",
+          "version",
+          "updatedAt"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "error"
+        ]
+      },
+      "ExportPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "sensors": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Sensor"
+                }
+              },
+              "readings": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Reading"
+                }
+              },
+              "anomalies": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Anomaly"
+                }
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "sensors",
+              "readings",
+              "anomalies"
+            ]
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "datasetId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "page",
+          "datasetId"
+        ]
+      },
+      "OfflineReviewMutation": {
+        "type": "object",
+        "properties": {
+          "clientMutationId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "anomalyId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "baseVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "changes": {
+            "$ref": "#/components/schemas/ReviewChanges"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC ISO 8601 with Z; payload normalized by server"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "clientMutationId",
+          "anomalyId",
+          "baseVersion",
+          "changes",
+          "createdAt"
+        ]
+      },
+      "PageInfo": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "limit",
+          "nextCursor"
+        ]
+      },
+      "Reading": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "datasetId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "sensorId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC ISO 8601 with Z; payload normalized by server"
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Point"
+                ]
+              },
+              "coordinates": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "number"
+                },
+                "description": "[longitude, latitude], WGS84"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "coordinates"
+            ]
+          },
+          "value": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Finite number; NaN/Infinity forbidden"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "ug/m3"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "datasetId",
+          "sensorId",
+          "ts",
+          "location",
+          "value",
+          "unit"
+        ]
+      },
+      "ReviewChanges": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "confirmed",
+              "false_positive"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "minProperties": 1
+      },
+      "Sensor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "datasetId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "externalId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Point"
+                ]
+              },
+              "coordinates": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "number"
+                },
+                "description": "[longitude, latitude], WGS84"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "coordinates"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "pm25"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "ug/m3"
+            ]
+          },
+          "region": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "datasetId",
+          "externalId",
+          "name",
+          "location",
+          "type",
+          "unit"
+        ]
+      },
+      "SyncMutationResult": {
+        "type": "object",
+        "properties": {
+          "clientMutationId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "duplicate",
+              "conflict",
+              "rejected"
+            ]
+          },
+          "anomaly": {
+            "$ref": "#/components/schemas/Anomaly"
+          },
+          "error": {
+            "$ref": "#/components/schemas/Error"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "clientMutationId",
+          "outcome"
+        ]
+      },
+      "SyncPullResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Anomaly"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "page"
+        ]
+      },
+      "SyncPushRequest": {
+        "type": "object",
+        "properties": {
+          "mutations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OfflineReviewMutation"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "mutations"
+        ]
+      },
+      "SyncPushResponse": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncMutationResult"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "results"
+        ]
+      }
+    }
+  },
+  "operations": {
+    "get_api_v1_review_changes": {
+      "method": "GET",
+      "path": "/api/v1/review-changes",
+      "authenticated": true,
+      "parameters": {
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "cursor": {
+              "type": "string"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": null,
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/SyncPullResponse"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "post_api_v1_review_mutation_batches": {
+      "method": "POST",
+      "path": "/api/v1/review-mutation-batches",
+      "authenticated": true,
+      "parameters": {
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": {
+        "contentType": "application/json",
+        "schema": {
+          "$ref": "#/components/schemas/SyncPushRequest"
+        }
+      },
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/SyncPushResponse"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "503": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "get_api_v1_exports": {
+      "method": "GET",
+      "path": "/api/v1/exports",
+      "authenticated": true,
+      "parameters": {
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "datasetId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bbox": {
+              "type": "string",
+              "example": "106.60,10.70,106.80,10.90"
+            },
+            "from": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "to": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            },
+            "cursor": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "datasetId"
+          ],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": null,
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/ExportPage"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "404": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "409": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    }
+  }
+}

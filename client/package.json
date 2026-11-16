@@ -24,6 +24,7 @@
     "@tanstack/react-router": "1.170.46",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
+    "dexie": "^4.4.7",
     "mapbox-gl": "^3.35.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -47,12 +48,14 @@
     "@vitest/coverage-v8": "5.1.0",
     "eslint": "10.14.0",
     "eslint-plugin-react-hooks": "7.1.1",
+    "fake-indexeddb": "^6.2.8",
     "globals": "17.14.0",
     "jsdom": "29.1.1",
     "openapi-typescript": "7.13.0",
     "typescript": "5.9.3",
     "typescript-eslint": "8.72.2",
     "vite": "8.3.8",
+    "vite-plugin-pwa": "^2.0.0",
     "vitest": "5.1.0",
     "yaml": "2.9.1"
   }
