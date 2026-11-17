@@ -91,6 +91,11 @@ export const AnalysisFamilySchema = z.enum(['statistical', 'ml']);
 export const StatisticalMethodSchema = z.enum(['zscore', 'iqr', 'moving_avg']);
 export const AnalysisRunStatusSchema = z.enum(['queued', 'running', 'completed', 'failed']);
 export const AnalysisScopeSchema = z.object({ sensorIds: z.array(IdSchema).optional(), from: UtcIsoSchema.optional(), to: UtcIsoSchema.optional() }).strict();
+export const ScoringSummarySchema = z.object({ targetCount: z.number().int().nonnegative(), scoredCount: z.number().int().positive(),
+  unscorableCount: z.number().int().nonnegative(), reasons: z.object({ temporalOnly: z.number().int().nonnegative(), spatialOnly: z.number().int().nonnegative(), both: z.number().int().nonnegative() }).strict(),
+}).strict().superRefine((s, ctx) => {
+  if (s.targetCount !== s.scoredCount + s.unscorableCount || s.unscorableCount !== s.reasons.temporalOnly + s.reasons.spatialOnly + s.reasons.both) ctx.addIssue({ code: 'custom', message: 'Scoring counts must form a disjoint partition of targets.' });
+});
 export const AnalysisRunSchema = z.object({
   id: IdSchema,
   datasetId: IdSchema,
@@ -104,10 +109,13 @@ export const AnalysisRunSchema = z.object({
   completedAt: UtcIsoSchema.optional(),
   engineVersion: z.string().optional(),
   modelVersion: z.string().optional(),
+  scoringSummary: ScoringSummarySchema.optional(),
 }).strict().superRefine((run, ctx) => {
   const terminal = run.status === 'completed' || run.status === 'failed';
   if (terminal !== (run.completedAt !== undefined)) ctx.addIssue({ code: 'custom', path: ['completedAt'], message: 'Terminal runs require completedAt; pending runs must omit it.' });
   if ((run.status === 'failed') !== (run.error !== undefined)) ctx.addIssue({ code: 'custom', path: ['error'], message: 'Only failed runs require error.' });
+  const v2 = run.family === 'ml' && run.modelVersion === 'pm25-iforest-uci501-v2';
+  if ((v2 && run.status === 'completed') !== (run.scoringSummary !== undefined)) ctx.addIssue({ code: 'custom', path: ['scoringSummary'], message: 'Only completed v2 runs require scoringSummary.' });
 });
 
 export const ReviewStatusSchema = z.enum(['open', 'confirmed', 'false_positive']);

@@ -20,6 +20,8 @@
     "db:seed": "tsx --env-file-if-exists=../.env scripts/seed-demo.ts",
     "db:exploration": "tsx --env-file-if-exists=../.env scripts/configure-exploration.ts",
     "test:e2e:c2": "playwright test --config playwright.config.ts c2.spec.ts",
+    "test:e2e:c3": "playwright test --config playwright.config.ts c3.spec.ts",
+    "ml:export-v2": "tsx scripts/export-pm25-v2-features.ts",
     "check": "npm run typecheck && npm run lint && npm test && npm run build",
     "test:e2e:b3": "playwright test --config playwright.config.ts b3.spec.ts",
     "test:e2e:b4": "playwright test --config playwright.config.ts b4.spec.ts",

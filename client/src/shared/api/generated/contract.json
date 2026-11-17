@@ -77,7 +77,7 @@
         }
       },
       "AnalysisRun": {
-        "description": "queued -> running -> completed hoặc failed; queued có thể failed trước khi chạy. Terminal không tự quay lại running. completed chỉ sau khi toàn bộ kết quả đã lưu và đọc được; failed không công bố partial. scope là snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại. completedAt có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng khi trạng thái khác.",
+        "description": "queued -> running -> completed hoặc failed; queued có thể failed trước khi chạy. Terminal không tự quay lại running. completed chỉ sau khi toàn bộ kết quả đã lưu và đọc được; failed không công bố partial. scope là snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại. completedAt có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng khi trạng thái khác. C3: scoringSummary is required only for completed pm25-iforest-uci501-v2 runs. targetCount=scoredCount+unscorableCount; disjoint reason counts sum to unscorableCount. V1 requests config {} keep v1; explicit config.modelVersion selects v1/v2. Migrate strict clients before enabling v2.",
         "type": "object",
         "properties": {
           "id": {
@@ -134,6 +134,9 @@
           },
           "modelVersion": {
             "type": "string"
+          },
+          "scoringSummary": {
+            "$ref": "#/components/schemas/ScoringSummary"
           }
         },
         "additionalProperties": false,
@@ -203,6 +206,70 @@
                   "completedAt",
                   "error"
                 ]
+              }
+            ]
+          },
+          {
+            "oneOf": [
+              {
+                "required": [
+                  "family",
+                  "modelVersion",
+                  "status",
+                  "scoringSummary"
+                ],
+                "properties": {
+                  "family": {
+                    "enum": [
+                      "ml"
+                    ]
+                  },
+                  "modelVersion": {
+                    "enum": [
+                      "pm25-iforest-uci501-v2"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "completed"
+                    ]
+                  }
+                }
+              },
+              {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "scoringSummary"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "family",
+                        "modelVersion",
+                        "status"
+                      ],
+                      "properties": {
+                        "family": {
+                          "enum": [
+                            "ml"
+                          ]
+                        },
+                        "modelVersion": {
+                          "enum": [
+                            "pm25-iforest-uci501-v2"
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "completed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
               }
             ]
           }
@@ -1371,6 +1438,53 @@
           "baseVersion",
           "changes"
         ]
+      },
+      "ScoringSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "targetCount",
+          "scoredCount",
+          "unscorableCount",
+          "reasons"
+        ],
+        "properties": {
+          "targetCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "scoredCount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "unscorableCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reasons": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "temporalOnly",
+              "spatialOnly",
+              "both"
+            ],
+            "properties": {
+              "temporalOnly": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "spatialOnly": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "both": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
       },
       "Sensor": {
         "type": "object",

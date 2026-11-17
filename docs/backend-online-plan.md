@@ -1,5 +1,7 @@
 # Kế hoạch triển khai Backend P0 online — PM2.5
 
+**C3/D019 ngày17/11/2026:** v2 đúng3 features, shared TS train–serve builder, native inference và functional integration/regression đã PASS; [verification/contract/runbook](backend/c3-verification.md). V1 được bảo toàn, v2 admission opt-in sau parser/worker migration. Không tăng số operations (19/22 thật); không mở C4/B7/B8. Benchmark/load/stress/tối ưu chuyển B8 và không là gate C3; các câu “C3 còn chờ” phía dưới là trạng thái lịch sử trước D019.
+
 **C2/D018 ngày16/11/2026:** Profile/quality và hour/day comparison theo trạm đã bổ sung online; [contract](backend/c2-contract-proposal.md), [verification/runbook](backend/c2-verification.md). Trạng thái hiện tại19/22 online operations (26 tổng), B7 còn3 operations, C3/B8 còn chờ. Ma trận20 operations và các dòng hoãn aggregation bên dưới là baseline lịch sử B0–B6; chỉ subset C2 được nâng ưu tiên, không mở toàn P1/LOD. Không đổi DTO/API B1–B6.
 
 **Bổ sung 16/11/2026 — D016:** [Backend Change Plan](backend-change-plan.md) ghi hướng nâng cấp đã được chủ dự án duyệt: **B6 theo contract hiện tại → Exploration tối thiểu → Isolation Forest v2 → nghiệm thu Analyst**, FE/test tích hợp từng chặng. Đây là mở rộng có giới hạn đối với phạm vi dưới đây; các API/feature/timezone mới còn gate, không tự sửa OpenAPI. B0–B8 giữ mã/tiêu chí; B7/B8 không bị hủy. Các dòng hoãn P1 bên dưới là baseline cũ; chỉ subset được chỉ rõ trong Change Plan được nâng ưu tiên sau khi khóa contract.

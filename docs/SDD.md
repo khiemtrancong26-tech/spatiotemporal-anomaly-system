@@ -13,6 +13,8 @@
 
 ## 1. Architecture Overview
 
+**D019/C3:** module Analysis chỉ bổ sung bounded context reader và dual-version dispatch; giữ lifecycle MongoDB Worker/lease/fence/recovery. Pure TS `shared-core/src/features/pm25-v2.ts` dùng chung offline export/inference, native adapter/runner hiện có không rewrite. Model v1/v2 là2 pinned local entries, readiness/integrity riêng; no registry service/ML server. Summary chỉ publish cùng completed v2 atomic transaction. [C3 contract/runbook](backend/c3-verification.md) là scope đã duyệt; performance engineering thuộc B8, không gate C3. UI/test C3 chỉ Desktop≥1024px.
+
 ![Sơ đồ kiến trúc tổng thể](diagrams/system-architecture.png)
 
 **Bản gốc có thể chỉnh sửa:** [`diagrams/system-architecture.drawio`](diagrams/system-architecture.drawio).

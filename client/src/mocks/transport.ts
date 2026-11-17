@@ -64,6 +64,7 @@ export function createMockTransport(controls: MockControls): typeof globalThis.f
 
     if (url.pathname === '/api/v1/analysis-runs' && method === 'POST') {
       const body = JSON.parse(String(init?.body)) as DetectionRequest;
+      if (body.family === 'ml' && body.config.modelVersion === 'v2') return error(503, 'MOCK_V2_NOT_IMPLEMENTED');
       const key = `${mockToken}:${new Headers(init?.headers).get('Idempotency-Key')}`;
       const prior = receipts.get(key);
       if (prior) return prior.body === JSON.stringify(body) ? json(prior.response, 202) : error(422, 'KEY_PAYLOAD_MISMATCH');

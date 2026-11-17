@@ -535,7 +535,7 @@ export interface components {
             /** @enum {string} */
             unit: "ug/m3";
         };
-        /** @description queued -> running -> completed hoặc failed; queued có thể failed trước khi chạy. Terminal không tự quay lại running. completed chỉ sau khi toàn bộ kết quả đã lưu và đọc được; failed không công bố partial. scope là snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại. completedAt có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng khi trạng thái khác. */
+        /** @description queued -> running -> completed hoặc failed; queued có thể failed trước khi chạy. Terminal không tự quay lại running. completed chỉ sau khi toàn bộ kết quả đã lưu và đọc được; failed không công bố partial. scope là snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại. completedAt có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng khi trạng thái khác. C3: scoringSummary is required only for completed pm25-iforest-uci501-v2 runs. targetCount=scoredCount+unscorableCount; disjoint reason counts sum to unscorableCount. V1 requests config {} keep v1; explicit config.modelVersion selects v1/v2. Migrate strict clients before enabling v2. */
         AnalysisRun: {
             /** @description Opaque ID string; do not assume MongoDB _id format */
             id: string;
@@ -563,7 +563,8 @@ export interface components {
             completedAt?: string;
             engineVersion?: string;
             modelVersion?: string;
-        } & ({
+            scoringSummary?: components["schemas"]["ScoringSummary"];
+        } & (({
             /** @enum {unknown} */
             status?: "queued" | "running";
         } | {
@@ -572,7 +573,14 @@ export interface components {
         } | {
             /** @enum {unknown} */
             status?: "failed";
-        });
+        }) & ({
+            /** @enum {unknown} */
+            family: "ml";
+            /** @enum {unknown} */
+            modelVersion: "pm25-iforest-uci501-v2";
+            /** @enum {unknown} */
+            status: "completed";
+        } | unknown));
         Anomaly: {
             /** @description Opaque ID string; do not assume MongoDB _id format */
             id: string;
@@ -912,6 +920,16 @@ export interface components {
         };
         ReadingAggregationResponse: {
             data: components["schemas"]["ReadingAggregation"];
+        };
+        ScoringSummary: {
+            targetCount: number;
+            scoredCount: number;
+            unscorableCount: number;
+            reasons: {
+                temporalOnly: number;
+                spatialOnly: number;
+                both: number;
+            };
         };
     };
     responses: never;

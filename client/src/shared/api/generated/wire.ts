@@ -34,6 +34,7 @@ export type ReadingPage = components['schemas']['ReadingPage'];
 export type RegisterRequest = components['schemas']['RegisterRequest'];
 export type ReviewChanges = components['schemas']['ReviewChanges'];
 export type ReviewPatchRequest = components['schemas']['ReviewPatchRequest'];
+export type ScoringSummary = components['schemas']['ScoringSummary'];
 export type Sensor = components['schemas']['Sensor'];
 export type SensorPage = components['schemas']['SensorPage'];
 export type SingleAnomaly = components['schemas']['SingleAnomaly'];

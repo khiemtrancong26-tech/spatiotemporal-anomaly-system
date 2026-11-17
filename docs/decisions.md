@@ -21,6 +21,7 @@
 | D016 | Ưu tiên B6 → Exploration tối thiểu → Isolation Forest v2 → nghiệm thu Analyst; FE/test theo từng chặng | Chủ dự án duyệt phần điều chỉnh đề xuất AI ngày 16/11/2026; các contract/feature gates chi tiết còn mở |
 | D017 | B6/C1 triển khai Anomaly API, completed visibility và review CAS; golden Beijing CSV đã kiểm chứng bytes/facts | Theo yêu cầu triển khai B6 ngày16/11/2026, giữ OpenAPI và baseline B1–B5 |
 | D018 | C2 Profile/quality, per-station aggregation, timezone/coverage tường minh và ngân sách bounded | Chủ dự án duyệt cả3 nhóm A/B/C của contract C2 ngày16/11/2026; không mở ML v2 |
+| D019 | C3 v2 đúng3 features, fixed3 neighbors, completed-only scoringSummary và pin riêng; hiệu năng chuyển B8 | Chủ dự án duyệt G01/G04/G05 và3 điều chỉnh bắt buộc ngày17/11/2026; bằng chứng functional ở C3 verification |
 
 ## Quyết định chưa hoàn tất
 
@@ -163,3 +164,12 @@ Ngày 16/11/2026: chủ dự án duyệt rõ cả ba nhóm A/B/C trong [C2 contr
 - Timezone cố định UTC/+07:00/+08:00; metadata versioned cấu hình CLI riêng trên imported dataset, Profile DTO riêng. Không suy cadence/timezone từ tên file. Chưa cấu hình thì fallback hiển thị +07:00 và coverage unknown. Beijing metadata theo fixture/hash được khai báo tường minh, không sửa DB người dùng từ tests.
 - Tối đa500.000 readings,20 series,20.000 cells,5 MiB response,5s/operation,2 operations/process, giờ31 ngày/ngày366 ngày theo UTC duration. Env chỉ hạ các ngưỡng trong cấu hình ban đầu. 422 budget/scope,503 busy/deadline; không truncate rồi báo complete.
 - Giữ Fastify/TypeScript/native MongoDB modular monolith. Khiêm Backend/contract, Tài Frontend, Cường runtime/kiểm thử/đo tải, Khải review dữ liệu; C2 chưa sửa ML. Có schema/adapter/regression/Replica Set/E2E/số đo trước công bố hoàn tất.
+## D019 — C3 minimal Isolation Forest v2 (17/11/2026)
+
+Chủ dự án duyệt phương án G01/G04/G05 ở Giai đoạn A, với3 điều chỉnh bắt buộc: đủ3 neighbors hợp lệ trong50km và ít nhất2 readings cùng timestamp, không fallback thứ tư; summary chỉ completed v2 và atomic/fenced/disjoint; acceptance pin riêng model ID/hash/policy và recovery theo run đã lưu. [C3 verification/contract/runbook](backend/c3-verification.md) là bằng chứng triển khai, không thay phê duyệt chất lượng ML.
+
+- Train offline một lần trên UCI50103/2013–12/2014; holdout01–02/2015, golden03/2015 ngoài fit. UTC+08 và tọa độ owner-provided được chấp nhận cho baseline, không nhận independent geodetic verification.
+- Feature order `[value,temporal_delta,spatial_delta]`, signed deltas ug/m3; previous<t trong≤2h; spatial median trên fixed3 nearest≤50km (Haversine, externalId tie), exact timestamp, min2 readings. Pure TS builder dùng chung export/inference, Python fit/save/load/predict hiện có; không rewrite statistical/adapter/runner.
+- Unscorable bị bỏ chấm, báo disjoint `scoringSummary` khi completed v2; zero scorable failed. Target cap50k/deadline120s và orchestration B5 giữ nguyên; context có guard riêng200k supplemental/128 stations/16MiB. Không dùng C2 budgets thay B5.
+- `config:{}` vẫn v1, explicit modelVersion v1/v2;2 entries tĩnh, integrity/readiness riêng. Không sửa v1 artifact/queued runs/receipts hoặc tự rescore. Strict clients phải migrate trước bật admission v2, flag mặc định false; không để worker cũ claim v2.
+- C3 chỉ functional correctness/integration: không benchmark/load/stress, không cache/index/framework/parallel processing mới. Performance và SLA thuộc B8, không là gate hoàn tất C3. Không mở C4/B7/B8 hoặc UI dưới1024px.

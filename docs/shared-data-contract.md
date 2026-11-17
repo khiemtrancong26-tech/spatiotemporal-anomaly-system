@@ -8,6 +8,8 @@
 
 ## A. Các quy ước chung (không tùy ý sửa)
 
+**D019/C3 (17/11/2026):** AnalysisRun thêm optional `scoringSummary`, nhưng field này **bắt buộc chỉ khi completed ML model `pm25-iforest-uci501-v2`**, vắng ở v1/queued/running/failed. Count partition: targets=scored+unscorable; temporalOnly+spatialOnly+both=unscorable, disjoint, scored>0. Shared Zod và client adapter kiểm arithmetic/lifecycle, OpenAPI/HTTP schema kiểm cấu trúc/lifecycle. Không nhét outputs vào config. Request ML `config:{}` vẫn v1; explicit `{modelVersion:'v1'|'v2'}` chọn version. Strict clients migrate trước v2 admission vì parser cũ không đọc được mixed history có field mới. [C3 contract/proof](backend/c3-verification.md); không đổi DTO domain khác hay offline sync.
+
 1. **ID public:** chuỗi opaque không rỗng (`string`). Ví dụ `reading-001` chỉ là fixture; Backend được dùng `ObjectId` nội bộ nhưng API **không trả BSON**.
 2. **Phép đo duy nhất:** PM2.5, trường `value`, đơn vị chuẩn `unit: "ug/m3"` (UI hiển thị `µg/m³`). Không nhầm ngưỡng anomaly với ngưỡng ô nhiễm/sức khỏe.
 3. **Thời gian:** `ts`, `createdAt`, `updatedAt` truyền qua ranh giới module dưới dạng chuỗi **UTC ISO 8601 có `Z`**, ví dụ `2026-11-11T01:00:00.000Z`; DB có thể lưu `Date`. `timestamp` là tên trường ở CSV trước chuẩn hóa.

@@ -1,5 +1,13 @@
 # Isolation Forest — B5 và phép thử D014
 
+## C3 v2 đã tích hợp — D019
+
+V2 `pm25-iforest-uci501-v2` có đúng `[value,temporal_delta,spatial_delta]`, artifact riêng, source UCI501 (Chen, S.,2017, DOI10.24432/C5RK5G, CC BY4.0). Tọa độ owner-provided và fixed+08:00 được duyệt riêng cho baseline, không khẳng định UCI CSV cung cấp tọa độ. Không ghi đè model v1; không train/load artifact do HTTP caller gửi.
+
+[Manifest v2](pm25-v2-manifest.json), [pure builder](../../shared-core/src/features/pm25-v2.ts), [export CLI](../scripts/export-pm25-v2-features.ts), [fit CLI](train_pm25_v2.py), [C3 proof/contract/rollout](../../docs/backend/c3-verification.md). Một lần fit offline đã thực hiện; không chạy lại CLI trên output hiện có. Runtime dùng lại requirements-pm25.txt. C3 không có benchmark/stress/quality metric; hiệu năng chuyển B8.
+
+Model nằm `.local/models/pm25-iforest-v2/isolation_forest.joblib` (gitignored), hash0b891da07da2ffcd83f647d296b9642bfb4f2331c3ee0512947bf6eb2af7209c. Admission mặc định tắt: migrate Frontend và mọi dual-version worker trước `ANALYSIS_V2_ENABLED=true`. Flag tắt không hủy/re-version queued jobs. Request config{} và recipe baseline bên dưới vẫn v1.
+
 ## Baseline PM2.5 của B5 (D015)
 
 B5 dùng `pm25-iforest-uci381-v1`, một feature `value` ug/m3, scikit-learn1.9.1; không dùng model x0/x1 bên dưới. Model được tạo bằng CLI **offline** trên dữ liệu PM2.5 UCI381 do chủ dự án cho phép tự chọn. [Manifest](pm25-manifest.json) ghi provenance/hash/parameters/reference/runtime; [B5 runbook](../../docs/backend/b5-verification.md) ghi API, worker và giới hạn chất lượng.

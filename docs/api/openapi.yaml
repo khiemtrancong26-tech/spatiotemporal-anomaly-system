@@ -2573,11 +2573,16 @@ components:
       - value
       - unit
     AnalysisRun:
-      description: >-
-        queued -> running -> completed hoặc failed; queued có thể failed trước khi chạy. Terminal không tự quay lại running.
-        completed chỉ sau khi toàn bộ kết quả đã lưu và đọc được; failed không công bố partial.
-        scope là snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại.
-        completedAt có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng khi trạng thái khác.
+      description: "queued -> running -> completed hoặc failed; queued có thể failed
+        trước khi chạy. Terminal không tự quay lại running. completed chỉ sau khi
+        toàn bộ kết quả đã lưu và đọc được; failed không công bố partial. scope là
+        snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại. completedAt
+        có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng
+        khi trạng thái khác. C3: scoringSummary is required only for completed
+        pm25-iforest-uci501-v2 runs. targetCount=scoredCount+unscorableCount;
+        disjoint reason counts sum to unscorableCount. V1 requests config {} keep
+        v1; explicit config.modelVersion selects v1/v2. Migrate strict clients
+        before enabling v2."
       type: object
       properties:
         id:
@@ -2591,24 +2596,24 @@ components:
         family:
           type: string
           enum:
-          - statistical
-          - ml
+            - statistical
+            - ml
         method:
           type: string
         config:
           type: object
           additionalProperties: true
         scope:
-          $ref: '#/components/schemas/AnalysisScope'
+          $ref: "#/components/schemas/AnalysisScope"
         error:
-          $ref: '#/components/schemas/AnalysisFailure'
+          $ref: "#/components/schemas/AnalysisFailure"
         status:
           type: string
           enum:
-          - queued
-          - running
-          - completed
-          - failed
+            - queued
+            - running
+            - completed
+            - failed
         createdAt:
           type: string
           format: date-time
@@ -2621,35 +2626,81 @@ components:
           type: string
         modelVersion:
           type: string
+        scoringSummary:
+          $ref: "#/components/schemas/ScoringSummary"
       additionalProperties: false
       required:
-      - id
-      - datasetId
-      - family
-      - method
-      - config
-      - status
-      - createdAt
-      - scope
+        - id
+        - datasetId
+        - family
+        - method
+        - config
+        - status
+        - createdAt
+        - scope
       allOf:
-      - oneOf:
-        - properties:
-            status:
-              enum: [queued, running]
-          not:
-            anyOf:
-            - required: [completedAt]
-            - required: [error]
-        - properties:
-            status:
-              enum: [completed]
-          required: [completedAt]
-          not:
-            required: [error]
-        - properties:
-            status:
-              enum: [failed]
-          required: [completedAt, error]
+        - oneOf:
+            - properties:
+                status:
+                  enum:
+                    - queued
+                    - running
+              not:
+                anyOf:
+                  - required:
+                      - completedAt
+                  - required:
+                      - error
+            - properties:
+                status:
+                  enum:
+                    - completed
+              required:
+                - completedAt
+              not:
+                required:
+                  - error
+            - properties:
+                status:
+                  enum:
+                    - failed
+              required:
+                - completedAt
+                - error
+        - oneOf:
+            - required:
+                - family
+                - modelVersion
+                - status
+                - scoringSummary
+              properties:
+                family:
+                  enum:
+                    - ml
+                modelVersion:
+                  enum:
+                    - pm25-iforest-uci501-v2
+                status:
+                  enum:
+                    - completed
+            - not:
+                anyOf:
+                  - required:
+                      - scoringSummary
+                  - required:
+                      - family
+                      - modelVersion
+                      - status
+                    properties:
+                      family:
+                        enum:
+                          - ml
+                      modelVersion:
+                        enum:
+                          - pm25-iforest-uci501-v2
+                      status:
+                        enum:
+                          - completed
     Anomaly:
       type: object
       properties:
@@ -3669,3 +3720,39 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/ReadingAggregation"
+
+    ScoringSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - targetCount
+        - scoredCount
+        - unscorableCount
+        - reasons
+      properties:
+        targetCount:
+          type: integer
+          minimum: 0
+        scoredCount:
+          type: integer
+          minimum: 1
+        unscorableCount:
+          type: integer
+          minimum: 0
+        reasons:
+          type: object
+          additionalProperties: false
+          required:
+            - temporalOnly
+            - spatialOnly
+            - both
+          properties:
+            temporalOnly:
+              type: integer
+              minimum: 0
+            spatialOnly:
+              type: integer
+              minimum: 0
+            both:
+              type: integer
+              minimum: 0

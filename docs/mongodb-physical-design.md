@@ -81,6 +81,8 @@ Phần này cập nhật các đề xuất import/receipt cũ bên dưới theo 
 - Dư `location` để GET readings lọc theo bbox và trả DTO trực tiếp; chỉ insert từ Sensor.location chuẩn. Tránh rải tọa độ trạm theo các rows khác nhau.
 
 ### `analysisRuns`
+
+**D019/C3:** acceptance pin private `policyId` riêng v2 và `modelHash` cùng model ID trong transaction run+receipt cũ; v1 giữ identity/shape hiện có. Field `scoringSummary:{targetCount,scoredCount,unscorableCount,reasons:{temporalOnly,spatialOnly,both}}` chỉ tồn tại trên completed v2, cùng atomic terminal transition/queue release/owner-attempt-lease fence. Không write summary vào receipt, queued/running/failed hoặc v1; không migrate/rescore run cũ. Context chỉ đọc dataset/sensors/readings hiện có, không collection/index mới. [Proof](backend/c3-verification.md).
 ```js
 { _id:ObjectId('...'), datasetId:ObjectId('...'),family:'statistical',method:'zscore',
   config:{threshold:3},scope:{},status:'completed',createdAt:ISODate('2026-11-11T02:00:00Z'),

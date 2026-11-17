@@ -25,8 +25,9 @@ export function normalizeDetection(input: DetectionRequest, config: AnalysisConf
     if (!['zscore', 'iqr', 'moving_avg'].includes(input.method)) throw new HttpError(422, 'INVALID_METHOD', 'Unsupported statistical method.');
     const error = onlineStatisticalPolicy(input.method as StatisticalDetectorInput['method']).validateConfig(input.config);
     if (error) throw new HttpError(422, 'INVALID_CONFIG', error);
-  } else if (input.method !== 'isolation_forest' || Object.keys(input.config).length) {
-    throw new HttpError(422, 'INVALID_CONFIG', 'ML requires isolation_forest with config {}.');
+  } else if (input.method !== 'isolation_forest' || Object.keys(input.config).some(k => k !== 'modelVersion') ||
+    (input.config.modelVersion !== undefined && (typeof input.config.modelVersion !== 'string' || !['v1', 'v2'].includes(input.config.modelVersion)))) {
+    throw new HttpError(422, 'INVALID_CONFIG', 'ML requires isolation_forest and config {} or modelVersion v1/v2.');
   }
   const scope = input.scope ?? {};
   if (scope.sensorIds && (!scope.sensorIds.length || scope.sensorIds.length > config.maxSensorIds)) throw new HttpError(422, 'INVALID_SENSOR_SCOPE', 'sensorIds must be nonempty and within the configured limit.');
@@ -47,9 +48,9 @@ export function createAnalysisService(repository: AnalysisRepository, datasets: 
       if (parent.status !== 'imported') throw new HttpError(422, 'DATASET_NOT_READY', 'Dataset is not imported.');
       if (input.scope?.sensorIds && !await repository.sensorsInDataset(parent.id, input.scope.sensorIds)) throw new HttpError(422, 'SENSOR_NOT_IN_DATASET', 'Every sensor must belong to the dataset.');
       if (input.family === 'ml') {
-        try { await engine.ready(); } catch { throw new HttpError(503, 'MODEL_UNAVAILABLE', 'The configured PM2.5 model is not ready. No run was accepted.'); }
+        try { await engine.ready(input.config.modelVersion === 'v2' ? 'v2' : 'v1'); } catch { throw new HttpError(503, 'MODEL_UNAVAILABLE', 'The selected PM2.5 model is not ready or enabled. No run was accepted.'); }
       }
-      const response = await store(() => repository.accept(intent, { ...input, datasetId: parent.id }, engine.metadata(input.family)));
+      const response = await store(() => repository.accept(intent, { ...input, datasetId: parent.id }, engine.metadata(input.family, input.config.modelVersion === 'v2' ? 'v2' : 'v1')));
       await hooks.afterAccepted?.((response.body as { data: import('@pm25/shared-core/contracts').AnalysisRun }).data);
       return response;
     },

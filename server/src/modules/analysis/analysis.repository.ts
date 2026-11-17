@@ -10,12 +10,16 @@ import type { IdempotencyIntent, StoredResponse } from '../../shared/idempotency
 import { keysetPredicate } from '../../shared/persistence/keyset.js';
 import { toObjectId, toPublicId, toReadingDto, type ReadingDocument } from '../../shared/persistence/mapping.js';
 import type { DetectionRequest, RunGuard, AnalysisReadAccess } from './analysis.types.js';
+import type { RunMetadata } from './analysis.types.js';
+import { PM25_V2_MODEL_ID, ScoringSummarySchema, type ScoringSummary } from '@pm25/shared-core';
+import { createAnalysisContextReader } from './analysis.context.repository.js';
 
 interface RunDocument {
   _id: ObjectId; datasetId: ObjectId; createdBy: ObjectId; family: AnalysisRun['family']; method: string;
   config: AnalysisRun['config']; scope: AnalysisRun['scope']; status: AnalysisRun['status']; createdAt: Date;
   completedAt?: Date; error?: AnalysisRun['error']; engineVersion: string; modelVersion?: string;
   policyId: string; modelHash?: string; attempt: number; owner?: string; leaseUntil?: Date; writeFence: number;
+  scoringSummary?: ScoringSummary;
 }
 interface QueueState { _id: string; active: number }
 interface ReceiptDocument {
@@ -29,6 +33,7 @@ export function toAnalysisDto(document: RunDocument): AnalysisRun {
     method: document.method, config: structuredClone(document.config), scope: structuredClone(document.scope),
     status: document.status, createdAt: document.createdAt.toISOString(), engineVersion: document.engineVersion,
     ...(document.modelVersion !== undefined ? { modelVersion: document.modelVersion } : {}),
+    ...(document.status === 'completed' && document.family === 'ml' && document.modelVersion === PM25_V2_MODEL_ID && document.scoringSummary ? { scoringSummary: ScoringSummarySchema.parse(document.scoringSummary) } : {}),
     ...(document.completedAt ? { completedAt: document.completedAt.toISOString() } : {}),
     ...(document.error ? { error: { code: document.error.code, message: document.error.message } } : {}) };
 }
@@ -82,13 +87,14 @@ export function createAnalysisRepository(client: MongoClient, db: Db, config: An
   }
   return {
     prepare, replay,
-    async accept(intent: IdempotencyIntent, input: DetectionRequest, metadata: { engineVersion: string; modelVersion?: string; modelHash?: string }): Promise<StoredResponse> {
+    context: createAnalysisContextReader(db, config.timeoutMs),
+    async accept(intent: IdempotencyIntent, input: DetectionRequest, metadata: RunMetadata): Promise<StoredResponse> {
       await prepare();
       const old = await replay(intent); if (old) return old;
       const now = new Date(), document: RunDocument = { _id: new ObjectId(), datasetId: toObjectId(input.datasetId),
         createdBy: toObjectId(intent.userId), family: input.family, method: input.method, config: structuredClone(input.config),
         scope: structuredClone(input.scope ?? {}), status: 'queued', createdAt: now, ...metadata,
-        policyId: ANALYSIS_POLICY_ID, attempt: 0, leaseUntil: new Date(0), writeFence: 0 };
+        policyId: metadata.policyId ?? ANALYSIS_POLICY_ID, attempt: 0, leaseUntil: new Date(0), writeFence: 0 };
       const response: StoredResponse = { statusCode: 202, body: { data: toAnalysisDto(document) } };
       try {
         await transaction(async session => {
@@ -175,9 +181,13 @@ export function createAnalysisRepository(client: MongoClient, db: Db, config: An
         })), { session, ordered: true });
       });
     },
-    async terminal(guard: RunGuard, error?: { code: string; message: string }) {
+    async terminal(guard: RunGuard, error?: { code: string; message: string }, summary?: ScoringSummary) {
+      const v2 = guard.run.family === 'ml' && guard.run.modelVersion === PM25_V2_MODEL_ID;
+      if ((!error && v2) !== (summary !== undefined)) throw new EngineError('ENGINE_OUTPUT_INVALID', 'Summary is required only for completed v2.');
+      const scoringSummary = summary ? ScoringSummarySchema.parse(summary) : undefined;
       await fenced(guard, async session => {
         await runs.updateOne({ _id: toObjectId(guard.id) }, [{ $set: { status: error ? 'failed' : 'completed', completedAt: '$$NOW',
+          ...(scoringSummary ? { scoringSummary: { $literal: scoringSummary } } : {}),
           ...(error ? { error: { $literal: error } } : {}) } }, { $unset: ['owner', 'leaseUntil'] }], { session });
         const released = await queue.updateOne({ _id: 'online', active: { $gte: 1 } }, { $inc: { active: -1 } }, { session });
         if (!released.matchedCount) throw new Error('Analysis queue counter invariant failed');
