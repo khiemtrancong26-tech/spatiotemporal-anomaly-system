@@ -9,8 +9,8 @@ export const scoringSummarySchema = { type: 'object', additionalProperties: fals
     scoredCount: { type: 'integer', minimum: 1 }, unscorableCount: count, reasons: { type: 'object', additionalProperties: false,
       required: ['temporalOnly', 'spatialOnly', 'both'], properties: { temporalOnly: count, spatialOnly: count, both: count } } } } as const;
 export const scoringSummaryLifecycle = { oneOf: [
-  { required: ['family', 'modelVersion', 'status', 'scoringSummary'], properties: { family: { enum: ['ml'] }, modelVersion: { enum: ['pm25-iforest-uci501-v2'] }, status: { enum: ['completed'] } } },
-  { not: { anyOf: [{ required: ['scoringSummary'] }, { required: ['family', 'modelVersion', 'status'], properties: { family: { enum: ['ml'] }, modelVersion: { enum: ['pm25-iforest-uci501-v2'] }, status: { enum: ['completed'] } } }] } },
+  { required: ['family', 'status', 'scoringSummary'], properties: { family: { enum: ['ml'] }, status: { enum: ['completed'] } } },
+  { not: { anyOf: [{ required: ['scoringSummary'] }, { required: ['family', 'status'], properties: { family: { enum: ['ml'] }, status: { enum: ['completed'] } } }] } },
 ] } as const;
 const scope = { type: 'object', additionalProperties: false, properties: {
   sensorIds: { type: 'array', items: id }, from: time, to: time,

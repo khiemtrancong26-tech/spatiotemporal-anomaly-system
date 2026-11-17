@@ -13,7 +13,6 @@ export interface AnalysisConfig {
   maxAttempts: number; timeoutMs: number; maxReadings: number; maxPending: number;
   maxSensorIds: number; replayMs: number; batchSize: number;
   pythonExecutable: string; artifactPath: string; manifestPath: string; scriptPath: string;
-  v2Enabled: boolean; v2ArtifactPath: string; v2ManifestPath: string;
 }
 
 export interface ServerConfig {
@@ -95,11 +94,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
       maxSensorIds: integer(env.ANALYSIS_MAX_SENSOR_IDS, 10_000, 'ANALYSIS_MAX_SENSOR_IDS', 10_000),
       replayMs: 24 * 60 * 60 * 1000, batchSize: 500,
       pythonExecutable: resolve(env.ANALYSIS_PYTHON ?? fileURLToPath(new URL(`../../.local/detector-venv/${process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'}`, import.meta.url))),
-      artifactPath: resolve(env.ANALYSIS_ARTIFACT ?? fileURLToPath(new URL('../../.local/models/pm25-iforest-v1/isolation_forest.joblib', import.meta.url))),
-      manifestPath: fileURLToPath(new URL('../ml/pm25-manifest.json', import.meta.url)),
-      v2Enabled: env.ANALYSIS_V2_ENABLED === 'true',
-      v2ArtifactPath: resolve(env.ANALYSIS_V2_ARTIFACT ?? fileURLToPath(new URL('../../.local/models/pm25-iforest-v2/isolation_forest.joblib', import.meta.url))),
-      v2ManifestPath: fileURLToPath(new URL('../ml/pm25-v2-manifest.json', import.meta.url)),
+      artifactPath: resolve(env.ANALYSIS_ARTIFACT ?? fileURLToPath(new URL('../../.local/models/pm25-iforest-v2/isolation_forest.joblib', import.meta.url))),
+      manifestPath: fileURLToPath(new URL('../ml/pm25-v2-manifest.json', import.meta.url)),
       scriptPath: fileURLToPath(new URL('../ml/isolation_forest.py', import.meta.url)),
     },
     imports: {

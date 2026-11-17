@@ -1,54 +1,31 @@
-# Isolation Forest — B5 và phép thử D014
+# Isolation Forest — một model PM2.5
 
-## C3 v2 đã tích hợp — D019
+D020 thay thế setup hai model trong D019. Hệ thống chỉ dùng artifact 3 features đã train tại C3: `[value, temporal_delta, spatial_delta]`, đúng thứ tự này. Request ML dùng `method: "isolation_forest", config: {}`. Không có flag bật model, selector hoặc training API.
 
-V2 `pm25-iforest-uci501-v2` có đúng `[value,temporal_delta,spatial_delta]`, artifact riêng, source UCI501 (Chen, S.,2017, DOI10.24432/C5RK5G, CC BY4.0). Tọa độ owner-provided và fixed+08:00 được duyệt riêng cho baseline, không khẳng định UCI CSV cung cấp tọa độ. Không ghi đè model v1; không train/load artifact do HTTP caller gửi.
+- [Manifest](pm25-v2-manifest.json), model ID `pm25-iforest-uci501-v2` là provenance cố định, không phải lựa chọn phiên bản của client.
+- Artifact `.local/models/pm25-iforest-v2/isolation_forest.joblib`, SHA256 `0b891da07da2ffcd83f647d296b9642bfb4f2331c3ee0512947bf6eb2af7209c`, 241932 bytes. Giữ nguyên manifest/artifact từ C3; không train lại trong lượt đơn giản hóa.
+- Nguồn UCI501, Chen S. (2017), DOI 10.24432/C5RK5G, CC BY4.0. Tọa độ golden owner-provided và fixed +08:00 đã được duyệt cho baseline; không nhận đã kiểm định tọa độ độc lập. Split/provenance/matrix hashes trong manifest, golden 03/2015 không fit.
+- [Pure TS Feature Builder](../../shared-core/src/features/pm25-v2.ts) dùng chung offline export/inference. Giữ temporal gap ≤2h, fixed3 nearest neighbors ≤50km, min2 same-time readings, không neighbor thứ4/no future/cross-dataset.
+- [Export CLI](../scripts/export-pm25-v2-features.ts) và [offline train CLI](train_pm25_v2.py) giữ để truy vết recipe. Không gọi khi startup/request/Worker; từ chối ghi đè artifact/manifest. Model hiện có đã fit một lần, không cần chạy lại CLI.
 
-[Manifest v2](pm25-v2-manifest.json), [pure builder](../../shared-core/src/features/pm25-v2.ts), [export CLI](../scripts/export-pm25-v2-features.ts), [fit CLI](train_pm25_v2.py), [C3 proof/contract/rollout](../../docs/backend/c3-verification.md). Một lần fit offline đã thực hiện; không chạy lại CLI trên output hiện có. Runtime dùng lại requirements-pm25.txt. C3 không có benchmark/stress/quality metric; hiệu năng chuyển B8.
+## Chạy inference
 
-Model nằm `.local/models/pm25-iforest-v2/isolation_forest.joblib` (gitignored), hash0b891da07da2ffcd83f647d296b9642bfb4f2331c3ee0512947bf6eb2af7209c. Admission mặc định tắt: migrate Frontend và mọi dual-version worker trước `ANALYSIS_V2_ENABLED=true`. Flag tắt không hủy/re-version queued jobs. Request config{} và recipe baseline bên dưới vẫn v1.
-
-## Baseline PM2.5 của B5 (D015)
-
-B5 dùng `pm25-iforest-uci381-v1`, một feature `value` ug/m3, scikit-learn1.9.1; không dùng model x0/x1 bên dưới. Model được tạo bằng CLI **offline** trên dữ liệu PM2.5 UCI381 do chủ dự án cho phép tự chọn. [Manifest](pm25-manifest.json) ghi provenance/hash/parameters/reference/runtime; [B5 runbook](../../docs/backend/b5-verification.md) ghi API, worker và giới hạn chất lượng.
-
-Setup từ root repo, Python3.11 (đã kiểm chứng3.11.9), môi trường riêng:
+Cung cấp artifact tin cậy đúng hash; binary không nằm trong Git. Dùng Python3.11.9 và các packages pin trong `requirements-pm25.txt`, không cài vào Python global.
 
 ```powershell
-py -3.11 -m venv .local/detector-venv
+# Chỉ setup runtime khi chưa có venv:
+python -m venv .local/detector-venv
 .local/detector-venv/Scripts/python.exe -m pip install -r server/ml/requirements-pm25.txt
-.local/detector-venv/Scripts/python.exe server/ml/train_pm25_baseline.py --output-dir .local/models/pm25-iforest-v1 --manifest server/ml/pm25-manifest.json
+# .env, chỉ đặt nếu khác mặc định:
+# ANALYSIS_PYTHON=C:/path/to/python.exe
+# ANALYSIS_ARTIFACT=C:/pm25-data/models/pm25-iforest-v2/isolation_forest.joblib
+npm run dev:server
 ```
 
-CLI pin hash ZIP/CSV, kiểm tra runtime, không ghi đè artifact/manifest khác; lần đầu cần network để lấy dữ liệu, sau đó dùng cache đã kiểm tra hash. Artifact được giữ tại `.local/models/pm25-iforest-v1/isolation_forest.joblib` (gitignored), đã tạo trong workspace này. Khi triển khai, copy **artifact đã tin cậy, đúng hash** ra persistent volume và set `ANALYSIS_ARTIFACT`; venv qua `ANALYSIS_PYTHON` absolute path. Package `server/ml` cùng build `server/dist`, vì inference script và manifest là runtime assets; không chỉ copy dist. Linux venv dùng `bin/python`, đặt env tương ứng.
+Linux dùng `bin/python` và env absolute path. Package `server/ml` cùng `server/dist`, vì manifest/inference script là runtime assets. Chỉ dùng `ANALYSIS_ARTIFACT`; không còn `ANALYSIS_V2_ENABLED`/`ANALYSIS_V2_ARTIFACT`.
 
-Backend không gọi CLI training/download. Thiếu/hỏng model/runtime: trước tiếp nhận ML→503, sau tiếp nhận→run failed; không fallback hoặc train lại. Inference kiểm tra hash manifest khớp hash/model ID pin của build rồi kiểm tra verified artifact bytes trước joblib.load. Không nhận model/path/feature config từ HTTP.
+Adapter/Python runner giữ protocol JSON stdin/stdout version1, load verified bytes rồi predict; không đổi protocol thành “model v1”. Kiểm manifest/runtime/SHA256/feature order trước load. Chỉ load artifact do operator tin cậy, không nhận pickle/path từ HTTP. Hash bảo đảm integrity, không tự chứng minh pickle an toàn.
 
-Inference cố định `method=isolation_forest`, `config={}`, flag theo predict=-1, score=-decision_function, severity low tạm. Một feature không mô hình hóa quan hệ không gian/thời gian; không có anomaly labels để suy ra accuracy/precision/recall. Khải còn đánh giá domain/chuyển miền. Các tham số train do CLI ghi rõ, không phải config có thể sửa qua API.
+Thiếu/hỏng artifact trước acceptance →503; sau acceptance →run failed, không summary/partial public, không fallback/train lại. Completed ML luôn có `scoringSummary`; score `-decision_function`, predict=-1 là anomaly, severity low tạm. Thiếu context là unscorable, không phải normal. Không tuyên bố accuracy khi thiếu nhãn.
 
-## Demo D014 trước B5 — giữ riêng cho regression tests
-
-Owner thuật toán/model: Khải; Backend adapter: Khiêm; môi trường/CI: Cường. [D014](../../docs/decisions.md#d014--tích-hợp-thư-viện-trước-b5-15112026) chỉ chốt tích hợp thư viện và phép thử, chưa chốt model/feature/runtime production hoặc triển khai B5.
-
-Artifact đã chọn: [sklearn-docs/anomaly-detection](https://huggingface.co/sklearn-docs/anomaly-detection/tree/8689ffabbcd62a83317502891610d4dee4f6201e), pipeline StandardScaler + IsolationForest, hai features tổng hợp x0/x1. Model card có nhãn demo/not production; không phải model được train/đánh giá cho PM2.5. Feature order, revision, hash, bytes và runtime trong [manifest](artifact-manifest.json). Artifact binary lưu local/gitignored; không download khi Backend khởi động hoặc infer.
-
-Setup Windows/Python **3.11**, từ root repo:
-
-```powershell
-python -m venv .local/iforest-artifact-venv
-.local/iforest-artifact-venv/Scripts/python.exe -m pip install -r server/ml/requirements-artifact.txt
-.local/iforest-artifact-venv/Scripts/python.exe server/ml/fetch_artifact.py
-npm run verify:detectors
-```
-
-Linux dùng `bin/python` của venv và đặt `DETECTOR_PYTHON` thành absolute path khi chạy CLI/tests. `DETECTOR_ARTIFACT` có thể chỉ định bản local khác **cùng hash**. Đây là biến override của harness, chưa phải cấu hình API B5. Môi trường tương thích khóa sklearn 1.2.2 theo metadata upstream; các dependency khác được pin ở requirements và kiểm tra trước load. Không thay phiên bản Python/package global. Build statistical shared-core được npm pre-hook chạy trước CLI/server checks.
-
-`fetch_artifact.py` chỉ tải file từ revision đã pin và kiểm tra SHA-256/size; không tải/chạy source Python từ model repo. `isolation_forest.py` chỉ load/predict, không fit/train. Pickle có thể chạy code khi load: loader này chỉ dành cho artifact nguồn đã chọn/review, hash giữ integrity chứ không chứng minh mọi pickle an toàn. Không nhận artifact/manifest/path từ HTTP. Runtime kiểm tra hash trước khi load từ chính verified bytes trong RAM để tránh thay file giữa hash và load; không load arbitrary pickle uploads.
-
-Protocol private JSON/stdin/stdout version 1, không HTTP service. Input: features đúng thứ tự manifest và rows gồm readingId/values đủ số cột; không pad/đoán features. Output giữ prediction (+1/-1), decision_function, score_samples gắn đúng readingId; thấp hơn trong native scores thường bất thường hơn, không phải probability/severity. Score projection sang candidate do caller cung cấp tường minh. Model/runtime/hash/features sai hoặc model mất trả lỗi, không tự train/fallback dữ liệu giả.
-
-Node runner dùng absolute executable/script paths, argv với shell=false/windowsHide, deadline/byte/concurrency budgets bắt buộc, chờ process close trước trả slot. Drains stderr nhưng không đưa traceback/path/payload ra response/log. Env child chỉ lấy các biến OS cần thiết và giới hạn native threads cho phép thử; không chuyển JWT/Mongo credentials. Đây không phải OS security sandbox hoặc topology worker/concurrency production đã được duyệt.
-
-Limits trong harness: 1 runner slot, input/output 1 MiB, timeout 30 giây. Chúng chỉ phục vụ integration fixture, không phải hạn mức Analysis scope 30k/500k readings. B5 phải thiết kế/chốt batching, scheduling, admission và ngân sách theo số đo; không dùng trang FE làm toàn scope.
-
-Xem [báo cáo kiểm chứng](../../docs/backend/detector-integration-verification.md) cho fixture, raw scores, tests và phần còn mở. Không chạy pipeline khác domain hoặc thiếu 23/67 features rồi điền 0 để coi là PM2.5 detector; production feature extraction/model evaluation vẫn cần Khải xác nhận trước B5.
+[Kiểm chứng và demo](../../docs/backend/c3-single-model-verification.md). Model một feature, manifest/train CLI và artifact demo x0/x1 đã xóa; kết quả D014/B5/C3 cũ vẫn được ghi là lịch sử. `npm run verify:detectors` hiện dùng đúng artifact duy nhất với vectors adapter có nhãn thử nghiệm, không thay pipeline context/Worker thật. Không benchmark/stress/tối ưu trong C3.

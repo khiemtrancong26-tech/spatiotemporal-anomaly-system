@@ -1,5 +1,8 @@
 # MongoDB Physical Database Design — SDD v0.3
 
+**D020 — 17/11/2026, kiến trúc hiện hành:** hệ thống chỉ dùng một Isolation Forest với `[value, temporal_delta, spatial_delta]`. Request ML là `method: "isolation_forest", config: {}`; Backend tự chọn artifact đã pin. Không có selector/flag/dispatch v1/v2. `modelVersion` chỉ là provenance do Server ghi; giữ nguyên ID/hash manifest C3, không train lại. `scoringSummary` bắt buộc trên completed ML, vắng ở statistical/queued/running/failed; partition và atomic fencing không đổi. Xem [kiểm chứng và demo một model](backend/c3-single-model-verification.md). Những mô tả dual-version/value-only bên dưới là lịch sử đã được thay thế, không phải hướng dẫn chạy hiện tại.
+
+
 **Nguồn yêu cầu:** SRS v0.4 (PM2.5, BR-08 phương án B, analyst/admin, BR-15..22) và Shared Data Contract v0.1.  
 **Trạng thái:** Thiết kế vật lý **đề xuất cho MVP**, cần Khiêm review trước khi triển khai database chính thức. `indexes.js` là script tạo index gợi ý, **không phải migration đã chạy**.  
 **DB:** `spatiotemporal_anomaly` (tên đề xuất), MongoDB. **7 collections lõi ban đầu:** `users`, `datasets`, `sensors`, `readings`, `analysisRuns`, `anomalies`, `processedMutations`. D012/D015 bổ sung `idempotencyReceipts` và `analysisQueueState`; online hiện dùng8 collections, chưa khởi tạo processedMutations/Sync.
@@ -82,7 +85,6 @@ Phần này cập nhật các đề xuất import/receipt cũ bên dưới theo 
 
 ### `analysisRuns`
 
-**D019/C3:** acceptance pin private `policyId` riêng v2 và `modelHash` cùng model ID trong transaction run+receipt cũ; v1 giữ identity/shape hiện có. Field `scoringSummary:{targetCount,scoredCount,unscorableCount,reasons:{temporalOnly,spatialOnly,both}}` chỉ tồn tại trên completed v2, cùng atomic terminal transition/queue release/owner-attempt-lease fence. Không write summary vào receipt, queued/running/failed hoặc v1; không migrate/rescore run cũ. Context chỉ đọc dataset/sensors/readings hiện có, không collection/index mới. [Proof](backend/c3-verification.md).
 ```js
 { _id:ObjectId('...'), datasetId:ObjectId('...'),family:'statistical',method:'zscore',
   config:{threshold:3},scope:{},status:'completed',createdAt:ISODate('2026-11-11T02:00:00Z'),

@@ -1,5 +1,8 @@
 # Server — Backend P0 online
 
+**Hiện hành D020 — 17/11/2026:** B1–B6/C2/C3 có API thật; ML chỉ một Isolation Forest 3 features. `config:{}` chạy trực tiếp model hiện có, không selector/flag/version dispatch. Xem [setup model](ml/README.md) và [functional proof/demo](../docs/backend/c3-single-model-verification.md). Các đoạn B5/D014 phía dưới là lịch sử; model một feature và model demo cũ đã xóa.
+
+
 **16/11/2026 — B6/C1:** đã có GET list/detail và PATCH review Anomaly theo OpenAPI, tổng17/20 online operations. Imported/completed visibility và CAS cùng transaction; conflict409 có currentVersion, mất response phải GET đối soát. [B6 verification/runbook](../docs/backend/b6-verification.md) ghi các tests/FE thật trên CSV Beijing, parent `reviewFence`, public review service và giới hạn. B7/Admin còn3 operations; Exploration/ML v2/Offline-Sync chưa triển khai. Các dòng “B6 chưa có” trong mô tả B5 phía dưới là lịch sử tại mốc B5, đã được cập nhật trạng thái bởi đoạn này.
 
 **B1–B4 đã triển khai ngày 14/11/2026:** health, Register/Login, current user, imported-only datasets list và upload/validation/mapping/import + Query sensors/readings thật. Xem [B4 verification](../docs/backend/b4-verification.md). Xem [B3 verification và runbook](../docs/backend/b3-verification.md), [D012](../docs/decisions.md#d012--import-b3-và-durable-idempotency). Giữ feature modules với Route → Validation → Service → Repository → MongoDB. Owner: Khiêm; Cường phối hợp môi trường/kiểm thử. Xem [B2 verification](../docs/backend/b2-verification.md), [B1 verification](../docs/backend/b1-verification.md) và [D011](../docs/decisions.md#d011--quy-tắc-user-và-xác-thực-b2).
@@ -8,7 +11,7 @@
 
 Có internal adapters tại `src/engines`: gọi statistical engine của shared-core và Python/scikit-learn load/predict artifact đã có; xác minh references/score rồi tạo candidates trong bộ nhớ. [Báo cáo và lệnh setup](../docs/backend/detector-integration-verification.md), [artifact/runtime](ml/README.md). CLI `npm run verify:detectors` chạy profile có nhãn thử nghiệm và ghi kết quả kiểm chứng; không ghi run/anomaly hoặc tạo API.
 
-Phần trên là bằng chứng D014 trước B5, giữ riêng với baseline mới. Model demo x0/x1 vẫn chỉ dành cho các tests/CLI legacy, không dùng cho API PM2.5.
+Phần trên là bằng chứng D014 trước B5. D020 đã chuyển adapter tests/CLI sang artifact PM2.5 3 features duy nhất; model demo x0/x1 không còn được dùng hoặc lưu trong model storage.
 
 ## B5 — Analysis async trên MongoDB — 15/11/2026
 

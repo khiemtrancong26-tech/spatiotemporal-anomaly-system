@@ -1,5 +1,8 @@
 # SRS TINH GỌN — ĐẶC TẢ YÊU CẦU PHẦN MỀM
 
+**D020 — 17/11/2026, kiến trúc hiện hành:** hệ thống chỉ dùng một Isolation Forest với `[value, temporal_delta, spatial_delta]`. Request ML là `method: "isolation_forest", config: {}`; Backend tự chọn artifact đã pin. Không có selector/flag/dispatch v1/v2. `modelVersion` chỉ là provenance do Server ghi; giữ nguyên ID/hash manifest C3, không train lại. `scoringSummary` bắt buộc trên completed ML, vắng ở statistical/queued/running/failed; partition và atomic fencing không đổi. Xem [kiểm chứng và demo một model](backend/c3-single-model-verification.md). Những mô tả dual-version/value-only bên dưới là lịch sử đã được thay thế, không phải hướng dẫn chạy hiện tại.
+
+
 **Đề tài:** Xây dựng hệ thống phân tích và phát hiện bất thường trong dữ liệu không gian – thời gian bằng trực quan 3D  
 **Phiên bản:** 0.5 — 12/11/2026  
 **Nhóm:** 5 thành viên — Môn JavaScript/TypeScript — Thời gian dự kiến 4 tuần  

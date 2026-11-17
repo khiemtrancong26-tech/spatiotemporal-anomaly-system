@@ -1,5 +1,8 @@
 # Client — PM2.5 Explorer
 
+**D020:** Isolation Forest dùng model PM2.5 3 features duy nhất của Server, request `config:{}`. Không còn selector v1/v2; `modelVersion` trong kết quả chỉ là provenance. Completed ML hiển thị scored/target/unscorable và reasons; không coi unscorable là normal. Mock ML trả503 `MOCK_ML_NOT_IMPLEMENTED`; luồng native được kiểm bằng Desktop E2E C3. [Demo/proof hiện hành](../docs/backend/c3-single-model-verification.md).
+
+
 **M2 frontend đã triển khai:** Register → Login, phiên online bằng sessionStorage, kiểm tra `/users/me` khi reload, guard theo role, xử lý 401/403, logout, danh sách dataset imported có sort/cursor và workspace giữ bộ lọc/tab. Import/3D/analysis/review/admin CRUD vẫn thuộc M3–M7. Backend thật chưa có implementation trong checkout; PWA/Offline/Sync ngoài phạm vi.
 
 Tài phụ trách UI/3D; Duy phụ trách module offline về sau. Interface runtime hiện nằm tại `src/shared/data-source/types.ts`; chưa có xác nhận liên nhóm của Duy.

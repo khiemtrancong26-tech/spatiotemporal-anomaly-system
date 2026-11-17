@@ -3,7 +3,7 @@ import { EngineError } from '../../engines/python-runner.js';
 import { projectCandidates } from '../../engines/results.js';
 import { RunOwnershipLost, type AnalysisRepository } from './analysis.repository.js';
 import type { AnalysisEngine, AnalysisTestHooks, RunGuard } from './analysis.types.js';
-import { PM25_V2_MODEL_ID, ScoringSummarySchema } from '@pm25/shared-core';
+import { ScoringSummarySchema } from '@pm25/shared-core';
 
 const errorCodes = new Set(['INSUFFICIENT_DATA', 'SCOPE_LIMIT_EXCEEDED', 'ENGINE_INPUT_INVALID', 'ENGINE_OUTPUT_INVALID',
   'ENGINE_UNAVAILABLE', 'ENGINE_TIMEOUT', 'ENGINE_INPUT_LIMIT', 'ENGINE_OUTPUT_LIMIT', 'ENGINE_PROTOCOL_ERROR',
@@ -29,19 +29,19 @@ export function createAnalysisWorker(repository: AnalysisRepository, engine: Ana
       await hooks.afterClaim?.(guard);
       await repository.cleanup(guard);
       const readings = await repository.readings(guard, controller.signal);
-      const v2 = guard.run.family === 'ml' && guard.run.modelVersion === PM25_V2_MODEL_ID;
-      const context = v2 ? await repository.context(guard, readings, controller.signal) : undefined;
+      const ml = guard.run.family === 'ml';
+      const context = ml ? await repository.context(guard, readings, controller.signal) : undefined;
       const result = await engine.run(guard, readings, controller.signal, context);
       if (result.engineVersion !== guard.run.engineVersion || result.modelVersion !== guard.run.modelVersion) throw new EngineError('ENGINE_OUTPUT_INVALID', 'Engine version does not match the accepted run.');
       // Rebuild metadata from authoritative scope. Reject nonfinite/duplicate/foreign IDs
       // even when a test double or future engine violates its own adapter contract.
       const candidates = projectCandidates(readings, result.candidates.map(point => ({ readingId: point.readingId, score: point.score, flagged: true })));
-      if (v2) {
+      if (ml) {
         if (!Array.isArray(result.scoredReadingIds)) throw new EngineError('ENGINE_OUTPUT_INVALID', 'Missing scored target identities.');
         const summary = ScoringSummarySchema.safeParse(result.scoringSummary), ids = new Set(result.scoredReadingIds), scope = new Set(readings.map(r => r.id));
         if (!summary.success || summary.data.targetCount !== readings.length || !result.scoredReadingIds || ids.size !== result.scoredReadingIds.length ||
-          ids.size !== summary.data.scoredCount || [...ids].some(id => !scope.has(id)) || candidates.some(p => !ids.has(p.readingId))) throw new EngineError('ENGINE_OUTPUT_INVALID', 'Invalid v2 scoring partition.');
-      } else if (result.scoringSummary !== undefined || result.scoredReadingIds !== undefined) throw new EngineError('ENGINE_OUTPUT_INVALID', 'Legacy results must omit v2 summary.');
+          ids.size !== summary.data.scoredCount || [...ids].some(id => !scope.has(id)) || candidates.some(p => !ids.has(p.readingId))) throw new EngineError('ENGINE_OUTPUT_INVALID', 'Invalid ML scoring partition.');
+      } else if (result.scoringSummary !== undefined || result.scoredReadingIds !== undefined) throw new EngineError('ENGINE_OUTPUT_INVALID', 'Statistical results must omit scoring summary.');
       for (let offset = 0; offset < candidates.length; offset += config.batchSize) {
         if (controller.signal.aborted) throw new EngineError('ENGINE_ABORTED', 'Analysis stopped.');
         await repository.writeBatch(guard, candidates.slice(offset, offset + config.batchSize));

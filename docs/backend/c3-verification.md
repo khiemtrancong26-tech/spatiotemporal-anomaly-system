@@ -1,5 +1,8 @@
 # C3 — Isolation Forest v2 minimal upgrade
 
+**Tài liệu lịch sử — đã được D020 thay thế về model/setup/rollout.** Nội dung và kết quả dưới đây phản ánh thời điểm kiểm chứng, không phải hướng dẫn chạy hiện tại. Manifest/train CLI/artifact cũ có thể đã xóa; xem [pipeline một model và demo hiện hành](c3-single-model-verification.md). Không chạy lại các recipe cũ.
+
+
 Ngày 17/11/2026. **PASS functional correctness/integration** theo G01/G04/G05 được chủ dự án duyệt, kèm ba điều chỉnh bắt buộc; xem D019. Không mở C4/B7/B8. Không chạy benchmark, load/stress test hoặc tối ưu CPU/RAM/latency; các việc hiệu năng chuyển sang B8, không là gate C3.
 
 ## 1. Phạm vi và giới hạn

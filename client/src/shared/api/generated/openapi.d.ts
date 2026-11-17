@@ -535,7 +535,7 @@ export interface components {
             /** @enum {string} */
             unit: "ug/m3";
         };
-        /** @description queued -> running -> completed hoặc failed; queued có thể failed trước khi chạy. Terminal không tự quay lại running. completed chỉ sau khi toàn bộ kết quả đã lưu và đọc được; failed không công bố partial. scope là snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại. completedAt có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng khi trạng thái khác. C3: scoringSummary is required only for completed pm25-iforest-uci501-v2 runs. targetCount=scoredCount+unscorableCount; disjoint reason counts sum to unscorableCount. V1 requests config {} keep v1; explicit config.modelVersion selects v1/v2. Migrate strict clients before enabling v2. */
+        /** @description queued -> running -> completed hoặc failed; queued có thể failed trước khi chạy. Terminal không tự quay lại running. completed chỉ sau khi toàn bộ kết quả đã lưu và đọc được; failed không công bố partial. scope là snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại. completedAt có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng khi trạng thái khác. D020: a single three-feature Isolation Forest uses config {}. modelVersion is server-owned provenance, not a client selector. scoringSummary is required only for completed ML runs; targetCount=scoredCount+unscorableCount and reason counts are disjoint. */
         AnalysisRun: {
             /** @description Opaque ID string; do not assume MongoDB _id format */
             id: string;
@@ -576,8 +576,6 @@ export interface components {
         }) & ({
             /** @enum {unknown} */
             family: "ml";
-            /** @enum {unknown} */
-            modelVersion: "pm25-iforest-uci501-v2";
             /** @enum {unknown} */
             status: "completed";
         } | unknown));
@@ -705,6 +703,7 @@ export interface components {
              */
             to?: string;
         };
+        /** @description ML uses method isolation_forest and config {}; model selection is server-owned. Nonempty ML config is rejected with 422. */
         DetectionRequest: {
             /** @description Opaque ID string; do not assume MongoDB _id format */
             datasetId: string;

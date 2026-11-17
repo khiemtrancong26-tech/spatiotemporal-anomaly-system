@@ -1,5 +1,8 @@
 # Shared Data Contract v0.1 — PM2.5 Anomaly System
 
+**D020 — 17/11/2026, kiến trúc hiện hành:** hệ thống chỉ dùng một Isolation Forest với `[value, temporal_delta, spatial_delta]`. Request ML là `method: "isolation_forest", config: {}`; Backend tự chọn artifact đã pin. Không có selector/flag/dispatch v1/v2. `modelVersion` chỉ là provenance do Server ghi; giữ nguyên ID/hash manifest C3, không train lại. `scoringSummary` bắt buộc trên completed ML, vắng ở statistical/queued/running/failed; partition và atomic fencing không đổi. Xem [kiểm chứng và demo một model](backend/c3-single-model-verification.md). Những mô tả dual-version/value-only bên dưới là lịch sử đã được thay thế, không phải hướng dẫn chạy hiện tại.
+
+
 **Áp dụng:** `client/` (Tài + Duy), `server/` (Khiêm), `shared-core/` (Khải).  
 **Nguồn:** SRS v0.4, SDD v0.1 Bước 1, kế hoạch thống nhất ngày 11/11/2026.  
 **Trạng thái:** Hợp đồng dữ liệu **đề xuất để bắt đầu tích hợp**; nhóm trưởng và Khải cần review trước khi merge làm chuẩn. **Không phải OpenAPI / MongoDB schema vật lý cuối cùng.**
@@ -8,7 +11,6 @@
 
 ## A. Các quy ước chung (không tùy ý sửa)
 
-**D019/C3 (17/11/2026):** AnalysisRun thêm optional `scoringSummary`, nhưng field này **bắt buộc chỉ khi completed ML model `pm25-iforest-uci501-v2`**, vắng ở v1/queued/running/failed. Count partition: targets=scored+unscorable; temporalOnly+spatialOnly+both=unscorable, disjoint, scored>0. Shared Zod và client adapter kiểm arithmetic/lifecycle, OpenAPI/HTTP schema kiểm cấu trúc/lifecycle. Không nhét outputs vào config. Request ML `config:{}` vẫn v1; explicit `{modelVersion:'v1'|'v2'}` chọn version. Strict clients migrate trước v2 admission vì parser cũ không đọc được mixed history có field mới. [C3 contract/proof](backend/c3-verification.md); không đổi DTO domain khác hay offline sync.
 
 1. **ID public:** chuỗi opaque không rỗng (`string`). Ví dụ `reading-001` chỉ là fixture; Backend được dùng `ObjectId` nội bộ nhưng API **không trả BSON**.
 2. **Phép đo duy nhất:** PM2.5, trường `value`, đơn vị chuẩn `unit: "ug/m3"` (UI hiển thị `µg/m³`). Không nhầm ngưỡng anomaly với ngưỡng ô nhiễm/sức khỏe.

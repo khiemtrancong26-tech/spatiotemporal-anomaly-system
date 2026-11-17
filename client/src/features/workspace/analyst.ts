@@ -5,7 +5,7 @@ export type AnalysisScope = NonNullable<DetectionRequest['scope']>;
 export const METHODS = {
   zscore: { name: 'Z-score', family: 'statistical', config: { threshold: 3 }, description: 'Giá trị lệch mạnh khỏi phân bố PM2.5 của từng trạm trong phạm vi.', setting: 'Ngưỡng cố định |Z| > 3', score: '|Z|' },
   iqr: { name: 'IQR', family: 'statistical', config: { multiplier: 1.5 }, description: 'Giá trị nằm ngoài khoảng giới hạn tứ phân vị của từng trạm.', setting: 'Hệ số cố định 1,5', score: 'Khoảng vượt fence · µg/m³' },
-  isolation_forest: { name: 'Isolation Forest', family: 'ml', config: {}, description: 'V1 dùng giá trị PM2.5; v2 thêm chênh lệch temporal/spatial và báo target chưa chấm. Chưa có đánh giá accuracy.', setting: 'Chọn phiên bản model; score v1/v2 không cùng thang so sánh', score: 'Model score · −decision_function' },
+  isolation_forest: { name: 'Isolation Forest', family: 'ml', config: {}, description: 'Dùng giá trị PM2.5 và chênh lệch temporal/spatial; báo riêng target chưa đủ context. Chưa có đánh giá accuracy.', setting: 'Một model 3 features, không cần cấu hình', score: 'Model score · −decision_function' },
 } as const;
 export type Method = keyof typeof METHODS;
 export const methodName = (method: string) => METHODS[method as Method]?.name ?? method;

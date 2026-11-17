@@ -1,5 +1,8 @@
 # SDD v0.4 — Kiến trúc, dữ liệu dùng chung, API Contract và MongoDB vật lý
 
+**D020 — 17/11/2026, kiến trúc hiện hành:** hệ thống chỉ dùng một Isolation Forest với `[value, temporal_delta, spatial_delta]`. Request ML là `method: "isolation_forest", config: {}`; Backend tự chọn artifact đã pin. Không có selector/flag/dispatch v1/v2. `modelVersion` chỉ là provenance do Server ghi; giữ nguyên ID/hash manifest C3, không train lại. `scoringSummary` bắt buộc trên completed ML, vắng ở statistical/queued/running/failed; partition và atomic fencing không đổi. Xem [kiểm chứng và demo một model](backend/c3-single-model-verification.md). Những mô tả dual-version/value-only bên dưới là lịch sử đã được thay thế, không phải hướng dẫn chạy hiện tại.
+
+
 **Đề tài:** Xây dựng hệ thống phân tích và phát hiện bất thường trong dữ liệu không gian – thời gian bằng trực quan 3D  
 **Phạm vi tài liệu:** **Bước 1–3** — System Architecture, Module Boundary, Logical Data Model, Shared Data Contract, API Contract và MongoDB Physical Design  
 **Cơ sở yêu cầu:** `docs/SRS.md` v0.5 (12/11/2026) và `KE_HOACH_DO_AN_THONG_NHAT_NHOM_5_NGUOI.md` (11/11/2026).  
@@ -13,7 +16,6 @@
 
 ## 1. Architecture Overview
 
-**D019/C3:** module Analysis chỉ bổ sung bounded context reader và dual-version dispatch; giữ lifecycle MongoDB Worker/lease/fence/recovery. Pure TS `shared-core/src/features/pm25-v2.ts` dùng chung offline export/inference, native adapter/runner hiện có không rewrite. Model v1/v2 là2 pinned local entries, readiness/integrity riêng; no registry service/ML server. Summary chỉ publish cùng completed v2 atomic transaction. [C3 contract/runbook](backend/c3-verification.md) là scope đã duyệt; performance engineering thuộc B8, không gate C3. UI/test C3 chỉ Desktop≥1024px.
 
 ![Sơ đồ kiến trúc tổng thể](diagrams/system-architecture.png)
 
@@ -59,7 +61,7 @@
 - Profile/quality thuộc nghiệp vụ Dataset, aggregation/comparison thuộc Query; feature/model thuộc engine/ML, context acquisition qua Service/Repository của Analysis. Vị trí file và payload mới là đề xuất cần review; không đưa MongoDB vào shared-core/thuật toán hoặc trình duyệt.
 - Target scope của Analysis và context dùng tính feature là hai phạm vi cần định nghĩa riêng. Context chỉ cùng dataset và tuân thủ thời gian, có budgets; không dùng một trang FE hoặc policy thị giác làm reference ML. Khải bàn giao Feature Contract/builder dùng chung cho train–inference, policy thiếu context và version trước code phụ thuộc.
 - Nguồn/biên/cadence/metadata cho missing statistics, timezone presentation và aggregation boundaries còn G01–G03. UTC wire/persistence giữ nguyên; không tự đổi Dataset/Reading DTO hoặc collection hàng loạt. Schema/API/index thay đổi theo từng contract delta đã duyệt, không tự sinh từ concept UI.
-- ML v2 phải có model/feature/policy identity và rollout tương thích v1 queued/running/receipts/results. Không train trong request/job hoặc tự rescore terminal; method/config/version selection còn G05. B7/Admin và B8/triển khai không bị hủy.
+- D020 giữ model/feature/policy identity để kiểm integrity của model duy nhất. Không train trong request/job hoặc tự rescore; ML config chỉ `{}`. Job lifecycle, lease/heartbeat, transaction, fencing, recovery và idempotency giữ nguyên. B7/B8 còn ngoài phạm vi.
 
 ## 2. Module Boundary & Responsibility
 

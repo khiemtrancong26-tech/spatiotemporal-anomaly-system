@@ -22,7 +22,7 @@ test.beforeAll(async () => {
   mongo = await MongoMemoryReplSet.create({ binary: { version: '8.2.6' }, replSet: { count: 1 } });
   storage = await mkdtemp(resolve(tmpdir(), 'pm25-c3-browser-'));
   backend = buildApp({ config: loadTestConfig({ MONGODB_URI: mongo.getUri('c3_browser_test'), IMPORT_STORAGE_DIR: storage,
-    CORS_ORIGINS: frontendUrl, LOG_LEVEL: 'silent', ANALYSIS_POLL_MS: '20', ANALYSIS_V2_ENABLED: 'true' }), logger: false });
+    CORS_ORIGINS: frontendUrl, LOG_LEVEL: 'silent', ANALYSIS_POLL_MS: '20',  }), logger: false });
   backendUrl = await backend.listen({ host: '127.0.0.1', port: 0 });
   await seedDemo(backend.mongo.db, { SEED_ADMIN_USERNAME: 'C3Admin', SEED_ADMIN_PASSWORD: password,
     SEED_ANALYST_USERNAME: 'C3Analyst', SEED_ANALYST_PASSWORD: password, SEED_DEMO_DATA: 'false' });
@@ -39,7 +39,7 @@ test.afterAll(async () => {
   if (storage?.startsWith(resolve(tmpdir()) + sep) && storage.includes('pm25-c3-browser-')) await rm(storage, { recursive: true, force: true });
 });
 
-test('Desktop v2 API/DB/native inference → strict parser → scoring coverage → reload', async ({ page, request }) => {
+test('Desktop single-model API/DB/native inference → strict parser → scoring coverage → reload', async ({ page, request }) => {
   test.setTimeout(120000); await page.setViewportSize({ width: 1440, height: 900 });
   const login = await request.post(backendUrl + '/api/v1/auth/tokens', { data: { username: 'C3Analyst', password } }); expect(login.status()).toBe(200);
   const headers = { authorization: 'Bearer ' + (await login.json()).accessToken };
@@ -51,12 +51,11 @@ test('Desktop v2 API/DB/native inference → strict parser → scoring coverage 
   await expect(page).toHaveURL(frontendUrl + '/datasets'); await page.goto(frontendUrl + '/workspace/' + id);
   await page.getByRole('button', { name: 'Analysis', exact: true }).click();
   await page.locator('input[name="detector-method"][value="isolation_forest"]').check();
-  await expect(page.getByLabel('Phiên bản Isolation Forest', { exact: true })).toHaveValue('v1');
-  await page.getByLabel('Phiên bản Isolation Forest', { exact: true }).selectOption('v2');
+  await expect(page.getByLabel('Phiên bản Isolation Forest', { exact: true })).toHaveCount(0);
   await page.getByLabel('Tôi đã kiểm tra phạm vi và phương pháp phân tích.', { exact: true }).check();
   const accepted = page.waitForResponse(r => r.url() === backendUrl + '/api/v1/analysis-runs' && r.request().method() === 'POST');
   await page.getByRole('button', { name: 'Chạy phát hiện bất thường', exact: true }).click();
-  const response = await accepted; expect(response.status()).toBe(202); expect(response.request().postDataJSON().config).toEqual({ modelVersion: 'v2' });
+  const response = await accepted; expect(response.status()).toBe(202); expect(response.request().postDataJSON().config).toEqual({});
   const run = (await response.json()).data; expect(run.scoringSummary).toBeUndefined();
   await expect(page.getByTestId('run-status')).toHaveText('completed', { timeout: 30000 });
   await expect(page.getByTestId('scoring-summary')).toContainText('8722/8782'); await expect(page.getByTestId('scoring-summary')).toContainText('chưa chấm 60');

@@ -11,7 +11,7 @@ import { keysetPredicate } from '../../shared/persistence/keyset.js';
 import { toObjectId, toPublicId, toReadingDto, type ReadingDocument } from '../../shared/persistence/mapping.js';
 import type { DetectionRequest, RunGuard, AnalysisReadAccess } from './analysis.types.js';
 import type { RunMetadata } from './analysis.types.js';
-import { PM25_V2_MODEL_ID, ScoringSummarySchema, type ScoringSummary } from '@pm25/shared-core';
+import { ScoringSummarySchema, type ScoringSummary } from '@pm25/shared-core';
 import { createAnalysisContextReader } from './analysis.context.repository.js';
 
 interface RunDocument {
@@ -33,7 +33,7 @@ export function toAnalysisDto(document: RunDocument): AnalysisRun {
     method: document.method, config: structuredClone(document.config), scope: structuredClone(document.scope),
     status: document.status, createdAt: document.createdAt.toISOString(), engineVersion: document.engineVersion,
     ...(document.modelVersion !== undefined ? { modelVersion: document.modelVersion } : {}),
-    ...(document.status === 'completed' && document.family === 'ml' && document.modelVersion === PM25_V2_MODEL_ID && document.scoringSummary ? { scoringSummary: ScoringSummarySchema.parse(document.scoringSummary) } : {}),
+    ...(document.status === 'completed' && document.family === 'ml' && document.scoringSummary ? { scoringSummary: ScoringSummarySchema.parse(document.scoringSummary) } : {}),
     ...(document.completedAt ? { completedAt: document.completedAt.toISOString() } : {}),
     ...(document.error ? { error: { code: document.error.code, message: document.error.message } } : {}) };
 }
@@ -182,8 +182,8 @@ export function createAnalysisRepository(client: MongoClient, db: Db, config: An
       });
     },
     async terminal(guard: RunGuard, error?: { code: string; message: string }, summary?: ScoringSummary) {
-      const v2 = guard.run.family === 'ml' && guard.run.modelVersion === PM25_V2_MODEL_ID;
-      if ((!error && v2) !== (summary !== undefined)) throw new EngineError('ENGINE_OUTPUT_INVALID', 'Summary is required only for completed v2.');
+      const ml = guard.run.family === 'ml';
+      if ((!error && ml) !== (summary !== undefined)) throw new EngineError('ENGINE_OUTPUT_INVALID', 'Summary is required only for completed ML.');
       const scoringSummary = summary ? ScoringSummarySchema.parse(summary) : undefined;
       await fenced(guard, async session => {
         await runs.updateOne({ _id: toObjectId(guard.id) }, [{ $set: { status: error ? 'failed' : 'completed', completedAt: '$$NOW',
