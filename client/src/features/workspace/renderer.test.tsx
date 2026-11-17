@@ -14,7 +14,27 @@ vi.mock('mapbox-gl', () => ({ default: { supported: () => true, NavigationContro
 } } }));
 import Renderer from './renderer';
 beforeEach(() => { mocks.clicks.clear(); vi.stubGlobal('matchMedia',()=>({matches:false}));vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} }); });
-afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.clearAllMocks(); });
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks(); vi.clearAllMocks(); });
+it('highlights the focused station without marking its latest reading as the original anomaly',async()=>{
+ vi.stubEnv('VITE_MAPBOX_TOKEN','pk.test');
+ const rows=[{id:'newer',sensorId:'A',value:40,ts:'2026-11-11T01:00:00Z',location:{type:'Point',coordinates:[105,21]}},{id:'other',sensorId:'B',value:50,ts:'2026-11-11T01:00:00Z',location:{type:'Point',coordinates:[106,21]}}] as Reading[];
+ const ui=render(<Renderer rows={rows} mode="map" selected="original" focusedSensorId="A" marked={new Set(['original'])} onSelect={vi.fn()}/>);
+ await waitFor(()=>expect(mocks.sourceData).toHaveBeenCalled());
+ const features=mocks.sourceData.mock.calls.at(-1)![0].features;
+ expect(features).toHaveLength(2);expect(features[0].properties).toMatchObject({id:'newer',selected:false,focused:true,anomaly:false,value:40});expect(features[1].properties.focused).toBe(false);ui.unmount();
+});
+it('does not refit/reset the camera when an investigation map is hidden and shown at the same width',async()=>{
+ vi.stubEnv('VITE_MAPBOX_TOKEN','pk.test');let width=800,height=600,resize=()=>{};
+ vi.spyOn(HTMLElement.prototype,'clientWidth','get').mockImplementation(()=>width);vi.spyOn(HTMLElement.prototype,'clientHeight','get').mockImplementation(()=>height);
+ vi.stubGlobal('ResizeObserver',class {constructor(callback:()=>void){resize=callback;}observe(){}disconnect(){}});
+ const rows=[{id:'a',sensorId:'A',value:40,location:{type:'Point',coordinates:[105,21]}},{id:'b',sensorId:'B',value:50,location:{type:'Point',coordinates:[106,21]}}] as Reading[];
+ const ui=render(<Renderer rows={rows} mode="map" marked={new Set()} onSelect={vi.fn()}/>);await waitFor(()=>expect(mocks.fit).toHaveBeenCalledTimes(1));
+ act(()=>{width=0;height=0;resize();});act(()=>{width=800;height=600;resize();});expect(mocks.fit).toHaveBeenCalledTimes(1);expect(mocks.instances).toHaveBeenCalledTimes(1);ui.unmount();
+});
+it('reports missing Mapbox token separately from an empty snapshot',async()=>{
+ vi.stubEnv('VITE_MAPBOX_TOKEN','');const ui=render(<Renderer rows={[]} mode="map" marked={new Set()} onSelect={vi.fn()}/>);
+ expect(await ui.findByRole('alert')).toHaveTextContent('Chưa cấu hình Mapbox token');expect(mocks.instances).not.toHaveBeenCalled();ui.unmount();
+});
 it('toggles the soft heatmap layers without recreating the map or changing selection data', async () => {
   vi.stubEnv('VITE_MAPBOX_TOKEN','pk.test');
   const rows = [{id:'r1',sensorId:'s1',value:40,ts:'2026-11-11T00:00:00Z',location:{type:'Point',coordinates:[105,21]}}] as Reading[];

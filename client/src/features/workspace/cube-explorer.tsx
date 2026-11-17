@@ -31,7 +31,8 @@ function StationChart({ rows, scope, offset, onSelect }: { rows: Reading[]; scop
   </svg>;
 }
 
-export function CubeExplorer({ initialTimestamp, datasetId, filters, anchor, seedReady, seedError, retrySeed, sensors, sensorsComplete, sensorsError, retrySensors, loadSensors, onMap, onDock, onRows }: {
+export function CubeExplorer({ active=true, initialTimestamp, datasetId, filters, anchor, seedReady, seedError, retrySeed, sensors, sensorsComplete, sensorsError, retrySensors, loadSensors, onMap, onDock, onRows }: {
+  active?:boolean;
   initialTimestamp?: string; datasetId: string; filters: WorkspaceFilters; anchor?: string; seedReady: boolean; seedError?: string; retrySeed: () => void; sensors: Sensor[]; sensorsComplete: boolean; sensorsError?: string;
   retrySensors: () => void; loadSensors?: () => void; onMap: (ts?: string) => void; onDock: () => void; onRows: (rows: Reading[]) => void;
 }) {
@@ -64,7 +65,9 @@ export function CubeExplorer({ initialTimestamp, datasetId, filters, anchor, see
   useEffect(()=>{if(scope&&(scope.from!==storedScope?.from||scope.to!==storedScope?.to))workspace.getState().setCubeScope(scope,storedWindow??24*HOUR);},[scope,storedScope,storedWindow,workspace]);
   const scopeFrom=scope?.from,scopeTo=scope?.to;
   const query=useMemo(()=>scopeFrom&&scopeTo?{datasetId,...filters,from:scopeFrom,to:scopeTo,sort:'ts:asc' as const,limit:100}:undefined,[datasetId,filters,scopeFrom,scopeTo]);
-  useEffect(()=>{if(query)void readings.setQuery(query);return()=>readings.dispose();},[readings,query,cacheRevision]);
+  useEffect(()=>{if(active&&query)void readings.setQuery(query);},[active,readings,query,cacheRevision]);
+  useEffect(()=>()=>readings.dispose(),[readings,query,cacheRevision]);
+  useEffect(()=>{if(!active)play(false);},[active]);
   useEffect(() => { if (mode === 'anomaly') void runs.setQuery({ datasetId, sort: 'createdAt:desc', limit: 100 }); }, [mode, runs, datasetId]);
   useEffect(() => () => { runs.dispose(); anomalies.dispose(); }, [runs, anomalies]);
   const runId = runChoice ?? (resultRun?.datasetId === datasetId ? resultRun.id : undefined) ?? existing.find(v => v.datasetId === datasetId)?.analysisRunId;
