@@ -1,3 +1,6 @@
+import { createDatasetReadRepository } from '../datasets/datasets.repository.js';
+import { datasetAccessFilter, type DatasetActor } from '../datasets/dataset-access.js';
+import { HttpError } from '../../shared/http/errors.js';
 import { randomUUID } from 'node:crypto';
 import { MongoServerError, ObjectId, type ClientSession, type Db, type MongoClient } from 'mongodb';
 import type { AnalysisRun, Reading } from '@pm25/shared-core/contracts';
@@ -88,7 +91,7 @@ export function createAnalysisRepository(client: MongoClient, db: Db, config: An
   return {
     prepare, replay,
     context: createAnalysisContextReader(db, config.timeoutMs),
-    async accept(intent: IdempotencyIntent, input: DetectionRequest, metadata: RunMetadata): Promise<StoredResponse> {
+    async accept(intent: IdempotencyIntent, input: DetectionRequest, metadata: RunMetadata, actor: DatasetActor): Promise<StoredResponse> {
       await prepare();
       const old = await replay(intent); if (old) return old;
       const now = new Date(), document: RunDocument = { _id: new ObjectId(), datasetId: toObjectId(input.datasetId),
@@ -102,6 +105,8 @@ export function createAnalysisRepository(client: MongoClient, db: Db, config: An
           await receipts.insertOne({ _id: new ObjectId(), ...intent, userId: toObjectId(intent.userId), kind: 'analysis',
             resourceId: document._id.toHexString(), status: 'completed', createdAt: now,
             expiresAt: new Date(now.getTime() + config.replayMs), response }, { session });
+          // Recheck private parent inside acceptance transaction; workers use only accepted runs.
+          if (!actor || !(await db.collection('datasets').updateOne({ ...datasetAccessFilter(actor), _id: toObjectId(input.datasetId), status: 'imported' }, { $inc: { reviewFence: 1 } }, { session })).matchedCount) throw new HttpError(404, 'DATASET_NOT_FOUND', 'Dataset does not exist.');
           const slot = await queue.updateOne({ _id: 'online', active: { $lt: config.maxPending } }, { $inc: { active: 1 } }, { session });
           if (!slot.matchedCount) throw new AnalysisStoreError('ANALYSIS_QUEUE_FULL', 'Analysis capacity is full. No run was accepted.');
           await runs.insertOne(document, { session });
@@ -200,10 +205,11 @@ export type AnalysisRepository = ReturnType<typeof createAnalysisRepository>;
 /** Public read boundary for Anomalies; no driver/BSON in its consuming Service. */
 export function createAnalysisReadRepository(db: Db): AnalysisReadAccess {
   return {
-    async getState(id) {
+    async getState(id, actor) {
       if (!validId(id)) return null;
       const run = await db.collection<RunDocument>('analysisRuns').findOne({ _id: toObjectId(id) },
         { projection: { _id: 1, datasetId: 1, status: 1 }, readPreference: 'primary' });
+      if (run && !await createDatasetReadRepository(db).getState(toPublicId(run.datasetId), actor)) return null;
       return run ? { id: toPublicId(run._id), datasetId: toPublicId(run.datasetId), status: run.status } : null;
     },
   };

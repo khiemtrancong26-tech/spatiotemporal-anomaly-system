@@ -1,3 +1,4 @@
+import { adminRoutes } from './modules/admin/index.js';
 import type { EmailSender } from './modules/auth/email.js';
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import cors from '@fastify/cors';
@@ -67,6 +68,7 @@ export function buildApp(options: AppOptions = {}) {
   });
   app.register(usersPlugin);
   app.register(authenticationPlugin, { config, ...(options.emailSender ? { emailSender: options.emailSender } : {}), ...(options.verifyAccessToken ? { verifyAccessToken: options.verifyAccessToken } : {}) });
+  app.register(adminRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret });
   app.register(healthRoutes, { prefix: '/api/v1' });
   app.register(datasetRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret, imports: config.imports,
     ...(options.importTestHooks ? { importTestHooks: options.importTestHooks } : {}) });

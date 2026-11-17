@@ -5,6 +5,7 @@ info:
   description: API contract draft based on SRS v0.5; API standardization review (2026-11-12).
     Resource-oriented /api/v1; bounded sort, keyset cursor, POST idempotency, endpoint-specific status codes.
     Analysis async approved 2026-11-13 (D008); execution technology and operating limits remain open. OPEN-02/03/04/05/07 and unrelated NEW items remain unresolved. No endpoint is assumed implemented.
+    D021 private datasets - analysts may access only datasets whose createdBy is their authenticated user ID; admins may access all datasets with valid stored owners. All child resources inherit dataset authorization, including direct run/anomaly IDs and import mutations. Unknown and inaccessible resources use the same endpoint-specific not-found semantics (404 for direct resources/import, existing 422 for Query/Exploration/anomaly dataset filters, empty history for unavailable datasets). Cursors are scoped to authenticated user and role; no cross-account reuse. Missing or non-ObjectId owners are quarantined, never assigned automatically.
 servers:
 - url: /
   description: Same-origin Nginx HTTPS :443; paths include /api/v1

@@ -1,3 +1,4 @@
+import { adminCreateSchema, adminUpdateSchema, adminQuerySchema, userPageSchema } from '../src/modules/admin/admin.schema.js';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
@@ -22,7 +23,7 @@ describe('foundation contract drift checks', () => {
       if (typeof record.$ref === 'string') return expand(spec.components.schemas[record.$ref.split('/').at(-1)!]);
       return Object.fromEntries(Object.entries(record).filter(([name]) => !['description', 'example'].includes(name)).map(([name, item]) => [name, expand(item)]));
     }
-    for (const [name, schema] of Object.entries({ UserPublic: userPublicSchema, UserResponse: userResponseSchema,
+    for (const [name, schema] of Object.entries({ AdminUserCreateRequest: adminCreateSchema, AdminUserUpdateRequest: adminUpdateSchema, UserPage: userPageSchema, UserPublic: userPublicSchema, UserResponse: userResponseSchema,
       EmailRequest: emailRequestSchema, EmailTokenRequest: tokenRequestSchema, ResetPasswordRequest: resetRequestSchema, AuthMessage: authMessageSchema, RegisterRequest: registerRequestSchema, LoginRequest: loginRequestSchema, LoginResponse: loginResponseSchema,
       Dataset: datasetSchema, DatasetPage: datasetPageSchema, ImportSummary: importSummarySchema,
       MappingRequest: mappingRequestSchema, SingleDataset: singleDatasetSchema, ValidationReport: validationReportSchema,
@@ -30,7 +31,7 @@ describe('foundation contract drift checks', () => {
       DetectionRequest: detectionRequestSchema, AnalysisRun: analysisRunSchema, AnalysisCreateResponse: analysisResponseSchema, AnalysisRunPage: analysisPageSchema,
       Anomaly: anomalySchema, AnomalyPage: anomalyPageSchema, SingleAnomaly: singleAnomalySchema, ReviewChanges: reviewChangesSchema, ReviewPatchRequest: reviewRequestSchema,
     })) expect(expand(schema)).toEqual(expand(spec.components.schemas[name]));
-    for (const [path, schema] of [['/api/v1/sensors', sensorsQuerySchema], ['/api/v1/readings', readingsQuerySchema], ['/api/v1/analysis-runs', historyQuerySchema], ['/api/v1/anomalies', anomaliesQuerySchema]] as const) {
+    for (const [path, schema] of [['/api/v1/admin/users', adminQuerySchema], ['/api/v1/sensors', sensorsQuerySchema], ['/api/v1/readings', readingsQuerySchema], ['/api/v1/analysis-runs', historyQuerySchema], ['/api/v1/anomalies', anomaliesQuerySchema]] as const) {
       const parameters = spec.paths[path].get.parameters as { name: string; required: boolean; schema: unknown }[];
       expect(schema.required).toEqual(parameters.filter(parameter => parameter.required).map(parameter => parameter.name));
       expect(expand(schema.properties)).toEqual(expand(Object.fromEntries(parameters.map(parameter => [parameter.name, parameter.schema]))));

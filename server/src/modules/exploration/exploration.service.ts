@@ -1,3 +1,4 @@
+import type { DatasetActor } from '../datasets/dataset-access.js';
 import { DatasetProfileSchema, ReadingAggregationSchema, explorationOffset, type Coverage, type ExplorationMetadata,
   type ExplorationScope, type Sampling } from '@pm25/shared-core';
 import { HttpError } from '../../shared/http/errors.js';
@@ -57,9 +58,9 @@ export function createExplorationService(repo: ExplorationRepository, config: Ex
       throw error;
     } finally { clearTimeout(timer); signal?.removeEventListener('abort', abort); running--; }
   }
-  async function dataset(id: string, ctx: QueryContext) {
+  async function dataset(id: string, ctx: QueryContext, actor: DatasetActor) {
     if (!/^[0-9a-f]{24}$/i.test(id)) throw invalid('DATASET_NOT_FOUND', 'Dataset does not exist.');
-    const row = await repo.dataset(id, ctx);
+    const row = await repo.dataset(id, ctx, actor);
     if (!row) throw invalid('DATASET_NOT_FOUND', 'Dataset does not exist.');
     if (row.status !== 'imported') throw invalid('DATASET_NOT_READY', 'Dataset must be imported.');
     return row;
@@ -74,12 +75,12 @@ export function createExplorationService(repo: ExplorationRepository, config: Ex
     return repo.sensors(id, ctx, scope);
   }
   return {
-    profile: (id: string, q: ExplorationQuery, signal?: AbortSignal) => execute(signal, async ctx => {
-      const scope = parseExplorationScope(q), row = await dataset(id, ctx), all = await sensors(id, emptyScope, ctx);
+    profile: (id: string, q: ExplorationQuery, signal: AbortSignal | undefined, actor: DatasetActor) => execute(signal, async ctx => {
+      const scope = parseExplorationScope(q), row = await dataset(id, ctx, actor), all = await sensors(id, emptyScope, ctx);
       const selected = await sensors(id, scope, ctx);
       const full = await repo.groups(id, all, emptyScope, row.metadata.sampling, ctx); check(full);
       const filtered = JSON.stringify(scope) === JSON.stringify(emptyScope) ? full : await repo.groups(id, selected, scope, row.metadata.sampling, ctx); check(filtered);
-      await dataset(id, ctx);
+      await dataset(id, ctx, actor);
       const s = row.importSummary;
       return { data: DatasetProfileSchema.parse({ datasetId: id, scope, metadata: row.metadata,
         dataset: summary(full, all.length, row.metadata, emptyScope), scoped: summary(filtered, selected.length, row.metadata, scope),
@@ -87,8 +88,8 @@ export function createExplorationService(repo: ExplorationRepository, config: Ex
           invalidRows: s?.invalidRows ?? null, duplicateRows: s?.duplicateRows ?? null, conflictingRows: s?.conflictingRows ?? null,
           missingValueRows: null, reason: 'Import report does not classify missing source values; temporal gaps are a separate measure.' }, complete: true }) };
     }),
-    aggregates: (id: string, q: ExplorationQuery, signal?: AbortSignal) => execute(signal, async ctx => {
-      const scope = parseExplorationScope(q), row = await dataset(id, ctx);
+    aggregates: (id: string, q: ExplorationQuery, signal: AbortSignal | undefined, actor: DatasetActor) => execute(signal, async ctx => {
+      const scope = parseExplorationScope(q), row = await dataset(id, ctx, actor);
       if (!scope.from || !scope.to || !q.bucket) throw invalid('INVALID_RANGE', 'Aggregation requires from, to and bucket.');
       const from = Date.parse(scope.from), to = Date.parse(scope.to), size = q.bucket === 'hour' ? 3600000 : 86400000;
       if (to - from > (q.bucket === 'hour' ? 31 : 366) * 86400000) throw invalid('EXPLORATION_RANGE_LIMIT', 'Aggregation time range is too large.');
@@ -106,7 +107,7 @@ export function createExplorationService(repo: ExplorationRepository, config: Ex
           min: g?.min ?? null, max: g?.max ?? null, mean: g ? g.sum / g.count : null,
           coverage: coverage(row.metadata.sampling, count, g?.observed ?? 0, 1, Math.max(from, start), Math.min(to, end - 1)) };
       }) }));
-      await dataset(id, ctx);
+      await dataset(id, ctx, actor);
       return { data: ReadingAggregationSchema.parse({ datasetId: id, scope, bucket: q.bucket, timeZone: zone, metadataVersion: row.metadata.version, series, complete: true }) };
     }),
   };

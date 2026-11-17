@@ -1,11 +1,11 @@
-import { MongoServerError, ObjectId, type Db } from 'mongodb';
+import { MongoServerError, ObjectId, type Db, type ClientSession } from 'mongodb';
 import { DuplicateEmailError, DuplicateUsernameError, type EmailState, type StoredUser, type UserPublic, type UserRepository, type UserRole } from './users.types.js';
 
 interface UserDocument extends EmailState {
   _id: ObjectId; username: string; usernameNormalized: string; passwordHash: string;
   role: UserRole; isActive: boolean; createdAt: Date;
 }
-function toPublicUser(document: Pick<UserDocument, '_id' | 'username' | 'role' | 'isActive'>): UserPublic {
+export function toPublicUser(document: Pick<UserDocument, '_id' | 'username' | 'role' | 'isActive'>): UserPublic {
   return { id: document._id.toHexString(), username: document.username, role: document.role, isActive: document.isActive };
 }
 
@@ -19,6 +19,7 @@ export function createUserRepository(db: Db) {
     try { await uniqueIndex; } catch (error) { uniqueIndex = undefined; throw error; }
   }
   return {
+    ensureIndexes: requireUniqueIndex,
     async issueEmailToken(emailNormalized: string, purpose: 'emailVerification' | 'passwordReset', token: NonNullable<EmailState['emailVerification']>, now: Date) {
       await requireUniqueIndex();
       const eligible = purpose === 'emailVerification' ? { emailVerificationRequired: true, emailVerifiedAt: null } : { emailVerifiedAt: { $type: 'date' as const } };
@@ -47,10 +48,10 @@ export function createUserRepository(db: Db) {
       const document = await collection.findOne({ _id: new ObjectId(id) }, { projection: { _id: 1, username: 1, role: 1, isActive: 1, authVersion: 1, emailVerificationRequired: 1, emailVerifiedAt: 1 } });
       return document ? { ...toPublicUser(document), authVersion: document.authVersion ?? 0, emailVerificationRequired: document.emailVerificationRequired, emailVerifiedAt: document.emailVerifiedAt } : null;
     },
-    async create(input: Parameters<UserRepository['create']>[0]) {
+    async create(input: Parameters<UserRepository['create']>[0], session?: ClientSession) {
       await requireUniqueIndex();
       const document: UserDocument = { _id: new ObjectId(), ...input, isActive: true };
-      try { await collection.insertOne(document); }
+      try { await collection.insertOne(document, session ? { session } : {}); }
       catch (error) {
         if (error instanceof MongoServerError && error.code === 11000 && error.keyPattern?.emailNormalized === 1) throw new DuplicateEmailError();
         if (error instanceof MongoServerError && error.code === 11000 && error.keyPattern?.usernameNormalized === 1) {

@@ -1,5 +1,7 @@
 # Shared Data Contract v0.1 — PM2.5 Anomaly System
 
+**D021 — Private Dataset Ownership (17/11/2026):** Analyst chỉ thấy và truy cập dataset có `createdBy` là ID tài khoản hiện hành của mình; Admin truy cập mọi dataset hợp lệ. Readings/sensors/Profile/aggregates/runs/anomalies và import/review kế thừa quyền dataset gốc, không chia sẻ mặc định. Quy tắc này thay thế mọi mô tả cũ “mọi Analyst đọc được imported datasets”. Giữ điều kiện status và HTTP not-found semantics từng endpoint, không lộ tài nguyên trái quyền. Owner thiếu/sai kiểu bị cách ly, không migration/xóa/tự gán owner. Cursor gắn user+role; logout/account change xóa private state/cache và chặn response trễ. [Audit và bằng chứng](backend/ownership-verification.md).
+
 **D020 — 17/11/2026, kiến trúc hiện hành:** hệ thống chỉ dùng một Isolation Forest với `[value, temporal_delta, spatial_delta]`. Request ML là `method: "isolation_forest", config: {}`; Backend tự chọn artifact đã pin. Không có selector/flag/dispatch v1/v2. `modelVersion` chỉ là provenance do Server ghi; giữ nguyên ID/hash manifest C3, không train lại. `scoringSummary` bắt buộc trên completed ML, vắng ở statistical/queued/running/failed; partition và atomic fencing không đổi. Xem [kiểm chứng và demo một model](backend/c3-single-model-verification.md). Những mô tả dual-version/value-only bên dưới là lịch sử đã được thay thế, không phải hướng dẫn chạy hiện tại.
 
 

@@ -20,7 +20,9 @@
     "test:e2e:b6": "npm run test:e2e:b6 --workspace @pm25/server",
     "test:e2e:c2": "npm run test:e2e:c2 --workspace @pm25/server",
     "test:e2e:c3": "npm run test:e2e:c3 --workspace @pm25/server",
-    "verify:detectors": "npm run verify:detectors --workspace @pm25/server"
+    "verify:detectors": "npm run verify:detectors --workspace @pm25/server",
+    "test:e2e:b7": "npm run test:e2e:b7 --workspace @pm25/server",
+    "test:e2e:ownership": "npm run test:e2e:ownership --workspace @pm25/server"
   },
   "workspaces": [
     "client",

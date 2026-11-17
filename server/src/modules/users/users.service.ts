@@ -4,17 +4,21 @@ import type { PasswordHasher } from './passwords.js';
 
 export function normalizeUsername(username: string) { return username.trim().toLowerCase(); }
 export function createUserService(repository: UserRepository, passwords: PasswordHasher, now: () => Date = () => new Date()) {
+  async function prepareUser(input: { username: string; password: string; role: UserRole } & EmailState) {
+    const username = input.username.trim();
+    if (!username || Array.from(input.password).length < 8 || !['analyst', 'admin'].includes(input.role)) {
+      throw new HttpError(422, 'VALIDATION_ERROR', 'Invalid account details.');
+    }
+    const passwordHash = await passwords.hash(input.password);
+    const fields = { ...input }; delete (fields as Partial<typeof input>).password;
+    return { ...fields, username, usernameNormalized: normalizeUsername(username), passwordHash, role: input.role, createdAt: now() };
+  }
   return {
+    prepareUser,
     async createUser(input: { username: string; password: string; role: UserRole } & EmailState): Promise<UserPublic> {
-      const username = input.username.trim();
-      if (!username || Array.from(input.password).length < 8 || !['analyst', 'admin'].includes(input.role)) {
-        throw new HttpError(422, 'VALIDATION_ERROR', 'Invalid account details.');
-      }
-      const passwordHash = await passwords.hash(input.password);
-      const fields = { ...input }; delete (fields as Partial<typeof input>).password;
-      try {
-        return await repository.create({ ...fields, username, usernameNormalized: normalizeUsername(username), passwordHash, role: input.role, createdAt: now() });
-      } catch (error) {
+      const prepared = await prepareUser(input);
+      try { return await repository.create(prepared); }
+      catch (error) {
         if (error instanceof DuplicateEmailError) throw new HttpError(409, 'EMAIL_EXISTS', 'Email already registered.');
         if (error instanceof DuplicateUsernameError) throw new HttpError(409, 'USERNAME_EXISTS', 'Username already exists.');
         throw error;

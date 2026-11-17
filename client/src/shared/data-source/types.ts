@@ -64,6 +64,7 @@ export interface OnlineDataSource {
 export interface OnlineAdapterOptions {
   baseUrl: string; // Ends in /api/v1; URL assembly must not drop the /api/v1 prefix.
   getAccessToken: () => string | undefined;
+  getSessionRevision?: () => number;
   fetch: typeof globalThis.fetch;
 }
 

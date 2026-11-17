@@ -1,5 +1,7 @@
 # SRS TINH GỌN — ĐẶC TẢ YÊU CẦU PHẦN MỀM
 
+**D021 — Private Dataset Ownership (17/11/2026):** Analyst chỉ thấy và truy cập dataset có `createdBy` là ID tài khoản hiện hành của mình; Admin truy cập mọi dataset hợp lệ. Readings/sensors/Profile/aggregates/runs/anomalies và import/review kế thừa quyền dataset gốc, không chia sẻ mặc định. Quy tắc này thay thế mọi mô tả cũ “mọi Analyst đọc được imported datasets”. Giữ điều kiện status và HTTP not-found semantics từng endpoint, không lộ tài nguyên trái quyền. Owner thiếu/sai kiểu bị cách ly, không migration/xóa/tự gán owner. Cursor gắn user+role; logout/account change xóa private state/cache và chặn response trễ. [Audit và bằng chứng](backend/ownership-verification.md).
+
 ## B2-Email Extension — 17/11/2026
 
 Public Register yêu cầu username/email/password; tạo analyst active nhưng chờ xác minh, không JWT/auto-login. Bốn POST Auth mới: verify-email, resend-verification, forgot-password, reset-password. Legacy/admin/seed không tự bị khóa khi thiếu emailVerificationRequired. Reset chỉ cho email đã xác minh, không tự verify; authVersion tăng nguyên tử để thu hồi JWT cũ. Không B7/Offline/ML/performance trong thay đổi này. Xem [kiểm chứng và demo](backend/b2-email-verification.md).

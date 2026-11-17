@@ -1,3 +1,4 @@
+import type { DatasetActor } from '../datasets/dataset-access.js';
 import type { AnalysisRun, Reading } from '@pm25/shared-core/contracts';
 import type { Candidate } from '../../engines/results.js';
 import type { ScoringSummary } from '@pm25/shared-core';
@@ -9,7 +10,7 @@ export interface DetectionRequest {
 }
 export interface HistoryQuery { datasetId: string; sort?: string; limit?: number; cursor?: string }
 export interface AnalysisReadAccess {
-  getState: (id: string) => Promise<{ id: string; datasetId: string; status: AnalysisRun['status'] } | null>;
+  getState: (id: string, actor: DatasetActor) => Promise<{ id: string; datasetId: string; status: AnalysisRun['status'] } | null>;
 }
 export interface RunGuard { id: string; owner: string; attempt: number; run: AnalysisRun; policyId: string; modelHash?: string }
 export interface EngineResult { candidates: Candidate[]; engineVersion: string; modelVersion?: string; scoringSummary?: ScoringSummary; scoredReadingIds?: string[] }

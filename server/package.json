@@ -37,7 +37,9 @@
     "pretest:integration": "npm run build --workspace @pm25/shared-core",
     "pretest:coverage": "npm run build --workspace @pm25/shared-core",
     "verify:detectors": "tsx scripts/verify-detector-integration.ts",
-    "preverify:detectors": "npm run build --workspace @pm25/shared-core"
+    "preverify:detectors": "npm run build --workspace @pm25/shared-core",
+    "test:e2e:b7": "playwright test --config playwright.config.ts b7.spec.ts",
+    "test:e2e:ownership": "playwright test --config playwright.config.ts ownership.spec.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

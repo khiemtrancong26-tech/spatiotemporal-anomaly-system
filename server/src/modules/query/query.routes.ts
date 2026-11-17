@@ -11,10 +11,10 @@ export function createQueryRoutes(service: ReturnType<typeof createQueryService>
     app.get<{ Querystring: SensorsQuery }>('/sensors', {
       preValidation: async request => { parsePageQuery(request.query, listSorts.sensors, 'externalId:asc'); },
       onRequest: app.authorize(['analyst', 'admin']), schema: { querystring: sensorsQuerySchema, response: { 200: sensorPageSchema, ...errors } },
-    }, request => service.sensors(request.query));
+    }, request => service.sensors(request.query, request.principal!));
     app.get<{ Querystring: ReadingsQuery }>('/readings', {
       preValidation: async request => { parsePageQuery(request.query, listSorts.readings, 'ts:asc'); },
       onRequest: app.authorize(['analyst', 'admin']), schema: { querystring: readingsQuerySchema, response: { 200: readingPageSchema, ...errors } },
-    }, request => service.readings(request.query));
+    }, request => service.readings(request.query, request.principal!));
   };
 }

@@ -14,7 +14,7 @@ export function createAnalysisRoutes(service: ReturnType<typeof createAnalysisSe
       preValidation: async request => { requireIdempotencyKey(request.headers['idempotency-key']); },
       schema: { body: detectionRequestSchema, response: { 202: analysisResponseSchema, ...errors, 404: errorSchema, 409: errorSchema, 422: errorSchema, 503: errorSchema } },
     }, async (request, reply) => {
-      const result = await service.create(request.principal!.id, request.headers['idempotency-key'], request.body);
+      const result = await service.create(request.principal!, request.headers['idempotency-key'], request.body);
       return reply.code(result.statusCode).send(result.body);
     });
     app.get<{ Params: { id: string } }>('/analysis-runs/:id', {
@@ -22,11 +22,11 @@ export function createAnalysisRoutes(service: ReturnType<typeof createAnalysisSe
         params: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string', minLength: 1 } } },
         response: { 200: analysisResponseSchema, ...errors, 404: errorSchema },
       },
-    }, request => service.detail(request.params.id));
+    }, request => service.detail(request.params.id, request.principal!));
     app.get<{ Querystring: HistoryQuery }>('/analysis-runs', {
       onRequest: app.authorize(['analyst', 'admin']),
       preValidation: async request => { parsePageQuery(request.query, listSorts.analysisRuns, 'createdAt:desc'); },
       schema: { querystring: historyQuerySchema, response: { 200: analysisPageSchema, ...errors } },
-    }, request => service.history(request.query));
+    }, request => service.history(request.query, request.principal!));
   };
 }

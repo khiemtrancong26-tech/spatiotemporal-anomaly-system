@@ -23,6 +23,7 @@
 | D018 | C2 Profile/quality, per-station aggregation, timezone/coverage tường minh và ngân sách bounded | Chủ dự án duyệt cả3 nhóm A/B/C của contract C2 ngày16/11/2026; không mở ML v2 |
 | D019 | C3 v2 đúng3 features, fixed3 neighbors, completed-only scoringSummary và pin riêng; hiệu năng chuyển B8 | Chủ dự án duyệt G01/G04/G05 và3 điều chỉnh bắt buộc ngày17/11/2026; bằng chứng functional ở C3 verification |
 | D020 | Một Isolation Forest 3 features, config{}, bỏ v1/dual-version; giữ artifact C3 và Worker lifecycle | Chủ dự án yêu cầu đơn giản hóa sau C3 PASS ngày 17/11/2026; dữ liệu Analysis cũ chỉ là test |
+| D021 | Dataset private theo createdBy, child-resource ACL và account-bound cursors/session isolation | Chủ dự án yêu cầu sửa BOLA/IDOR ngày17/11/2026, Admin vẫn được truy cập theo quyền |
 
 ## Quyết định chưa hoàn tất
 
@@ -183,3 +184,11 @@ Chủ dự án duyệt phương án G01/G04/G05 ở Giai đoạn A, với3 đi�
 - Giữ pure Feature Builder, context guards, fixed3 neighbors/50km/min2 exact timestamp readings, temporal previous<target/max2h, no leakage/cross-dataset và disjoint unscorable reasons. Summary chỉ completed ML, atomic terminal transition + fencing; statistical không có summary.
 - Chủ dự án xác nhận cụ thể development DB `localhost:27017/spatiotemporal_anomaly`, Replica Set `rs0`, được dọn Analysis test. Transaction đã xóa 8 runs, 8393 anomalies, 8 analysis receipts; không drop DB/collection, không xóa dataset/readings/users/import receipts. Không thêm auto-migration/auto-delete vào startup.
 - Giữ Worker lifecycle, recovery và idempotency. Bằng chứng lịch sử không được sửa để giả thành kết quả model mới. [Báo cáo mới](backend/c3-single-model-verification.md) ghi functional regression/demo; không mở C4/B7/B8 hay chạy benchmark/stress/tối ưu.
+
+## D021 — Private Dataset Ownership (17/11/2026)
+
+- Analyst chỉ có quyền với Dataset.createdBy trùng user ID hiện hành; Admin được truy cập mọi dataset có owner BSON ObjectId. Không sharing/transfer-owner API, không tự gán lại legacy data. Dataset thiếu/sai kiểu owner bị cách ly cả list/direct access. Owner ObjectId trỏ user đã mất: Analyst khác không thể nhận dữ liệu, Admin vẫn được xem để đối soát; không gán cho Admin.
+- Một predicate datasetAccessFilter dùng chung ở Repository; Actor từ JWT + User lookup B2 đi qua Route/Service, không nhận từ query/body. Mapping/start import/accept analysis/review kiểm trong conditional update/transaction, giữ worker/fencing/recovery cho job đã được tiếp nhận.
+- Trái quyền dùng cùng semantics với không tồn tại theo từng API, giữ404/422/history-empty hiện hữu; không thêm endpoint/status/DTO. Run ID gắn dataset gốc trước khi lộ trạng thái; review trái quyền không trả conflict/version. Cursors thêm user/role fingerprint. Protected response private,no-store.
+- Frontend reset dataset map/workspace/filters/results/cache mỗi auth revision; HTTP adapter bỏ response cũ kể cả đổi phiên khi đang decode body. Không sửa renderer/ML/artifacts. Audit DB chỉ read-only, không sửa/xóa dữ liệu thật.
+- [Audit/kiểm chứng](backend/ownership-verification.md). Không benchmark/load/coverage campaign hoặc cơ chế multi-tenant/chia sẻ mới.
