@@ -3,7 +3,7 @@ import type { Db, IndexDescription } from 'mongodb';
 // Online subset of infra/mongo/indexes.js; integration tests guard against drift.
 // B3 adds the D012 online receipt collection; offline processedMutations remains separate.
 export const onlineIndexes: Record<string, IndexDescription[]> = {
-  users: [{ key: { usernameNormalized: 1 }, unique: true, name: 'uq_users_username_normalized' }],
+  users: [{ key: { usernameNormalized: 1 }, unique: true, name: 'uq_users_username_normalized' }, { key: { emailNormalized: 1 }, unique: true, name: 'uq_users_email_normalized', partialFilterExpression: { emailNormalized: { $type: 'string' } } }],
   datasets: [{ key: { status: 1, createdAt: -1, _id: -1 }, name: 'ix_datasets_status_created' }],
   sensors: [
     { key: { datasetId: 1, externalId: 1 }, unique: true, name: 'uq_sensors_dataset_external' },

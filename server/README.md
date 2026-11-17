@@ -1,5 +1,7 @@
 # Server — Backend P0 online
 
+**B2-Email Extension:** Register có email bắt buộc, xác minh email trước Login cho tài khoản tự đăng ký mới; Forgot/Reset Password có thu hồi JWT cũ. Legacy/admin/seed giữ hành vi. [Thiết lập Resend, kiểm chứng và demo](../docs/backend/b2-email-verification.md). Mock email trả unavailable, không giả lập gửi thư.
+
 **Hiện hành D020 — 17/11/2026:** B1–B6/C2/C3 có API thật; ML chỉ một Isolation Forest 3 features. `config:{}` chạy trực tiếp model hiện có, không selector/flag/version dispatch. Xem [setup model](ml/README.md) và [functional proof/demo](../docs/backend/c3-single-model-verification.md). Các đoạn B5/D014 phía dưới là lịch sử; model một feature và model demo cũ đã xóa.
 
 

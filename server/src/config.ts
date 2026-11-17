@@ -22,6 +22,7 @@ export interface ServerConfig {
   mongodbDatabase: string | undefined;
   mongodbTimeoutMs: number;
   corsOrigins: string[];
+  email: { apiKey?: string | undefined; from?: string | undefined; appUrl?: string | undefined };
   jwtSecret: string;
   cursorSecret: string;
   loginRateMax: number;
@@ -60,6 +61,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   }
   const jwtSecret = env.JWT_SECRET ?? '';
   if (Buffer.byteLength(jwtSecret) < 32 || /^replace_with_/i.test(jwtSecret)) throw new Error('JWT_SECRET must be a random secret of at least 32 bytes');
+  const email = { apiKey: env.RESEND_API_KEY, from: env.RESEND_FROM_EMAIL, appUrl: env.PUBLIC_APP_URL };
+  if (email.apiKey !== undefined && !/^re_[A-Za-z0-9_-]+$/.test(email.apiKey)) throw new Error('Invalid RESEND_API_KEY');
+  if (email.from !== undefined && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email.from)) throw new Error('Invalid RESEND_FROM_EMAIL');
+  if (email.appUrl !== undefined) {
+    const url = new URL(email.appUrl);
+    if (!['http:', 'https:'].includes(url.protocol) || url.origin !== email.appUrl) throw new Error('Invalid PUBLIC_APP_URL');
+  }
   const leaseMs = integer(env.ANALYSIS_LEASE_MS, 30_000, 'ANALYSIS_LEASE_MS', 300_000);
   const heartbeatMs = integer(env.ANALYSIS_HEARTBEAT_MS, 10_000, 'ANALYSIS_HEARTBEAT_MS', 100_000);
   if (heartbeatMs * 2 >= leaseMs) throw new Error('ANALYSIS_HEARTBEAT_MS must be less than half the lease');
@@ -71,6 +79,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     mongodbTimeoutMs: integer(env.MONGODB_TIMEOUT_MS, 2_000, 'MONGODB_TIMEOUT_MS', 60_000),
     corsOrigins,
     jwtSecret,
+    email,
     // Stable across restarts with domain separation from JWT signing.
     cursorSecret: createHmac('sha256', jwtSecret).update('pm25:cursor:v1').digest('hex'),
     loginRateMax: integer(env.LOGIN_RATE_LIMIT_MAX, 10, 'LOGIN_RATE_LIMIT_MAX', 100_000),

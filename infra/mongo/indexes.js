@@ -6,6 +6,7 @@
 
 const indexes = [
   ['users', { usernameNormalized: 1 }, { unique: true, name: 'uq_users_username_normalized' }],
+  ['users', { emailNormalized: 1 }, { unique: true, name: 'uq_users_email_normalized', partialFilterExpression: { emailNormalized: { $type: 'string' } } }],
   ['datasets', { status: 1, createdAt: -1, _id: -1 }, { name: 'ix_datasets_status_created' }],
   ['sensors', { datasetId: 1, externalId: 1 }, { unique: true, name: 'uq_sensors_dataset_external' }],
   ['sensors', { datasetId: 1, location: '2dsphere' }, { name: 'ix_sensors_dataset_geo' }],

@@ -1,5 +1,9 @@
 # SRS TINH GỌN — ĐẶC TẢ YÊU CẦU PHẦN MỀM
 
+## B2-Email Extension — 17/11/2026
+
+Public Register yêu cầu username/email/password; tạo analyst active nhưng chờ xác minh, không JWT/auto-login. Bốn POST Auth mới: verify-email, resend-verification, forgot-password, reset-password. Legacy/admin/seed không tự bị khóa khi thiếu emailVerificationRequired. Reset chỉ cho email đã xác minh, không tự verify; authVersion tăng nguyên tử để thu hồi JWT cũ. Không B7/Offline/ML/performance trong thay đổi này. Xem [kiểm chứng và demo](backend/b2-email-verification.md).
+
 **D020 — 17/11/2026, kiến trúc hiện hành:** hệ thống chỉ dùng một Isolation Forest với `[value, temporal_delta, spatial_delta]`. Request ML là `method: "isolation_forest", config: {}`; Backend tự chọn artifact đã pin. Không có selector/flag/dispatch v1/v2. `modelVersion` chỉ là provenance do Server ghi; giữ nguyên ID/hash manifest C3, không train lại. `scoringSummary` bắt buộc trên completed ML, vắng ở statistical/queued/running/failed; partition và atomic fencing không đổi. Xem [kiểm chứng và demo một model](backend/c3-single-model-verification.md). Những mô tả dual-version/value-only bên dưới là lịch sử đã được thay thế, không phải hướng dẫn chạy hiện tại.
 
 

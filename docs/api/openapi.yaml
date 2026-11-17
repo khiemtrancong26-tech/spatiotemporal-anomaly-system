@@ -64,7 +64,7 @@ paths:
   /api/v1/auth/tokens:
     post:
       tags:
-      - Auth
+        - Auth
       summary: Đăng nhập, cấp JWT
       operationId: post_api_v1_auth_tokens
       description: Không bắt buộc Idempotency-Key; sai thông tin đăng nhập trả 401, không tiết lộ username
@@ -75,118 +75,110 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginRequest'
+              $ref: "#/components/schemas/LoginRequest"
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoginResponse'
-        '400':
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
           description: Bad Request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
           headers:
             WWW-Authenticate:
               description: Bearer challenge cho API được bảo vệ.
               schema:
                 type: string
               example: Bearer realm="pm25-api"
-        '429':
-          description: Too Many Requests
+        "403":
+          description: EMAIL_NOT_VERIFIED only after correct credentials.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-          headers:
-            Retry-After:
-              description: Đưa ra khi rate-limit được triển khai.
-              schema:
-                type: string
-        '405':
+                $ref: "#/components/schemas/Error"
+        "405":
           description: Method Not Allowed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
           headers:
             Allow:
               description: Danh sách HTTP methods được hỗ trợ tại path.
               schema:
                 type: string
-        '500':
+        "429":
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          headers:
+            Retry-After:
+              description: Đưa ra khi rate-limit được triển khai.
+              schema:
+                type: string
+        "500":
           description: Internal Server Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
   /api/v1/auth/register:
     post:
       tags:
-      - Auth
+        - Auth
       summary: Tự đăng ký tài khoản analyst
       operationId: post_api_v1_auth_register
-      description: >-
-        Public; chỉ nhận username/password. Tái sử dụng User, validation, password hashing
-        và quy tắc username duy nhất của luồng tạo tài khoản. Server luôn gán role=analyst,
-        isActive=true; không nhận role/isActive từ client (422). Username trùng trả 409,
-        kể cả request đồng thời với tạo user qua Admin. Thành công không trả token/password/hash;
-        FE chuyển về Login, không auto-login. Không yêu cầu Idempotency-Key;
-        gửi lại sau khi đã tạo có thể trả 409.
+      description: Public Register requires username/email/password; creates pending analyst. No JWT. 503
+        REGISTRATION_EMAIL_FAILED means account exists pending verification; resend instead of
+        registering again.
       security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RegisterRequest'
+              $ref: "#/components/schemas/RegisterRequest"
       responses:
-        '201':
-          description: Created analyst; FE chuyển về Login
+        "201":
+          description: Account created pending email verification. No automatic login.
           content:
             application/json:
               schema:
                 allOf:
-                - $ref: '#/components/schemas/UserResponse'
-                - type: object
-                  properties:
-                    data:
-                      type: object
-                      properties:
-                        role:
-                          type: string
-                          enum: [analyst]
-                        isActive:
-                          type: boolean
-                          enum: [true]
-        '400':
+                  - $ref: "#/components/schemas/UserResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          role:
+                            type: string
+                            enum:
+                              - analyst
+                          isActive:
+                            type: boolean
+                            enum:
+                              - true
+        "400":
           description: Bad Request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Username đã tồn tại theo quy tắc username duy nhất hiện có
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Validation failed; bao gồm trường role/isActive hoặc trường ngoài schema
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '405':
+                $ref: "#/components/schemas/Error"
+        "405":
           description: Method Not Allowed
           headers:
             Allow:
@@ -195,13 +187,37 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Username đã tồn tại theo quy tắc username duy nhất hiện có
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Validation failed; bao gồm trường role/isActive hoặc trường ngoài schema
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal Server Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/v1/users/me:
     get:
       tags:
@@ -2316,6 +2332,126 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /api/v1/auth/verify-email:
+    post:
+      tags:
+        - Auth
+      operationId: post_api_v1_auth_verify_email
+      summary: verify-email
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailTokenRequest"
+      responses:
+        "200":
+          description: Verification/reset completed, or generic email request acknowledged; no JWT and no
+            confirmed delivery claim.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMessage"
+        "400": &a1
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422": *a1
+        "429": *a1
+        "500": *a1
+  /api/v1/auth/resend-verification:
+    post:
+      tags:
+        - Auth
+      operationId: post_api_v1_auth_resend_verification
+      summary: resend-verification
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailRequest"
+      responses:
+        "200":
+          description: Verification/reset completed, or generic email request acknowledged; no JWT and no
+            confirmed delivery claim.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMessage"
+        "400": &a1
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422": *a1
+        "429": *a1
+        "500": *a1
+  /api/v1/auth/forgot-password:
+    post:
+      tags:
+        - Auth
+      operationId: post_api_v1_auth_forgot_password
+      summary: forgot-password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailRequest"
+      responses:
+        "200":
+          description: Verification/reset completed, or generic email request acknowledged; no JWT and no
+            confirmed delivery claim.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMessage"
+        "400": &a1
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422": *a1
+        "429": *a1
+        "500": *a1
+  /api/v1/auth/reset-password:
+    post:
+      tags:
+        - Auth
+      operationId: post_api_v1_auth_reset_password
+      summary: reset-password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Verification/reset completed, or generic email request acknowledged; no JWT and no
+            confirmed delivery claim.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMessage"
+        "400": &a1
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422": *a1
+        "429": *a1
+        "500": *a1
 components:
   securitySchemes:
     bearerAuth:
@@ -2850,10 +2986,15 @@ components:
         password:
           type: string
           minLength: 8
+        email:
+          type: string
+          minLength: 3
+          maxLength: 254
       additionalProperties: false
       required:
-      - username
-      - password
+        - username
+        - password
+        - email
     LoginRequest:
       type: object
       properties:
@@ -3748,3 +3889,45 @@ components:
             both:
               type: integer
               minimum: 0
+    EmailRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          minLength: 3
+          maxLength: 254
+    EmailTokenRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 256
+    ResetPasswordRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - token
+        - newPassword
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 256
+        newPassword:
+          type: string
+          minLength: 8
+    AuthMessage:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+      properties:
+        message:
+          type: string

@@ -20,6 +20,10 @@ export function createOnlineDataSource(options: OnlineAdapterOptions): OnlineDat
     health: (opts) => request<W.HealthResponse>('get_api_v1_health', opts),
     auth: {
       register: async (body, opts) => (await request<W.UserResponse>('post_api_v1_auth_register', { ...opts, body })).data,
+      verifyEmail: (body, opts) => request<W.AuthMessage>('post_api_v1_auth_verify_email', { ...opts, body }),
+      resendVerification: (body, opts) => request<W.AuthMessage>('post_api_v1_auth_resend_verification', { ...opts, body }),
+      forgotPassword: (body, opts) => request<W.AuthMessage>('post_api_v1_auth_forgot_password', { ...opts, body }),
+      resetPassword: (body, opts) => request<W.AuthMessage>('post_api_v1_auth_reset_password', { ...opts, body }),
       login: (body, opts) => request<W.LoginResponse>('post_api_v1_auth_tokens', { ...opts, body }),
       me: async (opts) => (await request<W.UserResponse>('get_api_v1_users_me', opts)).data,
     },

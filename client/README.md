@@ -1,5 +1,7 @@
 # Client — PM2.5 Explorer
 
+**B2-Email Extension:** Register có email bắt buộc, xác minh email trước Login cho tài khoản tự đăng ký mới; Forgot/Reset Password có thu hồi JWT cũ. Legacy/admin/seed giữ hành vi. [Thiết lập Resend, kiểm chứng và demo](../docs/backend/b2-email-verification.md). Mock email trả unavailable, không giả lập gửi thư.
+
 **D020:** Isolation Forest dùng model PM2.5 3 features duy nhất của Server, request `config:{}`. Không còn selector v1/v2; `modelVersion` trong kết quả chỉ là provenance. Completed ML hiển thị scored/target/unscorable và reasons; không coi unscorable là normal. Mock ML trả503 `MOCK_ML_NOT_IMPLEMENTED`; luồng native được kiểm bằng Desktop E2E C3. [Demo/proof hiện hành](../docs/backend/c3-single-model-verification.md).
 
 

@@ -4,11 +4,11 @@ import type { createTokens } from './tokens.js';
 
 export function createAuthService(users: ReturnType<typeof createUserService>, tokens: ReturnType<typeof createTokens>) {
   return {
-    register: (input: { username: string; password: string }) => users.createUser({ username: input.username, password: input.password, role: 'analyst' }),
     async login(input: { username: string; password: string }) {
-      const user = await users.authenticate(input.username, input.password);
+      const session = await users.authenticateSession(input.username, input.password);
+      const user = session?.user;
       if (!user) throw new HttpError(401, 'INVALID_CREDENTIALS', 'Invalid username or password.');
-      return { accessToken: await tokens.issue(user.id), tokenType: 'Bearer' as const, user };
+      return { accessToken: await tokens.issue(user.id, session!.authVersion), tokenType: 'Bearer' as const, user };
     },
   };
 }

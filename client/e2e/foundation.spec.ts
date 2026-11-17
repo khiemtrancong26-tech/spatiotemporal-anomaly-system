@@ -52,26 +52,15 @@ test('desktop deep link survives login without inventing metadata', async ({ pag
   await page.screenshot({ path: 'test-results/m2-desktop-deep-link.png', fullPage: true });
 });
 
-test('register handles duplicate usernames, returns to login and never auto-authenticates', async ({ page }) => {
-  await page.goto('/login');
-  await page.getByRole('link', { name: 'Chưa có tài khoản? Đăng ký' }).click();
-  await expect(page.getByRole('heading', { name: 'Đăng ký tài khoản' })).toBeVisible();
-  await page.getByLabel('Tên đăng nhập', { exact: true }).fill('analyst01');
-  await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password');
-  await page.getByRole('button', { name: 'Đăng ký', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('đã tồn tại');
+test('mock email registration reports unavailable without fabricating verification or authentication', async ({ page }) => {
+  await page.goto('/register');
   await page.getByLabel('Tên đăng nhập', { exact: true }).fill('new-user');
+  await page.getByLabel('Email', { exact: true }).fill('new@example.com');
   await page.getByLabel('Mật khẩu', { exact: true }).fill('new-password');
   await page.getByRole('button', { name: 'Đăng ký', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('Đăng ký thành công');
+  await expect(page.getByRole('alert')).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem('pm25.auth.mock'))).toBeNull();
   await expect(page.getByLabel('Mật khẩu', { exact: true })).toHaveValue('');
-  await page.getByLabel('Tên đăng nhập', { exact: true }).fill('new-user');
-  await page.getByLabel('Mật khẩu', { exact: true }).fill('new-password');
-  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Dữ liệu của bạn' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Quản lý tài khoản' })).toHaveCount(0);
 });
 
 test('M5 demo submits one immutable intent, follows async lifecycle and clears context on logout', async ({ page }) => {

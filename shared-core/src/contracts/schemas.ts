@@ -209,3 +209,9 @@ export type CacheCoverage = z.infer<typeof CacheCoverageSchema>;
 export type StatisticalDetectorInput = z.infer<typeof StatisticalDetectorInputSchema>;
 export type StatisticalDetectorOutput = z.infer<typeof StatisticalDetectorOutputSchema>;
 export type GeoPoint = z.infer<typeof GeoPointSchema>;
+
+// B2-Email Extension public inputs; authentication state never enters UserPublic.
+export const RegisterRequestSchema = z.object({ username: z.string().min(1), email: z.string().trim().email(), password: z.string().min(8) }).strict();
+export const EmailRequestSchema = z.object({ email: z.string().trim().email() }).strict();
+export const EmailTokenRequestSchema = z.object({ token: z.string().min(1).max(256) }).strict();
+export const ResetPasswordRequestSchema = EmailTokenRequestSchema.extend({ newPassword: z.string().min(8) }).strict();

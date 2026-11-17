@@ -6,7 +6,7 @@ import { healthResponseSchema } from '../src/modules/health/health.schema.js';
 import { errorSchema } from '../src/shared/http/errors.js';
 import { onlineIndexes } from '../src/shared/persistence/indexes.js';
 import { userPublicSchema, userResponseSchema } from '../src/modules/users/users.schema.js';
-import { loginRequestSchema, loginResponseSchema, registerRequestSchema } from '../src/modules/auth/auth.schema.js';
+import { loginRequestSchema, loginResponseSchema, registerRequestSchema, emailRequestSchema, tokenRequestSchema, resetRequestSchema, authMessageSchema } from '../src/modules/auth/auth.schema.js';
 import { datasetPageSchema, datasetSchema, importSummarySchema, mappingRequestSchema, singleDatasetSchema, validationReportSchema } from '../src/modules/datasets/datasets.schema.js';
 import { sensorSchema, readingSchema, sensorPageSchema, readingPageSchema, sensorsQuerySchema, readingsQuerySchema } from '../src/modules/query/query.schema.js';
 import { detectionRequestSchema, analysisRunSchema, analysisResponseSchema, analysisPageSchema, historyQuerySchema } from '../src/modules/analysis/analysis.schema.js';
@@ -23,7 +23,7 @@ describe('foundation contract drift checks', () => {
       return Object.fromEntries(Object.entries(record).filter(([name]) => !['description', 'example'].includes(name)).map(([name, item]) => [name, expand(item)]));
     }
     for (const [name, schema] of Object.entries({ UserPublic: userPublicSchema, UserResponse: userResponseSchema,
-      RegisterRequest: registerRequestSchema, LoginRequest: loginRequestSchema, LoginResponse: loginResponseSchema,
+      EmailRequest: emailRequestSchema, EmailTokenRequest: tokenRequestSchema, ResetPasswordRequest: resetRequestSchema, AuthMessage: authMessageSchema, RegisterRequest: registerRequestSchema, LoginRequest: loginRequestSchema, LoginResponse: loginResponseSchema,
       Dataset: datasetSchema, DatasetPage: datasetPageSchema, ImportSummary: importSummarySchema,
       MappingRequest: mappingRequestSchema, SingleDataset: singleDatasetSchema, ValidationReport: validationReportSchema,
       Sensor: sensorSchema, Reading: readingSchema, SensorPage: sensorPageSchema, ReadingPage: readingPageSchema,
@@ -62,6 +62,6 @@ describe('foundation contract drift checks', () => {
     }
     expect(names).not.toContain('ix_anomalies_sync_updated');
     expect(names).not.toContain('uq_mutations_client_id');
-    expect(names).toHaveLength(14);
+    expect(names).toHaveLength(15);
   });
 });

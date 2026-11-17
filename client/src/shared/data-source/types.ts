@@ -21,6 +21,10 @@ export interface OnlineDataSource {
   health(options?: RequestOptions): Promise<Wire.HealthResponse>;
   auth: {
     register(input: Wire.RegisterRequest, options?: RequestOptions): Promise<Wire.UserPublic>;
+    verifyEmail(input: Wire.EmailTokenRequest, options?: RequestOptions): Promise<Wire.AuthMessage>;
+    resendVerification(input: Wire.EmailRequest, options?: RequestOptions): Promise<Wire.AuthMessage>;
+    forgotPassword(input: Wire.EmailRequest, options?: RequestOptions): Promise<Wire.AuthMessage>;
+    resetPassword(input: Wire.ResetPasswordRequest, options?: RequestOptions): Promise<Wire.AuthMessage>;
     login(input: Wire.LoginRequest, options?: RequestOptions): Promise<Wire.LoginResponse>;
     me(options?: RequestOptions): Promise<Wire.UserPublic>;
   };

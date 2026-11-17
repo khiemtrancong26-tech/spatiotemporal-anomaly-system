@@ -1,5 +1,5 @@
 import { useStore } from 'zustand';
-import { AuthGate } from '../features/auth/pages';
+import { AuthGate, publicAuthPaths } from '../features/auth/pages';
 import { Link, Outlet, useLocation } from '@tanstack/react-router';
 import { Icon } from '../shared/ui/icons';
 import { Badge } from '../shared/ui/primitives';
@@ -10,7 +10,7 @@ export function AppShell() {
   const auth = useStore(session.store);
   const role = auth.user?.role;
   const location = useLocation();
-  const isAuth = location.pathname === '/login' || location.pathname === '/register';
+  const isAuth = publicAuthPaths.includes(location.pathname);
   return <div className={`app-shell${isAuth ? ' app-shell--auth' : location.pathname.startsWith('/workspace/') ? ' app-shell--workspace' : ''}`}>
     <a className="skip-link" href="#main-content">Đến nội dung chính</a>
     <aside className="sidebar">
