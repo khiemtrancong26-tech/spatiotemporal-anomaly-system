@@ -1,5 +1,8 @@
 # Tích hợp thư viện thuật toán trước B5
 
+**Tài liệu lịch sử — đã được D020 thay thế về model/setup/rollout.** Nội dung và kết quả dưới đây phản ánh thời điểm kiểm chứng, không phải hướng dẫn chạy hiện tại. Manifest/train CLI/artifact cũ có thể đã xóa; xem [pipeline một model và demo hiện hành](c3-single-model-verification.md). Không chạy lại các recipe cũ.
+
+
 Ngày kiểm tra: **15/11/2026, Asia/Saigon**. Theo yêu cầu và [D014](../decisions.md#d014--tích-hợp-thư-viện-trước-b5-15112026), đã nối implementation có sẵn vào shared-core và internal Backend adapters. **Chưa triển khai B5.** Đây là kiểm chứng library/input/output/references, không phải nghiệm thu production policy hoặc chất lượng phát hiện PM2.5.
 
 ## Kết quả bàn giao

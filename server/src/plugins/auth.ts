@@ -1,5 +1,5 @@
 import fp from 'fastify-plugin';
-import type { FastifyRequest, preHandlerHookHandler } from 'fastify';
+import type { FastifyRequest, FastifyReply, preHandlerHookHandler } from 'fastify';
 import { HttpError } from '../shared/http/errors.js';
 
 export type Role = 'analyst' | 'admin';
@@ -17,7 +17,7 @@ declare module 'fastify' {
 
 export const authPlugin = fp<{ verifyAccessToken?: VerifyAccessToken }>(async (app, options) => {
   app.decorateRequest('principal', null);
-  async function authenticate(request: FastifyRequest) {
+  async function authenticate(request: FastifyRequest, reply: FastifyReply) {
     const match = /^Bearer ([^\s,]+)$/i.exec(request.headers.authorization ?? '');
     if (!match?.[1]) throw new HttpError(401, 'UNAUTHORIZED', 'Valid authentication is required.');
     if (!options.verifyAccessToken) throw new HttpError(503, 'AUTH_UNAVAILABLE', 'Authentication is not configured.');
@@ -25,11 +25,12 @@ export const authPlugin = fp<{ verifyAccessToken?: VerifyAccessToken }>(async (a
     if (!principal?.id || !principal.isActive || !['analyst', 'admin'].includes(principal.role)) {
       throw new HttpError(401, 'UNAUTHORIZED', 'Valid authentication is required.');
     }
+    reply.header('Cache-Control', 'private, no-store');
     request.principal = principal;
   }
   app.decorate('authenticate', authenticate);
-  app.decorate('authorize', (roles: readonly Role[]) => async (request: FastifyRequest) => {
-    await authenticate(request);
+  app.decorate('authorize', (roles: readonly Role[]) => async (request: FastifyRequest, reply: FastifyReply) => {
+    await authenticate(request, reply);
     if (!request.principal || !roles.includes(request.principal.role)) {
       throw new HttpError(403, 'FORBIDDEN', 'Insufficient permission.');
     }

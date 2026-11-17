@@ -1,3 +1,6 @@
+import { createDatasetReadRepository } from '../datasets/datasets.repository.js';
+import { datasetAccessFilter, type DatasetActor } from '../datasets/dataset-access.js';
+import { HttpError } from '../../shared/http/errors.js';
 import { randomUUID } from 'node:crypto';
 import { MongoServerError, ObjectId, type ClientSession, type Db, type MongoClient } from 'mongodb';
 import type { AnalysisRun, Reading } from '@pm25/shared-core/contracts';
@@ -10,12 +13,16 @@ import type { IdempotencyIntent, StoredResponse } from '../../shared/idempotency
 import { keysetPredicate } from '../../shared/persistence/keyset.js';
 import { toObjectId, toPublicId, toReadingDto, type ReadingDocument } from '../../shared/persistence/mapping.js';
 import type { DetectionRequest, RunGuard, AnalysisReadAccess } from './analysis.types.js';
+import type { RunMetadata } from './analysis.types.js';
+import { ScoringSummarySchema, type ScoringSummary } from '@pm25/shared-core';
+import { createAnalysisContextReader } from './analysis.context.repository.js';
 
 interface RunDocument {
   _id: ObjectId; datasetId: ObjectId; createdBy: ObjectId; family: AnalysisRun['family']; method: string;
   config: AnalysisRun['config']; scope: AnalysisRun['scope']; status: AnalysisRun['status']; createdAt: Date;
   completedAt?: Date; error?: AnalysisRun['error']; engineVersion: string; modelVersion?: string;
   policyId: string; modelHash?: string; attempt: number; owner?: string; leaseUntil?: Date; writeFence: number;
+  scoringSummary?: ScoringSummary;
 }
 interface QueueState { _id: string; active: number }
 interface ReceiptDocument {
@@ -29,6 +36,7 @@ export function toAnalysisDto(document: RunDocument): AnalysisRun {
     method: document.method, config: structuredClone(document.config), scope: structuredClone(document.scope),
     status: document.status, createdAt: document.createdAt.toISOString(), engineVersion: document.engineVersion,
     ...(document.modelVersion !== undefined ? { modelVersion: document.modelVersion } : {}),
+    ...(document.status === 'completed' && document.family === 'ml' && document.scoringSummary ? { scoringSummary: ScoringSummarySchema.parse(document.scoringSummary) } : {}),
     ...(document.completedAt ? { completedAt: document.completedAt.toISOString() } : {}),
     ...(document.error ? { error: { code: document.error.code, message: document.error.message } } : {}) };
 }
@@ -82,13 +90,14 @@ export function createAnalysisRepository(client: MongoClient, db: Db, config: An
   }
   return {
     prepare, replay,
-    async accept(intent: IdempotencyIntent, input: DetectionRequest, metadata: { engineVersion: string; modelVersion?: string; modelHash?: string }): Promise<StoredResponse> {
+    context: createAnalysisContextReader(db, config.timeoutMs),
+    async accept(intent: IdempotencyIntent, input: DetectionRequest, metadata: RunMetadata, actor: DatasetActor): Promise<StoredResponse> {
       await prepare();
       const old = await replay(intent); if (old) return old;
       const now = new Date(), document: RunDocument = { _id: new ObjectId(), datasetId: toObjectId(input.datasetId),
         createdBy: toObjectId(intent.userId), family: input.family, method: input.method, config: structuredClone(input.config),
         scope: structuredClone(input.scope ?? {}), status: 'queued', createdAt: now, ...metadata,
-        policyId: ANALYSIS_POLICY_ID, attempt: 0, leaseUntil: new Date(0), writeFence: 0 };
+        policyId: metadata.policyId ?? ANALYSIS_POLICY_ID, attempt: 0, leaseUntil: new Date(0), writeFence: 0 };
       const response: StoredResponse = { statusCode: 202, body: { data: toAnalysisDto(document) } };
       try {
         await transaction(async session => {
@@ -96,6 +105,8 @@ export function createAnalysisRepository(client: MongoClient, db: Db, config: An
           await receipts.insertOne({ _id: new ObjectId(), ...intent, userId: toObjectId(intent.userId), kind: 'analysis',
             resourceId: document._id.toHexString(), status: 'completed', createdAt: now,
             expiresAt: new Date(now.getTime() + config.replayMs), response }, { session });
+          // Recheck private parent inside acceptance transaction; workers use only accepted runs.
+          if (!actor || !(await db.collection('datasets').updateOne({ ...datasetAccessFilter(actor), _id: toObjectId(input.datasetId), status: 'imported' }, { $inc: { reviewFence: 1 } }, { session })).matchedCount) throw new HttpError(404, 'DATASET_NOT_FOUND', 'Dataset does not exist.');
           const slot = await queue.updateOne({ _id: 'online', active: { $lt: config.maxPending } }, { $inc: { active: 1 } }, { session });
           if (!slot.matchedCount) throw new AnalysisStoreError('ANALYSIS_QUEUE_FULL', 'Analysis capacity is full. No run was accepted.');
           await runs.insertOne(document, { session });
@@ -175,9 +186,13 @@ export function createAnalysisRepository(client: MongoClient, db: Db, config: An
         })), { session, ordered: true });
       });
     },
-    async terminal(guard: RunGuard, error?: { code: string; message: string }) {
+    async terminal(guard: RunGuard, error?: { code: string; message: string }, summary?: ScoringSummary) {
+      const ml = guard.run.family === 'ml';
+      if ((!error && ml) !== (summary !== undefined)) throw new EngineError('ENGINE_OUTPUT_INVALID', 'Summary is required only for completed ML.');
+      const scoringSummary = summary ? ScoringSummarySchema.parse(summary) : undefined;
       await fenced(guard, async session => {
         await runs.updateOne({ _id: toObjectId(guard.id) }, [{ $set: { status: error ? 'failed' : 'completed', completedAt: '$$NOW',
+          ...(scoringSummary ? { scoringSummary: { $literal: scoringSummary } } : {}),
           ...(error ? { error: { $literal: error } } : {}) } }, { $unset: ['owner', 'leaseUntil'] }], { session });
         const released = await queue.updateOne({ _id: 'online', active: { $gte: 1 } }, { $inc: { active: -1 } }, { session });
         if (!released.matchedCount) throw new Error('Analysis queue counter invariant failed');
@@ -190,10 +205,11 @@ export type AnalysisRepository = ReturnType<typeof createAnalysisRepository>;
 /** Public read boundary for Anomalies; no driver/BSON in its consuming Service. */
 export function createAnalysisReadRepository(db: Db): AnalysisReadAccess {
   return {
-    async getState(id) {
+    async getState(id, actor) {
       if (!validId(id)) return null;
       const run = await db.collection<RunDocument>('analysisRuns').findOne({ _id: toObjectId(id) },
         { projection: { _id: 1, datasetId: 1, status: 1 }, readPreference: 'primary' });
+      if (run && !await createDatasetReadRepository(db).getState(toPublicId(run.datasetId), actor)) return null;
       return run ? { id: toPublicId(run._id), datasetId: toPublicId(run.datasetId), status: run.status } : null;
     },
   };

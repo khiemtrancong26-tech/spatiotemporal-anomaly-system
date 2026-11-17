@@ -1,5 +1,8 @@
 # Backend Change Plan — Visual Analytics cho Data Analyst
 
+**D020 — 17/11/2026, kiến trúc hiện hành:** hệ thống chỉ dùng một Isolation Forest với `[value, temporal_delta, spatial_delta]`. Request ML là `method: "isolation_forest", config: {}`; Backend tự chọn artifact đã pin. Không có selector/flag/dispatch v1/v2. `modelVersion` chỉ là provenance do Server ghi; giữ nguyên ID/hash manifest C3, không train lại. `scoringSummary` bắt buộc trên completed ML, vắng ở statistical/queued/running/failed; partition và atomic fencing không đổi. Xem [kiểm chứng và demo một model](backend/c3-single-model-verification.md). Những mô tả dual-version/value-only bên dưới là lịch sử đã được thay thế, không phải hướng dẫn chạy hiện tại.
+
+
 Ngày lập: **16/11/2026**. Quyết định: **D016**, chủ dự án trả lời “ok duyệt” cho phần đánh giá/điều chỉnh đề xuất AI trong chat. **Đã duyệt định hướng và thứ tự ưu tiên; chưa khóa các API/DTO, công thức feature hoặc giá trị vận hành mới.** Đây là kế hoạch thay đổi, chưa phải bằng chứng đã triển khai các hạng mục bên dưới.
 
 **Cập nhật triển khai C1/B6 cùng ngày:** C1 đã có implementation/bằng chứng tại [B6 verification](backend/b6-verification.md), D017. Golden bytes/checksum/events đã xác minh và đưa vào repo; upstream/coordinate-source audit chưa hoàn tất.
@@ -7,6 +10,8 @@ Ngày lập: **16/11/2026**. Quyết định: **D016**, chủ dự án trả l�
 **Cập nhật C2/D018:** chủ dự án duyệt cả3 nhóm tại [contract C2](backend/c2-contract-proposal.md); G02/G03 và cấu hình khởi đầu C2 thuộc G06 đã khóa. Profile/quality, per-station hour/day comparison, metadata CLI và FE timezone/loaded-vs-total đã triển khai tại module `exploration/`; [C2 verification](backend/c2-verification.md) ghi tests/số đo và giới hạn. C3/G04/G05, upstream audit, tải/SLA tổng thể vẫn mở.
 
 ## 1. Mục tiêu và quan hệ với kế hoạch hiện tại
+
+**Cập nhật C3/D01917/11/2026:** G01 baseline/G04/G05 đã được duyệt và triển khai với [proof functional PASS](backend/c3-verification.md). V2 đúng3 features, fixed3 neighbors/min2 readings, completed-only atomic/fenced/disjoint summary; v1/model/run/receipt được giữ. Các câu C3 còn mở ở baseline16/11 được thay thế bởi D019. Tọa độ vẫn ghi owner-provided, không nhận independent geodetic validation. Mọi đánh giá/tối ưu hiệu năng chuyển B8; không mở C4/B7/B8 trong task C3.
 
 Ưu tiên luồng **Data Exploration → Visualization → Anomaly Detection → Investigation/Review**. ML phục vụ công cụ phân tích: giữ Isolation Forest, bổ sung ngữ cảnh không gian/thời gian có định nghĩa rõ, train offline một baseline có thể tái lập; không mở dự án nghiên cứu/tuning nhiều thuật toán.
 
@@ -39,7 +44,7 @@ Rà soát tài liệu/source, không chạy lại runtime hoặc sửa DB trong 
 |---|---|---|
 | CSV mục tiêu `beijing-12-stations-demo-2015-03.csv` | Golden nghiệp vụ/Visualization/Exploration/Review | G01 khóa file, provenance/checksum và các số liệu kỳ vọng; không tự tạo bản thay thế rồi gọi là file người dùng |
 | [UCI501 Beijing Multi-Site Air Quality](https://archive.ics.uci.edu/dataset/501/beijing%2Bmulti%2Bsite%2Bair%2Bquality%2Bdata) | Ứng viên nguồn train/context nhiều trạm cho v2 | Phải xác minh quan hệ với CSV đã chuẩn hóa, station IDs/coordinates/timezone và split; chưa coi provenance CSV đích là đã chứng minh chỉ vì cùng tên Beijing |
-| [UCI381/model v1](../server/ml/pm25-manifest.json) | Baseline ML một feature hiện tại | Giữ regression/provenance riêng; không gọi là model12 trạm hoặc tái dùng để giả lập spatial delta |
+| UCI381/model v1 — lịch sử D015, source đã xóa theo D020 | Baseline một feature trước C3, không còn dùng | Chỉ giữ bằng chứng lịch sử; không có runtime/artifact/train CLI cho model này |
 | CSV5 trạm mô phỏng và fixtures biên | Unit/integration/fault injection, tính đúng của phần mềm | Gắn nhãn synthetic; không thay thế kiểm thử CSV thật hoặc quality evaluation |
 
 CSV03–2015 được giữ ngoài tập fit nếu dùng làm test độc lập. Các giá trị cao/sự kiện mô tả trong CSV không tự trở thành nhãn anomaly chuẩn. Review của Analyst cũng không tự biến thành nhãn training đã được kiểm định.
@@ -55,7 +60,7 @@ Các mã **CR-01…CR-07** chỉ là mã truy vết của Change Plan. Chúng ch
 | CR-03 | Nhận diện chất lượng/thiếu dữ liệu | Tách dòng nguồn thiếu/bị loại, thiếu phép đo theo cadence kỳ vọng và dữ liệu chưa tải; chưa có cadence/anchor thì báo chưa xác định coverage | C2a |
 | CR-04 | Xem chuỗi/tổng hợp theo thời gian và so sánh các trạm trong cùng phạm vi | Mỗi series có danh tính trạm, bucket và count; không so sánh nhầm timestamp/window hoặc coi trung bình là reading quan sát | C2b |
 | CR-05 | Đọc nhất quán thời gian trên timeline/tooltip/bảng/bucket | Cùng instant UTC có cách hiển thị theo timezone đã chọn; không gán lại offset nguồn; quy tắc bucket/day boundary được mô tả rõ | C2 |
-| CR-06 | Chạy IF v2 có ngữ cảnh và truy vết được kết quả | Cùng Feature Contract khi train/inference, không nhìn tương lai, missing/context policy rõ; model/version tách v1; chỉ review anomaly Server đã tồn tại | C3 |
+| CR-06 | Chạy IF v2 có ngữ cảnh và truy vết được kết quả | Cùng Feature Contract khi train/inference, không nhìn tương lai, missing/context policy rõ; model/policy identity pin theo artifact duy nhất; chỉ review anomaly Server đã tồn tại | C3 |
 | CR-07 | Thực hiện toàn bộ hành trình Analyst trên CSV chuẩn | Import → profile/so sánh → visualization → analysis → detail/review → reload; ghi rõ API thật/mock/not implemented và phạm vi đã tải | Mỗi mốc và C4 |
 
 ### 3.1. Phân biệt dữ liệu thiếu
@@ -81,7 +86,7 @@ Cube spec ghi các **expected facts cần kiểm chứng lại từ file G01**:1
 | Operation/nhóm | Giữ/thêm/sửa | Phạm vi và điều kiện |
 |---|---|---|
 | Auth/me/datasets/import/readings/sensors hiện có | Giữ | Không đổi ID, UTC, BR-08, imported visibility, pagination hoặc response DTO của B1–B4 |
-| 3 operations `/analysis-runs` | Giữ lifecycle/envelope/idempotency | C3 review cách chọn model v2 và metadata/context; không tự đổi config`{}`/model mặc định của caller v1 |
+| 3 operations `/analysis-runs` | Giữ lifecycle/envelope/idempotency | D020: config`{}` dùng model 3 features; metadata/context và summary do Server tạo |
 | GET `/api/v1/anomalies` | Triển khai B6 theo contract đã có | datasetId, analysisRunId, family/method, severity/status, from/to, sort/cursor/limit; không tự thêm sensorId/bbox/modelVersion filter |
 | GET/PATCH `/api/v1/anomalies/{id}` | Triển khai B6 theo contract đã có | DTO Anomaly; PATCH chỉ baseVersion+changes status/note, không sửa detector output; conflict409 theo contract |
 | Dataset Profile | **API mới đề xuất**, chưa khóa | Một read API riêng; URL ứng viên `GET /api/v1/datasets/{id}/profile`, chưa phải route được duyệt. G02 khóa toàn-dataset hay scoped, payload/visibility/status/cache và budgets trước code |
@@ -113,14 +118,14 @@ Cube spec ghi các **expected facts cần kiểm chứng lại từ file G01**:1
 | Tính tái lập | Cùng reading/dataset/context/model/policy cho cùng features; quy tắc context có bị bộ lọc Analyst thay đổi hay không phải được công khai |
 | Implementation | Một implementation/builder dùng chung cho train và inference; chọn vị trí/language ở G04. Golden fixture kiểm tra train–serve parity, không hai công thức độc lập chỉ tình cờ cho cùng tên cột |
 | Training | Nguồn và checksum, station coordinates/IDs, split theo thời gian, seed/params/scaler nếu có. Fit preprocessing chỉ trên tập train; demo03–2015 ngoài fit khi dùng làm test độc lập |
-| API/version rollout | Cách chọn v1/v2 qua method hoặc config phải được duyệt. Giữ model/feature/policy version và hash trong manifest/run; rules cho queued/running v1 khi rollout |
+| API/version rollout | D020: không có version selector; config chỉ{}. Giữ model/policy identity và hash trong manifest/run để kiểm integrity |
 | Score/severity | Review score projection và threshold của model v2; severity low baseline hiện tại không tự đổi. Không so sánh trực tiếp score v1/v2 như cùng thang |
 
 **Ràng buộc causality:** temporal context tại t chỉ từ thời điểm<t; spatial context không lấy mẫu>t. Same-time spatial observation có thể là context của phân tích hồi cứu sau khi dữ liệu đã được nhập; điều đó không tự chứng minh khả năng phát hiện online real-time. Không dùng carry-forward/maxAge của heatmap làm quyết định ngầm cho ML.
 
 **Giữ B5:** tiếp tục202 receipt/run durable, worker claim/heartbeat/fence, bound input/output, unique(run,reading), publish sau completed. Feature targets/context có budget riêng cần đo; không nâng hard cap50k chỉ vì đổi model. Có thể cần reader/adapter/model registry nhỏ, không có yêu cầu viết lại worker/hạ tầng.
 
-**Bảo toàn v1:** không sửa config/model/score/anomaly/review của run cũ; không làm mất replay receipt; không tự re-run hoặc rescore terminal. G05 chọn giữ runtime/artifact v1 cùng v2 hoặc drain/đối soát trước rollout. Không deploy worker mới không đọc được job v1 đang chờ mà không có kế hoạch được duyệt.
+**Lịch sử trước D020 — đã thay thế:** không sửa config/model/score/anomaly/review của run cũ; không làm mất replay receipt; không tự re-run hoặc rescore terminal. G05 chọn giữ runtime/artifact v1 cùng v2 hoặc drain/đối soát trước rollout. Không deploy worker mới không đọc được job v1 đang chờ mà không có kế hoạch được duyệt.
 
 ## 6. Module changes, ownership và dependencies
 
@@ -150,10 +155,10 @@ Khiêm chịu orchestration/API/persistence; Khải chịu feature/model và tes
 
 - [x] Ghi D016 và Change Plan, phân biệt direction đã duyệt với chi tiết còn mở.
 - [x] Liên kết cập nhật phạm vi SRS/SDD/kế hoạch hiện tại; giữ OpenAPI/runtime nguyên trạng trong lượt lập kế hoạch.
-- [ ] G01: xác minh CSV/provenance/checksum/expected facts; lập fixture manifest có thể tái tính, giữ synthetic fixtures riêng.
+- [x] G01 cho baseline C3/D019: archive/từng CSV/hash/source station–time/value đã đối chiếu,8782/8782 golden khớp và146 NA; timezone+08/tọa độ owner-provided được chủ dự án duyệt, không coi là independent geodetic audit.
 - [x] Phần golden G01: đã nhận đúng file trong `.local/demo-datasets`, copy byte-identical sang test fixture, pin SHA256 và có test facts/grid/events độc lập; không coi đó là đã kiểm định upstream/nguồn tọa độ cho ML v2.
 - [x] G02/G03: chủ dự án duyệt contract C2/D018, timezone/cadence/empty/coverage và resource budgets khởi đầu; không suy thành gate ML v2 đã đóng.
-- [ ] G04/G05: Feature Contract, nguồn/split/model/version selection trước C3. Có thể review song song C1; không phải điều kiện chặn bắt đầu B6.
+- [x] G04/G05 theo D019: contract/split/version được duyệt trước fit; [C3 verification](backend/c3-verification.md) có native inference, parity và recovery/v1 regression PASS. G06 performance chuyển B8 theo chỉ đạo, không chặn C3.
 
 **Endpoint:** chưa tạo/sửa endpoint. **Dependency:** baseline docs/source, file nghiệm thu; chủ dự án quyết định các lựa chọn nghiệp vụ còn mở.
 
@@ -206,22 +211,24 @@ Khiêm chịu orchestration/API/persistence; Khải chịu feature/model và tes
 
 ### C3 — Isolation Forest v2: features/context và artifact offline
 
+**Lịch sử nghiệm thu C3/D019, trước đơn giản hóa D020:** [C3 verification/contract/runbook](backend/c3-verification.md). Source guards giữ an toàn; benchmark/load/stress/tối ưu hiệu năng chuyển B8, không là điều kiện nghiệm thu C3. Không mở C4/B7/B8.
+
 **Mục tiêu:** Tích hợp baseline có ngữ cảnh được xác định, không nghiên cứu/tuning thuật toán diện rộng.
 
 **Endpoint:** tiếp tục3 operations Analysis; delta method/config/version selection chỉ sau G05. Không train/model-upload/catalog/retry-job endpoint mới.
 
-- [ ] G04 Feature Contract đóng: formulas, units/order, context/boundaries, missing policy, targets/scored coverage, one shared builder.
-- [ ] Bounded context reader cùng dataset, không future leakage; policy chọn sensor/reference không vô tình thay theo trang/filter UI; context không được thành anomaly ngoài target scope.
-- [ ] Offline train/save/load/predict thật; manifest hash/source/split/features/policy/runtime/seed/parameters; dataset demo không nằm trong fit nếu gọi là independent test. Không train theo upload/request/worker.
-- [ ] G05 version selection/rollout rõ, giữ run/receipt/anomaly/review v1. Không tráo model dưới cùng snapshot run cũ hoặc tự chạy lại failed/terminal.
-- [ ] Validate finite/foreign/duplicate output, missing model/context và model/feature mismatch; severity giữ baseline cho đến decision mới. Đo CPU/RAM/native process/context bytes/deadline trước đổi config.
-- [ ] Tài nối ML UI theo method/config/version đã duyệt; đọc kết quả qua B6 thật và cùng run identity, không mock flag từ value cao.
+- [x] G04 Feature Contract đóng; pure TS builder cho export/inference, signed3 features, reason counts disjoint.
+- [x] Bounded context reader cùng dataset; previous<t/≤2h, fixed3 nearest≤50km/min2 exact-time readings, không fourth-neighbor fallback; scope chỉ quyết định targets.
+- [x] Offline fit một lần, artifact/manifest v2 riêng; nguồn/split/hash/feature/runtime/seed rõ, golden03/2015 ngoài fit. Native inference/parity PASS.
+- [x] G05/D020: một model, config{}, readiness/integrity; acceptance pin model/hash/policy. Queued/recovery/idempotency được kiểm lại trên pipeline một model, không rescore.
+- [x] Functional tests finite/foreign/duplicate/missing/mismatch/fence/crash/restart và resource guards; giữ severity low. Không benchmark/stress hay đổi ngân sách để tăng hiệu năng.
+- [x] D020: strict Frontend parser/summary được giữ, bỏ selector/flag. Desktop dùng config{}; mock ML trả unavailable, không giả flags.
 
 **Dependency:** G01/G04/G05, B5/B6; C2 giúp Analyst diễn giải/context nhưng không mặc định aggregate dùng cho biểu đồ là feature reference ML.
 
-**Kiểm thử:** golden vector train–serve parity; first sample/gap/neighbor missing/self exclusion/time skew; reading ở biên from vẫn lấy đúng historical context khi policy yêu cầu; scope1 trạm vẫn xử lý đúng neighbor context; no future/cross-dataset; deterministic inference; zero/normal/flagged và unscorable theo policy. Fault injection B5 phải còn đạt với v2, kể cả restart queued v1 và partial v2. Không lấy flag rate hoặc vài demo spikes làm accuracy/precision/recall.
+**Kiểm thử:** golden vector train–serve parity; first sample/gap/neighbor missing/self exclusion/time skew; reading ở biên from vẫn lấy đúng historical context khi policy yêu cầu; scope1 trạm vẫn xử lý đúng neighbor context; no future/cross-dataset; deterministic inference; zero/normal/flagged và unscorable theo policy. Fault injection B5 phải còn đạt với v2, kể cả restart queued và partial của model duy nhất. Không lấy flag rate hoặc vài demo spikes làm accuracy/precision/recall.
 
-**Nghiệm thu:** model/artifact/feature pipeline thật và versioned; API/FE chạy theo contract mới; Cường có resource measurements; Khải báo rõ phần correctness và quality nào đã/ chưa đánh giá. Không đòi mọi giá trị369 phải thành anomaly và không tuyên bố biết nguyên nhân.
+**Nghiệm thu C3:** model v2 đúng3 features, inference thật, functional/integration/regression PASS và không còn inference/dispatch model một feature. Khải báo rõ correctness/quality nào đã/chưa đánh giá; không đòi giá trị369 phải thành anomaly. Resource guards hiện có được giữ; đánh giá/tối ưu hiệu năng thuộc B8, không chặn C3.
 
 ### C4 — Nghiệm thu toàn hành trình và handoff
 
@@ -247,7 +254,7 @@ Khiêm chịu orchestration/API/persistence; Khải chịu feature/model và tes
 | G02 — Profile/timezone | Use cases ưu tiên/field semantics, full vs scoped, raw-quality source, cadence/unknown, metadata input/storage/output, timezone hiển thị và visibility/status/budgets | Khiêm + Tài + Khải; chủ dự án chốt nghiệp vụ | C2a và contract/DB delta tương ứng |
 | G03 — Aggregation | Draft endpoint giữ/sửa, per-station grouping, bucket timezone/bounds/empty/count/coverage, response/limits/status/cursor nếu cần; kiểm tương thích strict clients | Khiêm + Tài + Cường | C2b |
 | G04 — Features/context | Các mục5; công thức cụ thể, shared builder, neighbor/time policy, missing/unscorable reporting, budgets target+context | Khải + Khiêm + Tài; chủ dự án chốt lựa chọn quan trọng | Train/feature inference C3; không chặn C1/C2 |
-| G05 — Model/version | Nguồn/split không leakage, artifact/runtime và deployment, chọn v1/v2 qua API, giữ v1 queued/replay, score/severity nếu đổi | Khải + Khiêm + Cường/Tài | API/rollout v2; không chặn baseline v1 |
+| G05 — Model/version | Nguồn/split không leakage, artifact/runtime và deployment, model duy nhất qua config{}, pin identity và giữ lifecycle/replay, score/severity nếu đổi | Khải + Khiêm + Cường/Tài | API/rollout v2; không chặn baseline v1 |
 | G06 — Readiness/tải | Các ngưỡng vận hành cụ thể cho API mới, tổng RAM/CPU/counters khi nhiều process, query/FE budgets và môi trường E2E thật | Cường + Khiêm + Tài | Trước mở rộng tải/cấu hình và trước tuyên bố SLA/deployment đạt |
 
 “Đã duyệt D016” không đồng nghĩa G01–G06 đã có giá trị. Khi đến phần phụ thuộc, đưa lựa chọn cụ thể và hỏi chủ dự án/owner trước; trong lúc chờ vẫn làm mốc độc lập đã đủ contract. Không tự chốt bằng tên feature hoặc field có trong concept.

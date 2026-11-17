@@ -24,7 +24,7 @@ export function createPreviewStore() { return createStore<PreviewState>(() => ({
 const Context = createContext<(Services & { session: Session; workspace: ReturnType<typeof createWorkspaceStore>; datasets: Map<string, Dataset>; readingsCache: ReadingsCache }) | null>(null);
 export function ServicesProvider({ services, children }: PropsWithChildren<{ services: Services }>) {
   const [resolved] = useState(() => ({ ...services, readingsCache: services.readingsCache ?? createReadingsCache(services.data.readings.list), session: services.session ?? createSession(sessionStorage, 'pm25.test'), workspace: services.workspace ?? createWorkspaceStore(), datasets: services.datasets ?? new Map<string, Dataset>() }));
-  useEffect(()=>resolved.session.store.subscribe((next,previous)=>{if(next.revision!==previous.revision)resolved.readingsCache.clear();}),[resolved]);
+  useEffect(()=>resolved.session.store.subscribe((next,previous)=>{if(next.revision!==previous.revision) { resolved.readingsCache.clear(); resolved.workspace.getState().clear(); resolved.datasets.clear(); }}),[resolved]);
   return <Context.Provider value={resolved}>{children}</Context.Provider>;
 }
 export function useServices() {

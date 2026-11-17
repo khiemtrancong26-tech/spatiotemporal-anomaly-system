@@ -1,3 +1,4 @@
+const actor = { id: '507f1f77bcf86cd799439011', role: 'admin' as const };
 import { describe, expect, it, vi } from 'vitest';
 import { ObjectId } from 'mongodb';
 import { toSensorDto, type SensorDocument } from '../src/modules/query/query.mapping.js';
@@ -68,30 +69,30 @@ describe('B4 query validation and service with explicit test doubles', () => {
   it('guards the parent and sensor reference before any query and keeps empty pages distinct from unavailable parents', async () => {
     const f = fixture();
     vi.mocked(f.datasets.getState).mockResolvedValueOnce(null).mockResolvedValueOnce({ id: f.datasetId, status: 'importing' });
-    await expect(f.service.sensors({ datasetId: 'opaque-unknown' })).rejects.toMatchObject({ statusCode: 422, code: 'DATASET_NOT_FOUND' });
-    await expect(f.service.readings({ datasetId: f.datasetId })).rejects.toMatchObject({ statusCode: 422, code: 'DATASET_NOT_READY' });
+    await expect(f.service.sensors({ datasetId: 'opaque-unknown' }, actor)).rejects.toMatchObject({ statusCode: 422, code: 'DATASET_NOT_FOUND' });
+    await expect(f.service.readings({ datasetId: f.datasetId }, actor)).rejects.toMatchObject({ statusCode: 422, code: 'DATASET_NOT_READY' });
     vi.mocked(f.repository.sensorIdInDataset).mockResolvedValueOnce(null);
-    await expect(f.service.readings({ datasetId: f.datasetId, sensorId: 'other' })).rejects.toMatchObject({ statusCode: 422, code: 'SENSOR_NOT_IN_DATASET' });
+    await expect(f.service.readings({ datasetId: f.datasetId, sensorId: 'other' }, actor)).rejects.toMatchObject({ statusCode: 422, code: 'SENSOR_NOT_IN_DATASET' });
     expect(f.repository.readings).not.toHaveBeenCalled(); expect(f.repository.sensors).not.toHaveBeenCalled();
-    expect(await f.service.readings({ datasetId: f.datasetId })).toEqual({ data: [], page: { limit: 100, nextCursor: null } });
+    expect(await f.service.readings({ datasetId: f.datasetId }, actor)).toEqual({ data: [], page: { limit: 100, nextCursor: null } });
     expect(f.repository.readings).toHaveBeenCalledWith({ datasetId: f.datasetId, direction: 'asc', limit: 101 });
-    await expect(f.service.readings({ datasetId: f.datasetId, from: '2026-01-02T00:00:00Z', to: '2026-01-01T00:00:00Z' })).rejects.toMatchObject({ code: 'INVALID_TIME_RANGE' });
+    await expect(f.service.readings({ datasetId: f.datasetId, from: '2026-01-02T00:00:00Z', to: '2026-01-01T00:00:00Z' }, actor)).rejects.toMatchObject({ code: 'INVALID_TIME_RANGE' });
   });
   it('binds cursors to every filter/sort/operation and fetches only one extra row; canonical-equivalent filters can continue', async () => {
     const f = fixture(), base = { datasetId: f.datasetId, sensorId: f.sensorId, bbox: '106,10,107,11', from: '2026-11-14T00:00:00Z', to: '2026-11-14T01:00:00Z', limit: 1 };
     const reading = (id: string) => ({ id, datasetId: f.datasetId, sensorId: f.sensorId, ts: '2026-11-14T00:00:00.000Z',
       location: { type: 'Point' as const, coordinates: [106, 10] as [number, number] }, value: 0, unit: 'ug/m3' as const });
     vi.mocked(f.repository.readings).mockResolvedValueOnce([reading(new ObjectId().toHexString()), reading(new ObjectId().toHexString())]);
-    const first = await f.service.readings(base), cursor = first.page.nextCursor!;
+    const first = await f.service.readings(base, actor), cursor = first.page.nextCursor!;
     expect(first.data).toHaveLength(1); expect(cursor).toBeTruthy();
     for (const changed of [{ bbox: '106,10,108,11' }, { from: '2026-11-14T00:00:01Z' }, { to: '2026-11-14T01:00:01Z' }, { sort: 'ts:desc' }]) {
       const query = { ...base, ...changed, cursor };
-      await expect(f.service.readings(query)).rejects.toMatchObject({ statusCode: 400, code: 'INVALID_CURSOR' });
+      await expect(f.service.readings(query, actor)).rejects.toMatchObject({ statusCode: 400, code: 'INVALID_CURSOR' });
     }
     const noSensor: ReadingsQuery = { ...base, cursor }; delete noSensor.sensorId;
-    await expect(f.service.readings(noSensor)).rejects.toMatchObject({ code: 'INVALID_CURSOR' });
-    await expect(f.service.sensors({ datasetId: f.datasetId, bbox: base.bbox, cursor })).rejects.toMatchObject({ code: 'INVALID_CURSOR' });
-    await f.service.readings({ ...base, bbox: '106.0,10.0,107.0,11.0', from: '2026-11-14T00:00:00.000Z', cursor, limit: 2 });
+    await expect(f.service.readings(noSensor, actor)).rejects.toMatchObject({ code: 'INVALID_CURSOR' });
+    await expect(f.service.sensors({ datasetId: f.datasetId, bbox: base.bbox, cursor }, actor)).rejects.toMatchObject({ code: 'INVALID_CURSOR' });
+    await f.service.readings({ ...base, bbox: '106.0,10.0,107.0,11.0', from: '2026-11-14T00:00:00.000Z', cursor, limit: 2 }, actor);
     expect(f.repository.readings).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 3, after: { id: first.data[0]!.id, key: '2026-11-14T00:00:00.000Z' } }));
   });
 });

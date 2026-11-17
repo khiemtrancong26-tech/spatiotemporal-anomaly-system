@@ -5,6 +5,7 @@ info:
   description: API contract draft based on SRS v0.5; API standardization review (2026-11-12).
     Resource-oriented /api/v1; bounded sort, keyset cursor, POST idempotency, endpoint-specific status codes.
     Analysis async approved 2026-11-13 (D008); execution technology and operating limits remain open. OPEN-02/03/04/05/07 and unrelated NEW items remain unresolved. No endpoint is assumed implemented.
+    D021 private datasets - analysts may access only datasets whose createdBy is their authenticated user ID; admins may access all datasets with valid stored owners. All child resources inherit dataset authorization, including direct run/anomaly IDs and import mutations. Unknown and inaccessible resources use the same endpoint-specific not-found semantics (404 for direct resources/import, existing 422 for Query/Exploration/anomaly dataset filters, empty history for unavailable datasets). Cursors are scoped to authenticated user and role; no cross-account reuse. Missing or non-ObjectId owners are quarantined, never assigned automatically.
 servers:
 - url: /
   description: Same-origin Nginx HTTPS :443; paths include /api/v1
@@ -64,7 +65,7 @@ paths:
   /api/v1/auth/tokens:
     post:
       tags:
-      - Auth
+        - Auth
       summary: Đăng nhập, cấp JWT
       operationId: post_api_v1_auth_tokens
       description: Không bắt buộc Idempotency-Key; sai thông tin đăng nhập trả 401, không tiết lộ username
@@ -75,118 +76,110 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginRequest'
+              $ref: "#/components/schemas/LoginRequest"
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoginResponse'
-        '400':
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
           description: Bad Request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                $ref: "#/components/schemas/Error"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
           headers:
             WWW-Authenticate:
               description: Bearer challenge cho API được bảo vệ.
               schema:
                 type: string
               example: Bearer realm="pm25-api"
-        '429':
-          description: Too Many Requests
+        "403":
+          description: EMAIL_NOT_VERIFIED only after correct credentials.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-          headers:
-            Retry-After:
-              description: Đưa ra khi rate-limit được triển khai.
-              schema:
-                type: string
-        '405':
+                $ref: "#/components/schemas/Error"
+        "405":
           description: Method Not Allowed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
           headers:
             Allow:
               description: Danh sách HTTP methods được hỗ trợ tại path.
               schema:
                 type: string
-        '500':
+        "429":
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+          headers:
+            Retry-After:
+              description: Đưa ra khi rate-limit được triển khai.
+              schema:
+                type: string
+        "500":
           description: Internal Server Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
   /api/v1/auth/register:
     post:
       tags:
-      - Auth
+        - Auth
       summary: Tự đăng ký tài khoản analyst
       operationId: post_api_v1_auth_register
-      description: >-
-        Public; chỉ nhận username/password. Tái sử dụng User, validation, password hashing
-        và quy tắc username duy nhất của luồng tạo tài khoản. Server luôn gán role=analyst,
-        isActive=true; không nhận role/isActive từ client (422). Username trùng trả 409,
-        kể cả request đồng thời với tạo user qua Admin. Thành công không trả token/password/hash;
-        FE chuyển về Login, không auto-login. Không yêu cầu Idempotency-Key;
-        gửi lại sau khi đã tạo có thể trả 409.
+      description: Public Register requires username/email/password; creates pending analyst. No JWT. 503
+        REGISTRATION_EMAIL_FAILED means account exists pending verification; resend instead of
+        registering again.
       security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RegisterRequest'
+              $ref: "#/components/schemas/RegisterRequest"
       responses:
-        '201':
-          description: Created analyst; FE chuyển về Login
+        "201":
+          description: Account created pending email verification. No automatic login.
           content:
             application/json:
               schema:
                 allOf:
-                - $ref: '#/components/schemas/UserResponse'
-                - type: object
-                  properties:
-                    data:
-                      type: object
-                      properties:
-                        role:
-                          type: string
-                          enum: [analyst]
-                        isActive:
-                          type: boolean
-                          enum: [true]
-        '400':
+                  - $ref: "#/components/schemas/UserResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          role:
+                            type: string
+                            enum:
+                              - analyst
+                          isActive:
+                            type: boolean
+                            enum:
+                              - true
+        "400":
           description: Bad Request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Username đã tồn tại theo quy tắc username duy nhất hiện có
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Validation failed; bao gồm trường role/isActive hoặc trường ngoài schema
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '405':
+                $ref: "#/components/schemas/Error"
+        "405":
           description: Method Not Allowed
           headers:
             Allow:
@@ -195,13 +188,37 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Username đã tồn tại theo quy tắc username duy nhất hiện có
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Validation failed; bao gồm trường role/isActive hoặc trường ngoài schema
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
           description: Internal Server Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/v1/users/me:
     get:
       tags:
@@ -2316,6 +2333,126 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /api/v1/auth/verify-email:
+    post:
+      tags:
+        - Auth
+      operationId: post_api_v1_auth_verify_email
+      summary: verify-email
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailTokenRequest"
+      responses:
+        "200":
+          description: Verification/reset completed, or generic email request acknowledged; no JWT and no
+            confirmed delivery claim.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMessage"
+        "400": &a1
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422": *a1
+        "429": *a1
+        "500": *a1
+  /api/v1/auth/resend-verification:
+    post:
+      tags:
+        - Auth
+      operationId: post_api_v1_auth_resend_verification
+      summary: resend-verification
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailRequest"
+      responses:
+        "200":
+          description: Verification/reset completed, or generic email request acknowledged; no JWT and no
+            confirmed delivery claim.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMessage"
+        "400": &a1
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422": *a1
+        "429": *a1
+        "500": *a1
+  /api/v1/auth/forgot-password:
+    post:
+      tags:
+        - Auth
+      operationId: post_api_v1_auth_forgot_password
+      summary: forgot-password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailRequest"
+      responses:
+        "200":
+          description: Verification/reset completed, or generic email request acknowledged; no JWT and no
+            confirmed delivery claim.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMessage"
+        "400": &a1
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422": *a1
+        "429": *a1
+        "500": *a1
+  /api/v1/auth/reset-password:
+    post:
+      tags:
+        - Auth
+      operationId: post_api_v1_auth_reset_password
+      summary: reset-password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Verification/reset completed, or generic email request acknowledged; no JWT and no
+            confirmed delivery claim.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMessage"
+        "400": &a1
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422": *a1
+        "429": *a1
+        "500": *a1
 components:
   securitySchemes:
     bearerAuth:
@@ -2573,11 +2710,15 @@ components:
       - value
       - unit
     AnalysisRun:
-      description: >-
-        queued -> running -> completed hoặc failed; queued có thể failed trước khi chạy. Terminal không tự quay lại running.
-        completed chỉ sau khi toàn bộ kết quả đã lưu và đọc được; failed không công bố partial.
-        scope là snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại.
-        completedAt có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng khi trạng thái khác.
+      description: "queued -> running -> completed hoặc failed; queued có thể failed
+        trước khi chạy. Terminal không tự quay lại running. completed chỉ sau khi
+        toàn bộ kết quả đã lưu và đọc được; failed không công bố partial. scope là
+        snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại. completedAt
+        có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng
+        khi trạng thái khác. D020: a single three-feature Isolation Forest uses
+        config {}. modelVersion is server-owned provenance, not a client selector.
+        scoringSummary is required only for completed ML runs;
+        targetCount=scoredCount+unscorableCount and reason counts are disjoint."
       type: object
       properties:
         id:
@@ -2591,24 +2732,24 @@ components:
         family:
           type: string
           enum:
-          - statistical
-          - ml
+            - statistical
+            - ml
         method:
           type: string
         config:
           type: object
           additionalProperties: true
         scope:
-          $ref: '#/components/schemas/AnalysisScope'
+          $ref: "#/components/schemas/AnalysisScope"
         error:
-          $ref: '#/components/schemas/AnalysisFailure'
+          $ref: "#/components/schemas/AnalysisFailure"
         status:
           type: string
           enum:
-          - queued
-          - running
-          - completed
-          - failed
+            - queued
+            - running
+            - completed
+            - failed
         createdAt:
           type: string
           format: date-time
@@ -2621,35 +2762,73 @@ components:
           type: string
         modelVersion:
           type: string
+        scoringSummary:
+          $ref: "#/components/schemas/ScoringSummary"
       additionalProperties: false
       required:
-      - id
-      - datasetId
-      - family
-      - method
-      - config
-      - status
-      - createdAt
-      - scope
+        - id
+        - datasetId
+        - family
+        - method
+        - config
+        - status
+        - createdAt
+        - scope
       allOf:
-      - oneOf:
-        - properties:
-            status:
-              enum: [queued, running]
-          not:
-            anyOf:
-            - required: [completedAt]
-            - required: [error]
-        - properties:
-            status:
-              enum: [completed]
-          required: [completedAt]
-          not:
-            required: [error]
-        - properties:
-            status:
-              enum: [failed]
-          required: [completedAt, error]
+        - oneOf:
+            - properties:
+                status:
+                  enum:
+                    - queued
+                    - running
+              not:
+                anyOf:
+                  - required:
+                      - completedAt
+                  - required:
+                      - error
+            - properties:
+                status:
+                  enum:
+                    - completed
+              required:
+                - completedAt
+              not:
+                required:
+                  - error
+            - properties:
+                status:
+                  enum:
+                    - failed
+              required:
+                - completedAt
+                - error
+        - oneOf:
+            - required:
+                - family
+                - status
+                - scoringSummary
+              properties:
+                family:
+                  enum:
+                    - ml
+                status:
+                  enum:
+                    - completed
+            - not:
+                anyOf:
+                  - required:
+                      - scoringSummary
+                  - required:
+                      - family
+                      - status
+                    properties:
+                      family:
+                        enum:
+                          - ml
+                      status:
+                        enum:
+                          - completed
     Anomaly:
       type: object
       properties:
@@ -2808,10 +2987,15 @@ components:
         password:
           type: string
           minLength: 8
+        email:
+          type: string
+          minLength: 3
+          maxLength: 254
       additionalProperties: false
       required:
-      - username
-      - password
+        - username
+        - password
+        - email
     LoginRequest:
       type: object
       properties:
@@ -2956,6 +3140,7 @@ components:
           format: date-time
           description: UTC ISO 8601 with Z; payload normalized by server
     DetectionRequest:
+      description: ML uses method isolation_forest and config {}; model selection is server-owned. Nonempty ML config is rejected with 422.
       type: object
       properties:
         datasetId:
@@ -3669,3 +3854,81 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/ReadingAggregation"
+
+    ScoringSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - targetCount
+        - scoredCount
+        - unscorableCount
+        - reasons
+      properties:
+        targetCount:
+          type: integer
+          minimum: 0
+        scoredCount:
+          type: integer
+          minimum: 1
+        unscorableCount:
+          type: integer
+          minimum: 0
+        reasons:
+          type: object
+          additionalProperties: false
+          required:
+            - temporalOnly
+            - spatialOnly
+            - both
+          properties:
+            temporalOnly:
+              type: integer
+              minimum: 0
+            spatialOnly:
+              type: integer
+              minimum: 0
+            both:
+              type: integer
+              minimum: 0
+    EmailRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          minLength: 3
+          maxLength: 254
+    EmailTokenRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 256
+    ResetPasswordRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - token
+        - newPassword
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 256
+        newPassword:
+          type: string
+          minLength: 8
+    AuthMessage:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+      properties:
+        message:
+          type: string

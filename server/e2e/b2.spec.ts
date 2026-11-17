@@ -14,6 +14,7 @@ let backend: FastifyInstance | undefined;
 let vite: ChildProcess | undefined;
 let frontendUrl: string;
 let backendUrl: string;
+let verificationToken = ''; // Injectable sender, no real emails in automated tests.
 const password = 'B2-browser-test-password';
 const seedName = '[SEED B2] Metadata demo — not a real import';
 
@@ -27,7 +28,7 @@ test.beforeAll(async () => {
   mongo = await MongoMemoryServer.create({ binary: { version: '8.2.6' } });
   backend = buildApp({ config: loadTestConfig({ MONGODB_URI: mongo.getUri('b2_browser_test'),
     CORS_ORIGINS: frontendUrl, LOG_LEVEL: 'silent', LOGIN_RATE_LIMIT_MAX: '1000',
-  }), logger: false });
+  }), logger: false, analysisWorkerEnabled: false, emailSender: { verification: async (_email, token) => { verificationToken = token; }, reset: async () => {} } });
   backendUrl = await backend.listen({ host: '127.0.0.1', port: 0 });
   await seedDemo(backend.mongo.db, { SEED_ADMIN_USERNAME: 'BrowserAdmin', SEED_ADMIN_PASSWORD: password,
     SEED_ANALYST_USERNAME: 'BrowserAnalyst', SEED_ANALYST_PASSWORD: password, SEED_DEMO_DATA: 'true',
@@ -52,15 +53,21 @@ test.afterAll(async () => {
   await mongo?.stop();
 });
 
-test('Register → Login → reload/me → datasets/workspace → admin/401 uses the actual Backend and DB', async ({ page }) => {
+test('Register → Verify → Login → reload/me → datasets/workspace → admin/401 uses the actual Backend and DB', async ({ page }) => {
   const requests: string[] = [];
   page.on('request', request => { if (request.url().startsWith(backendUrl)) requests.push(new URL(request.url()).pathname); });
   await page.goto(`${frontendUrl}/register`);
   await page.getByLabel('Tên đăng nhập', { exact: true }).fill('BrowserNew');
+  await page.getByLabel('Email', { exact: true }).fill('browser@example.com');
   await page.getByLabel('Mật khẩu', { exact: true }).fill(password);
   const registration = page.waitForResponse(response => response.url() === `${backendUrl}/api/v1/auth/register` && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Đăng ký', exact: true }).click();
   expect((await registration).status()).toBe(201);
+  await expect(page.getByRole('heading', { name: 'Chờ xác minh email', exact: true })).toBeVisible();
+  await page.goto(`${frontendUrl}/verify-email?token=${verificationToken}`);
+  await page.getByRole('button', { name: 'Xác nhận email', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Email đã xác minh');
+  await page.goto(`${frontendUrl}/login`);
   await expect(page.getByRole('heading', { name: 'Đăng nhập', exact: true })).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem('pm25.auth.online'))).toBeNull();
   await page.getByLabel('Tên đăng nhập', { exact: true }).fill('BROWSERNEW');
@@ -88,9 +95,10 @@ test('Register → Login → reload/me → datasets/workspace → admin/401 uses
   expect(await page.evaluate(() => sessionStorage.getItem('pm25.auth.online'))).toBeNull();
   await page.goto(`${frontendUrl}/register`);
   await page.getByLabel('Tên đăng nhập', { exact: true }).fill('browsernew');
+  await page.getByLabel('Email', { exact: true }).fill('browser@example.com');
   await page.getByLabel('Mật khẩu', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Đăng ký', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('đã tồn tại');
+  await expect(page.getByRole('alert')).toContainText('đã được đăng ký');
   await page.goto(`${frontendUrl}/login`);
   await page.getByLabel('Tên đăng nhập', { exact: true }).fill('BrowserAdmin');
   await page.getByLabel('Mật khẩu', { exact: true }).fill(password);

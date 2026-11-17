@@ -35,7 +35,7 @@ export function createImportRoutes(service: ReturnType<typeof createImportServic
       schema: { params: datasetIdSchema, querystring: noQuery,
         response: { 200: validationReportSchema, ...errors([400, 401, 403, 404, 500]) } },
     }, async request => {
-      try { return await service.validation(request.params.id); }
+      try { return await service.validation(request.params.id, request.principal!); }
       catch (error) {
         if (error instanceof HttpError && error.statusCode < 500) throw error;
         throw new HttpError(500, 'VALIDATION_UNAVAILABLE', 'Validation report could not be read.');
@@ -45,14 +45,14 @@ export function createImportRoutes(service: ReturnType<typeof createImportServic
       onRequest: authorize, config: { bodyValidationStatus: 422 },
       schema: { params: datasetIdSchema, querystring: noQuery, body: mappingRequestSchema,
         response: { 200: singleDatasetSchema, ...errors([400, 401, 403, 404, 409, 422, 500]) } },
-    }, async request => ({ data: await service.mapping(request.params.id, request.body) }));
+    }, async request => ({ data: await service.mapping(request.params.id, request.body, request.principal!) }));
     app.post<{ Params: { id: string } }>('/datasets/:id/imports', {
       onRequest: authorize,
       schema: { params: datasetIdSchema, querystring: noQuery,
         response: { 200: singleDatasetSchema, ...errors([400, 401, 403, 404, 409, 422, 500, 503]) } },
     }, async (request, reply) => {
       if (request.body !== undefined) throw new HttpError(400, 'UNEXPECTED_BODY', 'Import does not accept a request body.');
-      const response = await service.import(request.principal!.id, request.params.id, request.headers['idempotency-key']);
+      const response = await service.import(request.principal!, request.params.id, request.headers['idempotency-key']);
       return send(reply, response);
     });
   };

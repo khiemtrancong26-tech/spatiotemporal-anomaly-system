@@ -49,6 +49,8 @@ export function createMockTransport(controls: MockControls): typeof globalThis.f
       if (!new Headers(init?.headers).get('Authorization')) return error(401, 'UNAUTHORIZED');
       return error(503, 'C2_MOCK_NOT_IMPLEMENTED');
     }
+    // Email delivery/token lifecycle is unavailable in mock mode; never fake verification.
+    if (url.pathname === '/api/v1/auth/register' || ['/verify-email', '/resend-verification', '/forgot-password', '/reset-password'].some(p => url.pathname === '/api/v1/auth' + p)) return error(503, 'MOCK_EMAIL_NOT_IMPLEMENTED');
     const candidate = successCases.find((item) => item.method === method && !['analysis-detail-queued', 'analysis-detail-running', 'analysis-detail-failed'].includes(item.id) && matches(item.path, url.pathname));
     if (!candidate) return error(404, 'MOCK_ROUTE_NOT_FOUND');
     const bearer = new Headers(init?.headers).get('Authorization') ?? '';
@@ -64,6 +66,7 @@ export function createMockTransport(controls: MockControls): typeof globalThis.f
 
     if (url.pathname === '/api/v1/analysis-runs' && method === 'POST') {
       const body = JSON.parse(String(init?.body)) as DetectionRequest;
+      if (body.family === 'ml') return error(503, 'MOCK_ML_NOT_IMPLEMENTED');
       const key = `${mockToken}:${new Headers(init?.headers).get('Idempotency-Key')}`;
       const prior = receipts.get(key);
       if (prior) return prior.body === JSON.stringify(body) ? json(prior.response, 202) : error(422, 'KEY_PAYLOAD_MISMATCH');
@@ -122,19 +125,6 @@ export function createMockTransport(controls: MockControls): typeof globalThis.f
     if (candidate.id === 'anomalies' && !url.searchParams.get('analysisRunId')?.startsWith('demo-')) payload.data = (payload.data as Record<string, unknown>[]).map(a => a.id === reviewed.data.id ? reviewed.data : a);
     if (candidate.id === 'me') payload.data = { ...(payload.data as object), role: sessionRole, username: mockToken.startsWith('mock-registered:') ? decodeURIComponent(mockToken.slice('mock-registered:'.length)) : sessionRole === 'admin' ? 'admin01' : 'analyst01' };
     if (candidate.id === 'me' && sessionUser) payload.data = sessionUser;
-    if (candidate.id === 'register') {
-      const credentials = JSON.parse(String(init?.body));
-      if (Object.keys(credentials).some((key) => !['username', 'password'].includes(key)) || typeof credentials.username !== 'string' || !credentials.username.trim() || typeof credentials.password !== 'string' || credentials.password.length < 8) return error(422, 'VALIDATION_ERROR');
-      const username = credentials.username.trim();
-      const normalized = username.toLowerCase();
-      if (['analyst01', 'admin01', 'demo'].includes(normalized) || accounts.has(normalized)) return error(409, 'USERNAME_CONFLICT');
-      const passwordDigest = await digest(credentials.password);
-      if (accounts.has(normalized)) return error(409, 'USERNAME_CONFLICT');
-      accounts.set(normalized, { username, digest: passwordDigest });
-      const user: UserPublic = { id: `mock-user-${encodeURIComponent(username)}`, username, role: 'analyst', isActive: true };
-      users.set(user.id, user);
-      return json({ data: user }, 201);
-    }
     if (candidate.id === 'login') {
       const credentials = JSON.parse(String(init?.body));
       const account = accounts.get(String(credentials.username).trim().toLowerCase());

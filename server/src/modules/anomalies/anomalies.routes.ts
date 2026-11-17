@@ -12,13 +12,13 @@ export function createAnomalyRoutes(service: ReturnType<typeof createAnomalyServ
       onRequest: app.authorize(['analyst', 'admin']),
       preValidation: async request => { parsePageQuery(request.query, listSorts.anomalies, 'ts:asc'); },
       schema: { querystring: anomaliesQuerySchema, response: { 200: anomalyPageSchema, ...errors, 409: errorSchema, 422: errorSchema } },
-    }, request => service.list(request.query));
+    }, request => service.list(request.query, request.principal!));
     app.get<{ Params: { id: string } }>('/anomalies/:id', {
       onRequest: app.authorize(['analyst', 'admin']), schema: { params: anomalyParamsSchema, response: { 200: singleAnomalySchema, ...errors, 404: errorSchema } },
-    }, request => service.detail(request.params.id));
+    }, request => service.detail(request.params.id, request.principal!));
     app.patch<{ Params: { id: string }; Body: ReviewRequest }>('/anomalies/:id', {
       onRequest: app.authorize(['analyst', 'admin']), schema: { params: anomalyParamsSchema, body: reviewRequestSchema,
         response: { 200: singleAnomalySchema, ...errors, 404: errorSchema, 409: errorSchema, 422: errorSchema } },
-    }, request => service.review(request.params.id, request.body));
+    }, request => service.review(request.params.id, request.body, request.principal!));
   };
 }

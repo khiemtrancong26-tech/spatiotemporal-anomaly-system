@@ -17,7 +17,7 @@ export function createExplorationRoutes(service: ReturnType<typeof createExplora
     }, async (request, reply) => {
       const controller = new AbortController(), abort = () => { if (!reply.raw.writableEnded) controller.abort(); };
       reply.raw.once('close', abort);
-      try { return await service.profile(request.params.id, request.query, controller.signal); } finally { reply.raw.removeListener('close', abort); }
+      try { return await service.profile(request.params.id, request.query, controller.signal, request.principal!); } finally { reply.raw.removeListener('close', abort); }
     });
     app.get<{ Querystring: ExplorationQuery }>('/reading-aggregates', {
       onRequest: app.authorize(['analyst', 'admin']), preValidation: normalize,
@@ -25,7 +25,7 @@ export function createExplorationRoutes(service: ReturnType<typeof createExplora
     }, async (request, reply) => {
       const controller = new AbortController(), abort = () => { if (!reply.raw.writableEnded) controller.abort(); };
       reply.raw.once('close', abort);
-      try { return await service.aggregates(request.query.datasetId!, request.query, controller.signal); } finally { reply.raw.removeListener('close', abort); }
+      try { return await service.aggregates(request.query.datasetId!, request.query, controller.signal, request.principal!); } finally { reply.raw.removeListener('close', abort); }
     });
   };
 }

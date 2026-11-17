@@ -1,0 +1,68 @@
+{
+  "sourceUrl": "https://archive.ics.uci.edu/static/public/501/beijing%2Bmulti%2Bsite%2Bair%2Bquality%2Bdata.zip",
+  "archiveSha256": "b04da438b2f331ac0ffd45aebdfec0d20d2367feb5f6948c4b1f7ce1191e33c4",
+  "goldenSha256": "189c1f773f11294d66b06a0097bccfba653496cf08554a733caaf8afdbdd6ff0",
+  "provenance": "Owner-provided golden coordinates, explicitly approved 2026-11-17 for integration baseline; not independently verified geodetic truth. Source local timestamps interpreted as fixed +08:00 by approval.",
+  "stations": [
+    {
+      "externalId": "Aotizhongxin",
+      "latitude": 40.003,
+      "longitude": 116.407
+    },
+    {
+      "externalId": "Changping",
+      "latitude": 40.195,
+      "longitude": 116.23
+    },
+    {
+      "externalId": "Dingling",
+      "latitude": 40.287,
+      "longitude": 116.17
+    },
+    {
+      "externalId": "Dongsi",
+      "latitude": 39.952,
+      "longitude": 116.434
+    },
+    {
+      "externalId": "Guanyuan",
+      "latitude": 39.942,
+      "longitude": 116.361
+    },
+    {
+      "externalId": "Gucheng",
+      "latitude": 39.928,
+      "longitude": 116.223
+    },
+    {
+      "externalId": "Huairou",
+      "latitude": 40.394,
+      "longitude": 116.643
+    },
+    {
+      "externalId": "Nongzhanguan",
+      "latitude": 39.971,
+      "longitude": 116.473
+    },
+    {
+      "externalId": "Shunyi",
+      "latitude": 40.144,
+      "longitude": 116.72
+    },
+    {
+      "externalId": "Tiantan",
+      "latitude": 39.874,
+      "longitude": 116.434
+    },
+    {
+      "externalId": "Wanliu",
+      "latitude": 39.994,
+      "longitude": 116.315
+    },
+    {
+      "externalId": "Wanshouxigong",
+      "latitude": 39.867,
+      "longitude": 116.366
+    }
+  ]
+}

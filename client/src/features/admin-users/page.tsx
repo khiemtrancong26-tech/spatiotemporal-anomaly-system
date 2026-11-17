@@ -6,7 +6,8 @@ import { createCursorPager } from '../../shared/lib/cursor-pager';
 import { DataSourceError, errorMessage } from '../../shared/api/errors';
 import type { AdminUserCreateRequest, UserPublic } from '../../shared/api/generated/wire';
 function explain(cause: unknown) {
-  if (cause instanceof DataSourceError && cause.status === 409 && cause.error?.code === 'USERNAME_CONFLICT') return 'Username đã tồn tại. Chọn username khác.';
+  if (cause instanceof DataSourceError && cause.error?.code === 'LAST_ACTIVE_ADMIN') return 'Phải giữ ít nhất một Admin đang hoạt động.';
+  if (cause instanceof DataSourceError && cause.status === 409 && ['USERNAME_CONFLICT', 'USERNAME_EXISTS'].includes(cause.error?.code ?? '')) return 'Username đã tồn tại. Chọn username khác.';
   if (cause instanceof DataSourceError && cause.status === 409) return 'Username trùng hoặc thao tác đang được xử lý. Kiểm tra danh sách/Backend trước khi tạo thao tác mới.';
   return errorMessage(cause);
 }
@@ -44,13 +45,13 @@ function CreateUser({ changed, dirtyRef }: { changed: () => void; dirtyRef: { cu
       if (!controller.signal.aborted) {
         setError(explain(cause));
         // Definitive validation/auth refusals allow correction; conflict/transport outcomes remain uncertain.
-        const rejected = cause instanceof DataSourceError && ([400, 401, 403, 422].includes(cause.status ?? 0) || (cause.status === 409 && cause.error?.code === 'USERNAME_CONFLICT'));
+        const rejected = cause instanceof DataSourceError && ([400, 401, 403, 422].includes(cause.status ?? 0) || (cause.status === 409 && ['USERNAME_CONFLICT', 'USERNAME_EXISTS'].includes(cause.error?.code ?? '')));
         setUnknown(!rejected);
         if (rejected || config.mode !== 'mock') intent.current = undefined;
       }
     } finally { if (!controller.signal.aborted) { active.current = undefined; setPending(false); } }
   }
-  return <section><h2>Tạo tài khoản</h2><form onSubmit={e => { e.preventDefault(); void submit(); }}><Field label="Username mới" autoComplete="off" value={username} disabled={pending || unknown} onChange={e => setUsername(e.target.value)} /><Field label="Mật khẩu mới" type="password" autoComplete="new-password" value={password} disabled={pending || unknown} onChange={e => setPassword(e.target.value)} /><label className="field">Quyền tài khoản mới<select aria-label="Quyền tài khoản mới" value={role} disabled={pending || unknown} onChange={e => setRole(e.target.value as typeof role)}><option value="analyst">analyst</option><option value="admin">admin</option></select></label><Button type="submit" disabled={expired || pending || (unknown && config.mode !== 'mock')}>{pending ? 'Đang tạo…' : unknown ? 'Thử lại tạo cùng key' : 'Tạo user'}</Button></form>{unknown && <p role="alert">Chưa xác nhận kết quả tạo. Không tự gửi lại. {config.mode === 'mock' ? 'Mock giữ nguyên key/payload trong RAM tối đa 15 phút để retry.' : 'API thật chưa chốt retention; retry đang khóa. Kiểm tra danh sách và đối soát Backend.'}</p>}{error && <p role="alert">{error}</p>}{success && <p role="status">{success}</p>}</section>;
+  return <section><h2>Tạo tài khoản</h2><form onSubmit={e => { e.preventDefault(); void submit(); }}><Field label="Username mới" autoComplete="off" value={username} disabled={pending || unknown} onChange={e => setUsername(e.target.value)} /><Field label="Mật khẩu mới" type="password" autoComplete="new-password" value={password} disabled={pending || unknown} onChange={e => setPassword(e.target.value)} /><label className="field">Quyền tài khoản mới<select aria-label="Quyền tài khoản mới" value={role} disabled={pending || unknown} onChange={e => setRole(e.target.value as typeof role)}><option value="analyst">analyst</option><option value="admin">admin</option></select></label><Button type="submit" disabled={expired || pending || (unknown && config.mode !== 'mock')}>{pending ? 'Đang tạo…' : unknown ? 'Thử lại tạo cùng key' : 'Tạo user'}</Button></form>{unknown && <p role="alert">Chưa xác nhận kết quả tạo. Không tự gửi lại. {config.mode === 'mock' ? 'Mock giữ nguyên key/payload trong RAM tối đa 15 phút để retry.' : 'Kiểm tra danh sách và đối soát Backend trước khi tạo thao tác mới.'}</p>}{error && <p role="alert">{error}</p>}{success && <p role="status">{success}</p>}</section>;
 }
 function EditUser({ user, changed }: { user: UserPublic; changed: (u: UserPublic) => void }) {
   const { data, session } = useServices();

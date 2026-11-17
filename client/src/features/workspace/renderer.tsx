@@ -5,15 +5,15 @@ import type { Reading } from '../../shared/api/generated/wire';
 import { createHeatmapTransition, heatLayer } from './map-heatmap';
 import { color, cubePoints } from './geometry';
 import { Button, LoadingState } from '../../shared/ui/primitives';
-type View = { zone: ExplorationTimeZone; rows: Reading[]; selected?: string; marked: Set<string>; scale?: {min:number;max:number} };
-export default function Renderer({ rows, mode, selected, onSelect, marked, spatialHeatmap = false, scale, zone = '+07:00' }: Omit<View, 'zone'> & { zone?: ExplorationTimeZone; spatialHeatmap?:boolean; mode:'map'|'cube'; onSelect:(id:string)=>void }) {
+type View = { zone: ExplorationTimeZone; rows: Reading[]; selected?: string; focusedSensorId?:string; marked: Set<string>; scale?: {min:number;max:number} };
+export default function Renderer({ rows, mode, selected, focusedSensorId, onSelect, marked, spatialHeatmap = false, scale, zone = '+07:00' }: Omit<View, 'zone'> & { zone?: ExplorationTimeZone; spatialHeatmap?:boolean; mode:'map'|'cube'; onSelect:(id:string)=>void }) {
   const host = useRef<HTMLDivElement>(null), reset = useRef<()=>void>(()=>{});
   const update = useRef<(view:View)=>void>(()=>{});
-  const input = useRef<View>({rows,selected,marked,scale,zone});
+  const input = useRef<View>({rows,selected,focusedSensorId,marked,scale,zone});
   const choose = useRef(onSelect);
   const [error,setError] = useState(''), [ready,setReady] = useState(false);
   const heatmap = useRef(spatialHeatmap), toggleHeatmap = useRef<(visible:boolean)=>void>(()=>{});
-  useEffect(()=>{input.current={rows,selected,marked,scale,zone};choose.current=onSelect;update.current(input.current);},[rows,selected,marked,scale,onSelect,zone]);
+  useEffect(()=>{input.current={rows,selected,focusedSensorId,marked,scale,zone};choose.current=onSelect;update.current(input.current);},[rows,selected,focusedSensorId,marked,scale,onSelect,zone]);
   useEffect(()=>{heatmap.current=spatialHeatmap;toggleHeatmap.current(spatialHeatmap);},[spatialHeatmap]);
   useEffect(()=>{
     let cancelled=false, cleanup=()=>{};
@@ -31,7 +31,7 @@ export default function Renderer({ rows, mode, selected, onSelect, marked, spati
         map.addControl(new mapbox.NavigationControl(),'bottom-right');
         let fitted=false, previousWidth=element.clientWidth;
         cleanup=()=>map.remove();
-        const resize=new ResizeObserver(()=>{map.resize();if(fitted && element.clientWidth!==previousWidth)reset.current();previousWidth=element.clientWidth;});
+        const resize=new ResizeObserver(()=>{if(!element.clientWidth||!element.clientHeight)return;map.resize();if(fitted && element.clientWidth!==previousWidth)reset.current();previousWidth=element.clientWidth;});
         cleanup=()=>{resize.disconnect();map.remove();};resize.observe(element);
         reset.current=()=>{
           const points=input.current.rows;
@@ -50,12 +50,12 @@ export default function Renderer({ rows, mode, selected, onSelect, marked, spati
           const popup=new mapbox.Popup({closeButton:true,closeOnClick:true,maxWidth:'280px'});
           cleanup=()=>{blend.dispose();popup.remove();previousCleanup();};
           let previousRows:Reading[]|undefined,previousMax:number|undefined,previousZone:ExplorationTimeZone|undefined;
-          map.addLayer({id:'readings',type:'circle',source:'readings',paint:{'circle-color':['get','color'],'circle-radius':['interpolate',['linear'],['zoom'],5,['case',['get','selected'],7,3],12,['case',['get','selected'],11,6],16,['case',['get','selected'],13,9]],'circle-opacity':['interpolate',['linear'],['zoom'],5,0.5,12,0.9,15,1],'circle-stroke-width':['case',['get','selected'],3,2],'circle-stroke-color':['case',['get','anomaly'],'#8b00b5',['get','selected'],'#142e50','#ffffff']}});
+          map.addLayer({id:'readings',type:'circle',source:'readings',paint:{'circle-color':['get','color'],'circle-radius':['interpolate',['linear'],['zoom'],5,['case',['get','selected'],7,3],12,['case',['get','selected'],11,6],16,['case',['get','selected'],13,9]],'circle-opacity':['interpolate',['linear'],['zoom'],5,0.5,12,0.9,15,1],'circle-stroke-width':['case',['any',['get','selected'],['get','focused']],3,2],'circle-stroke-color':['case',['get','anomaly'],'#8b00b5',['get','selected'],'#142e50',['get','focused'],'#087F86','#ffffff']}});
           map.addLayer({id:'reading-values',type:'symbol',source:'readings',minzoom:13,layout:{'text-field':['concat',['to-string',['get','value']],' µg/m³'],'text-size':12,'text-offset':[0,1.5],'text-anchor':'top'},paint:{'text-color':'#18314c','text-halo-color':'#ffffff','text-halo-width':2}});
           toggleHeatmap.current=visible=>blend.toggle(visible);
           update.current=view=>{
             const {min,max}=range(view);
-            const data:GeoJSON.FeatureCollection<GeoJSON.Point>={type:'FeatureCollection',features:view.rows.map(r=>({type:'Feature',geometry:{type:'Point',coordinates:r.location.coordinates},properties:{id:r.id,value:r.value,sensorId:r.sensorId,ts:r.ts,color:color(r.value,min,max),selected:r.id===view.selected,anomaly:view.marked.has(r.id)}}))};
+            const data:GeoJSON.FeatureCollection<GeoJSON.Point>={type:'FeatureCollection',features:view.rows.map(r=>({type:'Feature',geometry:{type:'Point',coordinates:r.location.coordinates},properties:{id:r.id,value:r.value,sensorId:r.sensorId,ts:r.ts,color:color(r.value,min,max),selected:r.id===view.selected,focused:r.sensorId===view.focusedSensorId,anomaly:view.marked.has(r.id)}}))};
             (map.getSource('readings') as import('mapbox-gl').GeoJSONSource).setData(data);
             if(previousRows!==view.rows || previousMax!==max || previousZone!==view.zone){blend.stage(data,max);popup.remove();previousRows=view.rows;previousMax=max;previousZone=view.zone;}
             if(!fitted&&view.rows.length){fitted=true;reset.current();}

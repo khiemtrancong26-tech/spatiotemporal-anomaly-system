@@ -1,3 +1,4 @@
+import { datasetAccessFilter } from './dataset-access.js';
 import type { Db, ObjectId } from 'mongodb';
 import { toObjectId, toPublicId, toUtcIso } from '../../shared/persistence/mapping.js';
 import { keysetPredicate } from '../../shared/persistence/keyset.js';
@@ -28,9 +29,9 @@ export function toDatasetDto(document: DatasetDocument): Dataset {
 export function createDatasetRepository(db: Db): DatasetRepository {
   const collection = db.collection<DatasetDocument>('datasets');
   return {
-    async listImported({ direction, limit, after }) {
+    async listImported({ direction, limit, after, actor }) {
       const boundary = after ? keysetPredicate('createdAt', direction, { key: new Date(after.key), id: toObjectId(after.id) }) : {};
-      const documents = await collection.find({ status: 'imported', ...boundary }, { projection: {
+      const documents = await collection.find({ status: 'imported', ...boundary, ...datasetAccessFilter(actor) }, { projection: {
         _id: 1, name: 1, sourceFilename: 1, status: 1, createdBy: 1, createdAt: 1, importSummary: 1,
       } }).sort({ createdAt: direction === 'asc' ? 1 : -1, _id: direction === 'asc' ? 1 : -1 }).limit(limit).toArray();
       return documents.map(toDatasetDto);
@@ -40,11 +41,11 @@ export function createDatasetRepository(db: Db): DatasetRepository {
 
 export function createDatasetReadRepository(db: Db): DatasetReadAccess {
   return {
-    async getState(id) {
+    async getState(id, actor) {
       // An opaque public ID need not be a valid persistence ObjectId; no HTTP
       // syntax restriction is inferred from our current MongoDB representation.
       if (!/^[0-9a-f]{24}$/i.test(id)) return null;
-      const dataset = await db.collection<DatasetDocument>('datasets').findOne({ _id: toObjectId(id) },
+      const dataset = await db.collection<DatasetDocument>('datasets').findOne({ ...datasetAccessFilter(actor), _id: toObjectId(id) },
         { projection: { _id: 1, status: 1 } });
       return dataset ? { id: toPublicId(dataset._id), status: dataset.status } : null;
     },

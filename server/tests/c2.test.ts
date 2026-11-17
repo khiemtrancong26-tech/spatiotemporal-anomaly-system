@@ -1,3 +1,4 @@
+const actor = { id: '507f1f77bcf86cd799439011', role: 'admin' as const };
 import { describe, expect, it, vi } from 'vitest';
 import { coverage, createExplorationService, parseExplorationScope } from '../src/modules/exploration/exploration.service.js';
 import type { ExplorationRepository } from '../src/modules/exploration/exploration.types.js';
@@ -13,23 +14,23 @@ describe('C2 deadline/admission, visibility and time policies', () => {
         ctx.signal.addEventListener('abort', () => reject(new Error('Cancelled test repository work')), { once: true });
       }) };
       const config = { ...loadTestConfig().exploration, timeoutMs: 50 }, service = createExplorationService(repo, config);
-      const a = expect(service.profile(id, {})).rejects.toMatchObject({ statusCode: 503, code: 'EXPLORATION_TIMEOUT' });
-      const b = expect(service.profile(id, {})).rejects.toMatchObject({ statusCode: 503 });
-      await expect(service.profile(id, {})).rejects.toMatchObject({ code: 'EXPLORATION_BUSY' });
+      const a = expect(service.profile(id, {}, undefined, actor)).rejects.toMatchObject({ statusCode: 503, code: 'EXPLORATION_TIMEOUT' });
+      const b = expect(service.profile(id, {}, undefined, actor)).rejects.toMatchObject({ statusCode: 503 });
+      await expect(service.profile(id, {}, undefined, actor)).rejects.toMatchObject({ code: 'EXPLORATION_BUSY' });
       await vi.advanceTimersByTimeAsync(51); await Promise.all([a, b]);
       repo.dataset = async () => ({ status: 'imported', metadata });
-      expect((await service.profile(id, {})).data.dataset.readingCount).toBe(0);
+      expect((await service.profile(id, {}, undefined, actor)).data.dataset.readingCount).toBe(0);
       const abort = new AbortController(); abort.abort();
-      await expect(service.profile(id, {}, abort.signal)).rejects.toMatchObject({ code: 'EXPLORATION_TIMEOUT' });
-      expect((await service.profile(id, {})).data.complete).toBe(true);
+      await expect(service.profile(id, {}, abort.signal, actor)).rejects.toMatchObject({ code: 'EXPLORATION_TIMEOUT' });
+      expect((await service.profile(id, {}, undefined, actor)).data.complete).toBe(true);
     } finally { vi.useRealTimers(); }
   });
   it('maps Mongo query resource exhaustion and rechecks publication after aggregating', async () => {
     const repo: ExplorationRepository = { sensors: async () => [], groups: async () => { throw { code: 50 }; }, dataset: async () => ({ status: 'imported', metadata }) };
     const service = createExplorationService(repo, loadTestConfig().exploration);
-    await expect(service.profile(id, {})).rejects.toMatchObject({ statusCode: 503 });
+    await expect(service.profile(id, {}, undefined, actor)).rejects.toMatchObject({ statusCode: 503 });
     repo.groups = async () => []; repo.dataset = vi.fn().mockResolvedValueOnce({ status: 'imported', metadata }).mockResolvedValueOnce({ status: 'failed', metadata });
-    await expect(service.profile(id, {})).rejects.toMatchObject({ code: 'DATASET_NOT_READY' });
+    await expect(service.profile(id, {}, undefined, actor)).rejects.toMatchObject({ code: 'DATASET_NOT_READY' });
   });
   it('handles offset boundaries, invalid local calendars and mathematically explicit missing slots', () => {
     const utc = explorationUtcTime('2015-03-01T00:00', '+08:00'); expect(utc).toBe('2015-02-28T16:00:00.000Z');

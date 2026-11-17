@@ -24,7 +24,7 @@ async function fixture(env: NodeJS.ProcessEnv = {}) {
   const app = buildApp({ config, logger: false, analysisWorkerEnabled: false }); apps.push(app); await app.ready();
   const db = client.db(name), user = new ObjectId(), dataset = new ObjectId(), sensor = new ObjectId();
   await db.collection('users').insertOne({ _id: user, role: 'analyst', isActive: true });
-  await db.collection('datasets').insertOne({ _id: dataset, status: 'imported' });
+  await db.collection('datasets').insertOne({ _id: dataset, status: 'imported', createdBy: user });
   await db.collection('sensors').insertOne({ _id: sensor, datasetId: dataset, location: { type: 'Point', coordinates: [116, 40] } });
   const headers = { authorization: 'Bearer ' + await createTokens(config.jwtSecret).issue(user.toHexString()) };
   const get = (url: string, params: [string, string][] = []) => app.inject({ url: url + '?' + new URLSearchParams(params), headers });

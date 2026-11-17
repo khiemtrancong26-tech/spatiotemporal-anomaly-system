@@ -1,5 +1,8 @@
 # B5 — Readiness trước triển khai
 
+**Tài liệu lịch sử — đã được D020 thay thế về model/setup/rollout.** Nội dung và kết quả dưới đây phản ánh thời điểm kiểm chứng, không phải hướng dẫn chạy hiện tại. Manifest/train CLI/artifact cũ có thể đã xóa; xem [pipeline một model và demo hiện hành](c3-single-model-verification.md). Không chạy lại các recipe cũ.
+
+
 Ngày rà soát: 15/11/2026. **Chủ dự án đã đồng ý cả ba nhóm bên dưới trong chat B5.** Implementation/bằng chứng và giới hạn hiện tại xem [B5 verification](b5-verification.md); D015 ghi quyết định được duyệt. Tài liệu này giữ quá trình readiness, không thay cho báo cáo test.
 
 ## 1. Phần đã được chủ dự án chọn
@@ -30,7 +33,7 @@ Presets FE zscore threshold=3 và iqr multiplier=1.5 đã được chọn ở D0
 
 Đã được phép tạo artifact riêng bằng CLI offline với thư viện scikit-learn, feature duy nhất `value` theo ug/m3, seed cố định; manifest gồm nguồn, checksum dữ liệu/artifact, feature order, tham số và phiên bản runtime. Backend/worker chỉ load và inference, không tự train khi thiếu model.
 
-Nguồn đã chọn: [Chen, S. (2015), Beijing PM2.5, UCI](https://archive.ics.uci.edu/dataset/381/beijing%2Bpm2%2B5%2Bdata), DOI [10.24432/C5JS49](https://doi.org/10.24432/C5JS49). UCI mô tả dữ liệu theo giờ 2010–2014, cột PM2.5 có đơn vị ug/m3, có missing values; giấy phép CC BY 4.0. Đã train offline trên 24.418 mẫu không thiếu của 2010–2012, giữ riêng 17.339 mẫu 2013–2014, không impute NA. Tham số/runtime/hash trong [manifest](../../server/ml/pm25-manifest.json); không dùng inference trên tập train làm bằng chứng chất lượng.
+Nguồn đã chọn: [Chen, S. (2015), Beijing PM2.5, UCI](https://archive.ics.uci.edu/dataset/381/beijing%2Bpm2%2B5%2Bdata), DOI [10.24432/C5JS49](https://doi.org/10.24432/C5JS49). UCI mô tả dữ liệu theo giờ 2010–2014, cột PM2.5 có đơn vị ug/m3, có missing values; giấy phép CC BY 4.0. Đã train offline trên 24.418 mẫu không thiếu của 2010–2012, giữ riêng 17.339 mẫu 2013–2014, không impute NA. Tham số/runtime/hash trong manifest (`manifest cũ đã xóa theo D020; xem Git history`); không dùng inference trên tập train làm bằng chứng chất lượng.
 
 API đã chốt `family=ml`, `method=isolation_forest`, `config={}`; flag theo predict=-1, score=-decision_function, severity tạm low. Baseline một feature chỉ phát hiện bất thường về giá trị theo phân bố tham chiếu; không phải model đã chứng minh khả năng phát hiện quan hệ không gian/thời gian của dự án. Khải cần review chất lượng và khả năng chuyển miền trước khi tuyên bố phù hợp dữ liệu thực tế.
 

@@ -1,3 +1,4 @@
+const actor = { id: '507f1f77bcf86cd799439011', role: 'admin' as const };
 import { describe, expect, it, vi } from 'vitest';
 import { ObjectId } from 'mongodb';
 import { createDatasetService } from '../src/modules/datasets/datasets.service.js';
@@ -14,28 +15,28 @@ describe('dataset service and DTO mapping', () => {
   it('uses a bounded extra row to compute nextCursor and returns a proper empty page', async () => {
     const listImported = vi.fn().mockResolvedValueOnce(rows).mockResolvedValueOnce([]);
     const service = createDatasetService({ listImported }, codec);
-    const page = await service.list({ limit: 2 });
+    const page = await service.list({ limit: 2 }, actor);
     expect(page.data).toEqual(rows.slice(0, 2));
-    expect(listImported).toHaveBeenCalledWith({ direction: 'desc', limit: 3 });
+    expect(listImported).toHaveBeenCalledWith({ actor, direction: 'desc', limit: 3 });
     expect(page.page.nextCursor).toBeTypeOf('string');
-    const empty = await service.list({ limit: 2, cursor: page.page.nextCursor! });
+    const empty = await service.list({ limit: 2, cursor: page.page.nextCursor! }, actor);
     expect(empty).toEqual({ data: [], page: { limit: 2, nextCursor: null } });
-    expect(listImported).toHaveBeenLastCalledWith({ direction: 'desc', limit: 3,
+    expect(listImported).toHaveBeenLastCalledWith({ actor, direction: 'desc', limit: 3,
       after: { id: rows[1]!.id, key: rows[1]!.createdAt },
     });
   });
   it('rejects incompatible sort, malformed boundaries and invalid limits before querying', async () => {
     const listImported = vi.fn().mockResolvedValue([]);
     const service = createDatasetService({ listImported }, codec);
-    const fingerprint = queryFingerprint('datasets.list', { status: 'imported' }, 'createdAt:desc');
+    const fingerprint = queryFingerprint('datasets.list', { status: 'imported', userId: actor.id, role: actor.role }, 'createdAt:desc');
     for (const boundary of [{ key: 'bad-date', id: rows[0]!.id }, { key: rows[0]!.createdAt, id: 'bad-id' }]) {
-      await expect(service.list({ cursor: codec.encode(boundary, fingerprint) })).rejects.toMatchObject({ statusCode: 400 });
+      await expect(service.list({ cursor: codec.encode(boundary, fingerprint) }, actor)).rejects.toMatchObject({ statusCode: 400 });
     }
-    await expect(service.list({ sort: 'createdAt:asc', cursor: codec.encode({ key: rows[0]!.createdAt, id: rows[0]!.id }, fingerprint) }))
+    await expect(service.list({ sort: 'createdAt:asc', cursor: codec.encode({ key: rows[0]!.createdAt, id: rows[0]!.id }, fingerprint) }, actor))
       .rejects.toMatchObject({ statusCode: 400 });
-    await expect(service.list({ limit: 201 })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(service.list({ limit: 201 }, actor)).rejects.toMatchObject({ statusCode: 400 });
     expect(listImported).not.toHaveBeenCalled();
-    expect(await service.list({ sort: 'createdAt:asc' })).toEqual({ data: [], page: { limit: 100, nextCursor: null } });
+    expect(await service.list({ sort: 'createdAt:asc' }, actor)).toEqual({ data: [], page: { limit: 100, nextCursor: null } });
   });
   it('whitelists nested import summary fields without inventing counts or leaking storage metadata', () => {
     const document = { _id: new ObjectId(), createdBy: new ObjectId(), createdAt: new Date(rows[0]!.createdAt),

@@ -160,21 +160,25 @@ describe('B5 actual HTTP/MongoDB and real library engines', () => {
     expect((await f.db.collection<{ _id: string; active: number }>('analysisQueueState').findOne({ _id: 'online' }))?.active).toBe(0);
   }, 60000);
   it('performs actual PM2.5 ML inference deterministically without training in the worker', async () => {
-    const f = await fixture(); await f.seed([45, 50, 55, 60, 10000]);
+    const csv = 'sensorId,latitude,longitude,timestamp,value\n' + ['A', 'B', 'C', 'D'].flatMap((station, index) =>
+      [45, 50, 55, 60, 60].map((value, hour) => `${station},10,${106 + index * .01},2026-01-01T0${hour}:00:00Z,${station === 'A' && hour === 4 ? 10000 : value}`)).join('\n');
+    const f = await fixture({ csv });
+    const spike = await f.db.collection('readings').findOne({ datasetId: f.datasetId, value: 10000 });
     const input = { ...f.input, family: 'ml', method: 'isolation_forest', config: {} };
     const outputs: unknown[] = [];
     for (let i = 0; i < 2; i++) {
       const response = await f.post(input); expect(response.statusCode, response.body).toBe(202);
       const run = await f.terminal(response.json().data.id); expect(run.status, JSON.stringify(run)).toBe('completed');
-      expect(run).toMatchObject({ engineVersion: 'scikit-learn@1.9.1', modelVersion: 'pm25-iforest-uci381-v1' });
+      expect(run).toMatchObject({ engineVersion: 'scikit-learn@1.9.1', modelVersion: 'pm25-iforest-uci501-v2', config: {},
+        scoringSummary: { targetCount: 20, scoredCount: 16, unscorableCount: 4, reasons: { temporalOnly: 4, spatialOnly: 0, both: 0 } } });
       outputs.push(await f.db.collection('anomalies').find({ analysisRunId: new ObjectId(run.id) }, { projection: { _id: 0, readingId: 1, score: 1, severity: 1 } }).sort({ readingId: 1 }).toArray());
       const published = await f.app.inject({ url: `/api/v1/anomalies?datasetId=${f.datasetId}&analysisRunId=${run.id}`, headers: f.headers });
-      expect(published.statusCode, published.body).toBe(200); expect(published.json().data).toHaveLength(1);
-      expect(published.json().data[0]).toMatchObject({ family: 'ml', method: 'isolation_forest', analysisRunId: run.id, score: .3069626761725055 });
+      expect(published.statusCode, published.body).toBe(200); expect(published.json().data.length).toBeGreaterThan(0);
+      expect(published.json().data.every((a: { family: string; method: string; analysisRunId: string }) => a.family === 'ml' && a.method === 'isolation_forest' && a.analysisRunId === run.id)).toBe(true);
+      expect(published.json().data.some((a: { readingId: string }) => a.readingId === String(spike!._id))).toBe(true);
     }
-    expect(outputs[0]).toEqual(outputs[1]); expect(outputs[0]).toHaveLength(1);
-    expect((outputs[0] as { score: number; severity: string }[])[0]).toMatchObject({ severity: 'low' });
-    expect((outputs[0] as { score: number }[])[0]!.score).toBeCloseTo(.3069626761725055, 12);
+    expect(outputs[0]).toEqual(outputs[1]);
+    expect((outputs[0] as { score: number; severity: string }[]).every(a => Number.isFinite(a.score) && a.severity === 'low')).toBe(true);
   }, 60000);
   it('returns empty/insufficient/constant scope honestly and honors closed sensor/time bounds', async () => {
     const f = await fixture(); await f.seed([2, 2, 2, 2]);
@@ -270,7 +274,9 @@ describe('B5 actual HTTP/MongoDB and real library engines', () => {
   }, 60000);
   it('rejects unavailable models before accepting, and records model failure after durable acceptance', async () => {
     const artifact = resolve(directory, `${randomUUID()}.joblib`);
-    const f = await fixture({ enabled: false, env: { ANALYSIS_ARTIFACT: artifact } }); await f.seed([50, 60]);
+    const csv = 'sensorId,latitude,longitude,timestamp,value\n' + ['A', 'B', 'C', 'D'].flatMap((station, index) =>
+      [0, 1].map(hour => `${station},10,${106 + index * .01},2026-01-01T0${hour}:00:00Z,${50 + hour * 10}`)).join('\n');
+    const f = await fixture({ enabled: false, csv, env: { ANALYSIS_ARTIFACT: artifact } });
     const input = { ...f.input, family: 'ml', method: 'isolation_forest', config: {} };
     expect((await f.post(input)).statusCode).toBe(503); expect(await f.db.collection('analysisRuns').countDocuments()).toBe(0);
     await copyFile(loadTestConfig().analysis.artifactPath, artifact);

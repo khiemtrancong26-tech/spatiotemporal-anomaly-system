@@ -1,3 +1,4 @@
+import { datasetAccessFilter, type DatasetActor } from './dataset-access.js';
 import { Double, ObjectId, type ClientSession, type Db } from 'mongodb';
 import type { ImportConfig } from '../../config.js';
 import { HttpError } from '../../shared/http/errors.js';
@@ -38,13 +39,13 @@ export function createImportRepository(db: Db, receipts: ReceiptRepository, limi
       preparation ??= ensureOnlineIndexes(db);
       try { await preparation; } catch (error) { preparation = undefined; throw error; }
     },
-    async get(id: string): Promise<ImportDatasetState | null> {
+    async get(id: string, actor?: DatasetActor): Promise<ImportDatasetState | null> {
       if (!/^[0-9a-f]{24}$/i.test(id)) return null;
-      const document = await datasets.findOne({ _id: new ObjectId(id) });
+      const document = await datasets.findOne({ ...(actor ? datasetAccessFilter(actor) : {}), _id: new ObjectId(id) });
       return document ? state(document) : null;
     },
-    async sourceMissing(id: string) {
-      await datasets.updateOne({ _id: new ObjectId(id), status: { $in: ['uploaded', 'awaiting_mapping', 'failed'] } },
+    async sourceMissing(id: string, actor: DatasetActor) {
+      await datasets.updateOne({ ...datasetAccessFilter(actor), _id: new ObjectId(id), status: { $in: ['uploaded', 'awaiting_mapping', 'failed'] } },
         { $set: { status: 'failed', mappingConfirmed: false }, $unset: { mappingError: '' } });
     },
     async createUpload(guard: ReceiptGuard, data: Dataset, source: SourceDescriptor, report: Report): Promise<StoredResponse> {
@@ -58,8 +59,8 @@ export function createImportRepository(db: Db, receipts: ReceiptRepository, limi
       });
       return response;
     },
-    async saveMapping(previous: ImportDatasetState, mapping: MappingRequest, scan: ScanResult): Promise<ImportDatasetState | null> {
-      const update = await datasets.findOneAndUpdate({ _id: new ObjectId(previous.data.id), status: { $in: ['uploaded', 'awaiting_mapping', 'failed'] },
+    async saveMapping(previous: ImportDatasetState, mapping: MappingRequest, scan: ScanResult, actor: DatasetActor): Promise<ImportDatasetState | null> {
+      const update = await datasets.findOneAndUpdate({ ...datasetAccessFilter(actor), _id: new ObjectId(previous.data.id), status: { $in: ['uploaded', 'awaiting_mapping', 'failed'] },
         mappingVersion: previous.mappingVersion,
       }, { $set: {
         fieldMapping: mapping.fieldMap, sourceUnit: mapping.unit, mappingConfirmed: !scan.fatal,
@@ -68,9 +69,9 @@ export function createImportRepository(db: Db, receipts: ReceiptRepository, limi
       }, ...(!scan.fatal ? { $unset: { mappingError: '' } } : {}) }, { returnDocument: 'after' });
       return update ? state(update) : null;
     },
-    async start(guard: ReceiptGuard, previous: ImportDatasetState) {
+    async start(guard: ReceiptGuard, previous: ImportDatasetState, actor: DatasetActor) {
       await receipts.transaction(guard, async session => {
-        const result = await datasets.updateOne({ _id: new ObjectId(previous.data.id), status: 'awaiting_mapping',
+        const result = await datasets.updateOne({ ...datasetAccessFilter(actor), _id: new ObjectId(previous.data.id), status: 'awaiting_mapping',
           mappingVersion: previous.mappingVersion, mappingConfirmed: true },
         { $set: { status: 'importing', importAttemptId: guard.owner, importReceiptId: guard.id }, $unset: { importSummary: '' } }, { session });
         if (!result.matchedCount) throw new HttpError(409, 'DATASET_STATE_CONFLICT', 'Dataset state or mapping changed before import.');

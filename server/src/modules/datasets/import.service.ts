@@ -1,3 +1,5 @@
+import type { DatasetActor } from './dataset-access.js';
+import type { DatasetReadAccess } from './datasets.types.js';
 import { createHash } from 'node:crypto';
 import type { Readable } from 'node:stream';
 import type { ImportConfig } from '../../config.js';
@@ -30,7 +32,7 @@ function failure(error: unknown): StoredResponse {
 }
 
 export function createImportService(repository: ImportRepository, receipts: ReceiptRepository, files: SourceFiles,
-  limits: ImportConfig, hooks: ImportTestHooks = {}, now: () => Date = () => new Date()) {
+  limits: ImportConfig, access: DatasetReadAccess, hooks: ImportTestHooks = {}, now: () => Date = () => new Date()) {
   const localUploads = createCapacity(limits.uploadConcurrency);
   const active = new Set<AbortController>();
   let recovery: Promise<void> | undefined;
@@ -49,8 +51,11 @@ export function createImportService(repository: ImportRepository, receipts: Rece
     try { controller.signal.throwIfAborted(); return await work(); }
     finally { clearInterval(timer); await pending; }
   }
-  async function load(id: string): Promise<ImportDatasetState> {
-    const dataset = await repository.get(id);
+  async function authorize(id: string, actor: DatasetActor) {
+    if (!await access.getState(id, actor)) throw new HttpError(404, 'DATASET_NOT_FOUND', 'Dataset does not exist.');
+  }
+  async function load(id: string, actor: DatasetActor): Promise<ImportDatasetState> {
+    const dataset = await repository.get(id, actor);
     if (!dataset) throw new HttpError(404, 'DATASET_NOT_FOUND', 'Dataset does not exist.');
     return dataset;
   }
@@ -180,23 +185,25 @@ export function createImportService(repository: ImportRepository, receipts: Rece
         job.stop(); releaseLocal(); releaseGlobal();
       }
     },
-    async validation(id: string): Promise<ValidationReport> {
+    async validation(id: string, actor: DatasetActor): Promise<ValidationReport> {
+      await authorize(id, actor);
       await recover({ resourceId: id });
-      let dataset = await load(id);
+      let dataset = await load(id, actor);
       if (!dataset.report) throw new HttpError(404, 'VALIDATION_NOT_FOUND', 'No source validation report exists for this dataset.');
       if (dataset.source && dataset.data.status !== 'imported' && !await files.exists(dataset.source.fileId)) {
-        await repository.sourceMissing(id); dataset = await load(id);
+        await repository.sourceMissing(id, actor); dataset = await load(id, actor);
       }
       return { ...dataset.report!, datasetId: id, status: dataset.data.status };
     },
-    async mapping(id: string, mapping: MappingRequest): Promise<Dataset> {
+    async mapping(id: string, mapping: MappingRequest, actor: DatasetActor): Promise<Dataset> {
       const job = lifetime();
       try {
+        await authorize(id, actor);
         await repository.prepare(); await recover({ resourceId: id });
-        const dataset = await load(id);
+        const dataset = await load(id, actor);
         if (!['uploaded', 'awaiting_mapping', 'failed'].includes(dataset.data.status)) throw new HttpError(409, 'DATASET_STATE_CONFLICT', 'Mapping cannot change while importing or after import.');
         if (!dataset.source || !dataset.report || !await files.exists(dataset.source.fileId)) {
-          await repository.sourceMissing(id); throw new HttpError(500, 'SOURCE_UNAVAILABLE', 'Persistent source is unavailable; start a new upload intentionally.');
+          await repository.sourceMissing(id, actor); throw new HttpError(500, 'SOURCE_UNAVAILABLE', 'Persistent source is unavailable; start a new upload intentionally.');
         }
         for (const field of requiredSourceFields) if (!mapping.fieldMap[field]) throw new HttpError(422, 'INVALID_MAPPING', 'All required source fields must be mapped.');
         for (const column of Object.values(mapping.fieldMap)) if (!dataset.report.sourceColumns.includes(column)) throw new HttpError(422, 'INVALID_MAPPING', 'Mapped column does not exist in the source.');
@@ -206,9 +213,9 @@ export function createImportService(repository: ImportRepository, receipts: Rece
         }
         const scan = await scanWork(() => scanSource(files, dataset.source!, limits, job.signal, mapping), job.signal);
         job.signal.throwIfAborted();
-        const updated = await repository.saveMapping(dataset, mapping, scan);
+        const updated = await repository.saveMapping(dataset, mapping, scan, actor);
         if (!updated) {
-          const latest = await load(id);
+          const latest = await load(id, actor);
           if (latest.mappingConfirmed && sameMapping(latest.mapping, mapping)) return latest.data;
           throw new HttpError(409, 'DATASET_STATE_CONFLICT', 'Dataset state or mapping changed. Reload validation before continuing.');
         }
@@ -216,11 +223,13 @@ export function createImportService(repository: ImportRepository, receipts: Rece
         return updated.data;
       } catch (error) {
         if (error instanceof HttpError && error.statusCode < 500) throw error;
-        if ((error as HttpError).code === 'SOURCE_CHANGED') await repository.sourceMissing(id).catch(() => undefined);
+        if ((error as HttpError).code === 'SOURCE_CHANGED') await repository.sourceMissing(id, actor).catch(() => undefined);
         throw new HttpError(500, 'SOURCE_UNAVAILABLE', 'Mapping validation could not complete. Check persistent source and database.');
       } finally { job.stop(); }
     },
-    async import(userId: string, id: string, keyValue: unknown): Promise<StoredResponse> {
+    async import(actor: DatasetActor, id: string, keyValue: unknown): Promise<StoredResponse> {
+      const userId = actor.id;
+      await authorize(id, actor);
       const key = requireIdempotencyKey(keyValue);
       const job = lifetime();
       let guard: ReceiptGuard | undefined, release: (() => void) | undefined;
@@ -228,7 +237,7 @@ export function createImportService(repository: ImportRepository, receipts: Rece
       try {
         await repository.prepare(); await recover({ userId, key }); await recover({ resourceId: id });
         job.signal.throwIfAborted();
-        const dataset = await load(id);
+        const dataset = await load(id, actor);
         const intent = { userId, key, kind: 'import' as const, operation: `POST /api/v1/datasets/${id}/imports`,
           resourceId: dataset.data.id, requestHash: hash({ operation: 'import', path: `/api/v1/datasets/${id}/imports` }) };
         const existing = await receipts.inspect(intent);
@@ -249,7 +258,7 @@ export function createImportService(repository: ImportRepository, receipts: Rece
           }
           if (dataset.data.status === 'importing') throw new HttpError(409, 'DATASET_STATE_CONFLICT', 'Dataset is importing or recovering.');
           if (!dataset.mappingConfirmed || !dataset.mapping || !dataset.source) throw new HttpError(422, 'MAPPING_REQUIRED', 'Confirm a valid mapping before import or retry.');
-          await repository.start(ownership, dataset); started = true;
+          await repository.start(ownership, dataset, actor); started = true;
           const scan = await scanWork(() => scanSource(files, dataset.source!, limits, job.signal, dataset.mapping), job.signal);
           if (scan.fatal) throw new HttpError(422, scan.fatal.code, scan.fatal.message);
           const summary: ImportSummary = { totalRows: scan.report.totalRows, importedRows: 0, duplicateRows: 0, conflictingRows: 0,

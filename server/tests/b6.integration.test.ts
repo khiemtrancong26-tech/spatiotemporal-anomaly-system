@@ -81,13 +81,13 @@ describe('B6 actual HTTP/MongoDB Replica Set', () => {
     expect((await f.list({ analysisRunId: 'opaque' })).statusCode).toBe(422);
     const foreignRun = new ObjectId();
     await f.db.collection('analysisRuns').insertOne({ _id: foreignRun, datasetId: new ObjectId(), status: 'completed' });
-    expect((await f.list({ analysisRunId: String(foreignRun) })).json().error.code).toBe('ANALYSIS_RUN_NOT_IN_DATASET');
+    expect((await f.list({ analysisRunId: String(foreignRun) })).json().error.code).toBe('ANALYSIS_RUN_NOT_FOUND');
     const repository = createAnomalyRepository(f.app.mongo.client, f.app.mongo.db);
     const stalePreflight = createAnomalyService(repository, { getState: async () => ({ id: String(f.datasetId), status: 'imported' }) },
       { getState: async () => ({ id: String(f.runId), datasetId: String(f.datasetId), status: 'completed' }) }, createCursorCodec(f.config.cursorSecret));
     await f.db.collection('datasets').updateOne({ _id: f.datasetId }, { $set: { status: 'failed' } });
     expect((await f.list()).json().error.code).toBe('DATASET_NOT_READY');
-    expect((await stalePreflight.list({ datasetId: String(f.datasetId) })).data).toEqual([]);
+    expect((await stalePreflight.list({ datasetId: String(f.datasetId) }, { id: String(f.userId), role: 'analyst' })).data).toEqual([]);
     expect((await f.get(`anomalies/${row!._id}`)).statusCode).toBe(404);
     expect((await f.patch(String(row!._id), { baseVersion: 1, changes: { note: 'hidden' } })).statusCode).toBe(404);
     await f.db.collection('datasets').deleteOne({ _id: f.datasetId });
@@ -232,6 +232,6 @@ describe('B6 actual HTTP/MongoDB Replica Set', () => {
     expect(reviewed.statusCode, reviewed.body).toBe(200); expect(reviewed.json().data.version).toBe(2);
     // Reusable service is the same domain boundary; no offline mutation ledger is implemented.
     const publicReview = createAnomalyReviewAccess(f.app.mongo.client, f.app.mongo.db);
-    expect((await publicReview.review(anomaly.id, { baseVersion: 2, changes: { note: '' } })).data.version).toBe(3);
+    expect((await publicReview.review(anomaly.id, { baseVersion: 2, changes: { note: '' } }, { id: String(f.userId), role: 'analyst' })).data.version).toBe(3);
   }, 60000);
 });

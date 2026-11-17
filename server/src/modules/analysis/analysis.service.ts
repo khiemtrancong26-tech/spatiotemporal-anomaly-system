@@ -1,3 +1,4 @@
+import { datasetCursorScope, type DatasetActor } from '../datasets/dataset-access.js';
 import type { DatasetReadAccess } from '../datasets/index.js';
 import type { AnalysisConfig } from '../../config.js';
 import { HttpError } from '../../shared/http/errors.js';
@@ -26,7 +27,7 @@ export function normalizeDetection(input: DetectionRequest, config: AnalysisConf
     const error = onlineStatisticalPolicy(input.method as StatisticalDetectorInput['method']).validateConfig(input.config);
     if (error) throw new HttpError(422, 'INVALID_CONFIG', error);
   } else if (input.method !== 'isolation_forest' || Object.keys(input.config).length) {
-    throw new HttpError(422, 'INVALID_CONFIG', 'ML requires isolation_forest with config {}.');
+    throw new HttpError(422, 'INVALID_CONFIG', 'ML requires isolation_forest and config {}.');
   }
   const scope = input.scope ?? {};
   if (scope.sensorIds && (!scope.sensorIds.length || scope.sensorIds.length > config.maxSensorIds)) throw new HttpError(422, 'INVALID_SENSOR_SCOPE', 'sensorIds must be nonempty and within the configured limit.');
@@ -37,33 +38,34 @@ export function normalizeDetection(input: DetectionRequest, config: AnalysisConf
 export function createAnalysisService(repository: AnalysisRepository, datasets: DatasetReadAccess,
   codec: ReturnType<typeof createCursorCodec>, config: AnalysisConfig, engine: AnalysisEngine, hooks: AnalysisTestHooks = {}) {
   return {
-    async create(userId: string, key: unknown, request: DetectionRequest) {
-      const intent = { userId, key: requireIdempotencyKey(key), operation: 'POST /api/v1/analysis-runs',
+    async create(actor: DatasetActor, key: unknown, request: DetectionRequest) {
+      const parent = await datasets.getState(request.datasetId, actor);
+      if (!parent) throw new HttpError(404, 'DATASET_NOT_FOUND', 'Dataset does not exist.');
+      const intent = { userId: actor.id, key: requireIdempotencyKey(key), operation: 'POST /api/v1/analysis-runs',
         requestHash: queryFingerprint('POST /api/v1/analysis-runs', { payload: request }, '') };
       await store(repository.prepare);
       const replay = await store(() => repository.replay(intent)); if (replay) return replay;
-      const input = normalizeDetection(request, config), parent = await datasets.getState(input.datasetId);
-      if (!parent) throw new HttpError(404, 'DATASET_NOT_FOUND', 'Dataset does not exist.');
+      const input = normalizeDetection(request, config);
       if (parent.status !== 'imported') throw new HttpError(422, 'DATASET_NOT_READY', 'Dataset is not imported.');
       if (input.scope?.sensorIds && !await repository.sensorsInDataset(parent.id, input.scope.sensorIds)) throw new HttpError(422, 'SENSOR_NOT_IN_DATASET', 'Every sensor must belong to the dataset.');
       if (input.family === 'ml') {
-        try { await engine.ready(); } catch { throw new HttpError(503, 'MODEL_UNAVAILABLE', 'The configured PM2.5 model is not ready. No run was accepted.'); }
+        try { await engine.ready(); } catch { throw new HttpError(503, 'MODEL_UNAVAILABLE', 'The PM2.5 model is not ready. No run was accepted.'); }
       }
-      const response = await store(() => repository.accept(intent, { ...input, datasetId: parent.id }, engine.metadata(input.family)));
+      const response = await store(() => repository.accept(intent, { ...input, datasetId: parent.id }, engine.metadata(input.family), actor));
       await hooks.afterAccepted?.((response.body as { data: import('@pm25/shared-core/contracts').AnalysisRun }).data);
       return response;
     },
-    async detail(id: string) {
-      const run = await repository.get(id), parent = run ? await datasets.getState(run.datasetId) : null;
+    async detail(id: string, actor: DatasetActor) {
+      const run = await repository.get(id), parent = run ? await datasets.getState(run.datasetId, actor) : null;
       if (!run || parent?.status !== 'imported') throw new HttpError(404, 'ANALYSIS_RUN_NOT_FOUND', 'Analysis run is unavailable.');
       return { data: run };
     },
-    async history(query: HistoryQuery) {
+    async history(query: HistoryQuery, actor: DatasetActor) {
       const page = parsePageQuery(query, listSorts.analysisRuns, 'createdAt:desc');
-      const fingerprint = queryFingerprint('analysis-runs.list', { datasetId: query.datasetId }, page.sort);
+      const fingerprint = queryFingerprint('analysis-runs.list', { datasetId: query.datasetId, ...datasetCursorScope(actor) }, page.sort);
       const after = page.cursor ? codec.decode(page.cursor, fingerprint) : undefined;
       if (after && (!/^[a-f\d]{24}$/i.test(after.id) || !Number.isFinite(Date.parse(after.key)) || new Date(after.key).toISOString() !== after.key)) throw new HttpError(400, 'INVALID_CURSOR', 'Cursor is incompatible with this query.');
-      const parent = await datasets.getState(query.datasetId);
+      const parent = await datasets.getState(query.datasetId, actor);
       const documents = parent?.status === 'imported' ? await repository.list({ datasetId: parent.id,
         direction: page.sort.endsWith(':asc') ? 'asc' : 'desc', limit: page.limit + 1, ...(after ? { after } : {}) }) : [];
       const data = documents.slice(0, page.limit), last = data.at(-1);

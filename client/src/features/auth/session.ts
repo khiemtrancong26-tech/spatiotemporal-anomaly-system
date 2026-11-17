@@ -18,7 +18,7 @@ export function createSession(storage: Pick<Storage, 'getItem' | 'setItem' | 're
         const user = await api.auth.me();
         if (current !== generation) return;
         if (!user.isActive) { clear(); return; }
-        store.setState({ status: 'authenticated', user });
+        store.setState({ status: 'authenticated', user, revision: store.getState().revision + 1 });
       } catch (error) { if (current === generation) store.setState({ status: 'error', error }); }
     },
     async login(api: OnlineDataSource, username: string, password: string, signal?: AbortSignal) {

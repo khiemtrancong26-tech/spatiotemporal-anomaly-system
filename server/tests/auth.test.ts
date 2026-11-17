@@ -111,14 +111,13 @@ describe('JWT HS256 and auth service', () => {
     }
     expect(() => createTokens('short')).toThrow();
   });
-  it('registers analyst without issuing a token and uses a generic 401 login failure', async () => {
+  it('logs in with a current auth version and uses a generic 401 login failure', async () => {
     const users = createUserService(fakeRepository(), fakePasswords());
-    const tokens = { issue: vi.fn().mockResolvedValue('signed-token'), verify: vi.fn() };
+    const tokens = { issue: vi.fn().mockResolvedValue('signed-token'), verify: vi.fn(), verifySession: vi.fn() };
     const auth = createAuthService(users, tokens);
-    expect(await auth.register({ username: 'AnalystOne', password: 'password' })).toEqual(publicUser);
     expect(tokens.issue).not.toHaveBeenCalled();
     expect(await auth.login({ username: 'AnalystOne', password: 'password' })).toEqual({ accessToken: 'signed-token', tokenType: 'Bearer', user: publicUser });
-    vi.spyOn(users, 'authenticate').mockResolvedValueOnce(null);
+    vi.spyOn(users, 'authenticateSession').mockResolvedValueOnce(null);
     await expect(auth.login({ username: 'missing', password: 'bad-password' })).rejects.toMatchObject({ statusCode: 401, code: 'INVALID_CREDENTIALS' });
   });
 });

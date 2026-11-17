@@ -4,6 +4,7 @@ import { conforms, errorSchema, operations, requireInput, type OperationId } fro
 export interface HttpOptions {
   baseUrl: string;
   getAccessToken: () => string | undefined;
+  getSessionRevision?: () => number;
   fetch: typeof globalThis.fetch;
 }
 export interface HttpRequest {
@@ -33,7 +34,7 @@ export function createHttpClient(options: HttpOptions) {
     requireInput(extraHeaders, operation.parameters.header, 'request headers');
 
     const headers = new Headers({ Accept: 'application/json', ...extraHeaders });
-    const token = options.getAccessToken();
+    const token = options.getAccessToken(), revision = options.getSessionRevision?.();
     if (operation.authenticated && token) headers.set('Authorization', `Bearer ${token}`);
     let body: BodyInit | undefined;
     if (operation.body?.contentType === 'multipart/form-data') {
@@ -71,7 +72,7 @@ export function createHttpClient(options: HttpOptions) {
       if (error instanceof TypeError) throw new DataSourceError('network', 'Response stream failed');
       throw new DataSourceError('invalid-response', 'Expected JSON response', response.status);
     }
-    if (input.signal?.aborted) throw new DataSourceError('aborted', 'Request aborted');
+    if (input.signal?.aborted || (operation.authenticated && (token !== options.getAccessToken() || revision !== options.getSessionRevision?.()))) throw new DataSourceError('aborted', 'Response belongs to an earlier session');
     if (!response.ok) {
       if (!conforms(payload, errorSchema)) throw new DataSourceError('invalid-response', 'Invalid error envelope', response.status);
       const apiError = (payload as { error: { code: string; message: string; details?: Record<string, unknown> } }).error;

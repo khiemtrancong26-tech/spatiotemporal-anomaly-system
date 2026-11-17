@@ -1,5 +1,10 @@
 # API Contract v0.3.0-draft — PM2.5 Spatial–Temporal Anomaly
 
+**D021 — Private Dataset Ownership (17/11/2026):** Analyst chỉ thấy và truy cập dataset có `createdBy` là ID tài khoản hiện hành của mình; Admin truy cập mọi dataset hợp lệ. Readings/sensors/Profile/aggregates/runs/anomalies và import/review kế thừa quyền dataset gốc, không chia sẻ mặc định. Quy tắc này thay thế mọi mô tả cũ “mọi Analyst đọc được imported datasets”. Giữ điều kiện status và HTTP not-found semantics từng endpoint, không lộ tài nguyên trái quyền. Owner thiếu/sai kiểu bị cách ly, không migration/xóa/tự gán owner. Cursor gắn user+role; logout/account change xóa private state/cache và chặn response trễ. [Audit và bằng chứng](../backend/ownership-verification.md).
+
+**D020 — 17/11/2026, kiến trúc hiện hành:** hệ thống chỉ dùng một Isolation Forest với `[value, temporal_delta, spatial_delta]`. Request ML là `method: "isolation_forest", config: {}`; Backend tự chọn artifact đã pin. Không có selector/flag/dispatch v1/v2. `modelVersion` chỉ là provenance do Server ghi; giữ nguyên ID/hash manifest C3, không train lại. `scoringSummary` bắt buộc trên completed ML, vắng ở statistical/queued/running/failed; partition và atomic fencing không đổi. Xem [kiểm chứng và demo một model](../backend/c3-single-model-verification.md). Những mô tả dual-version/value-only bên dưới là lịch sử đã được thay thế, không phải hướng dẫn chạy hiện tại.
+
+
 **Nguồn máy đọc:** [`openapi.yaml`](openapi.yaml), OpenAPI 3.0.3. **Yêu cầu:** [`../SRS.md`](../SRS.md) v0.5; thiết kế [`../SDD.md`](../SDD.md) v0.4 (phiên bản trong ZIP).  
 **Owner:** Khiêm (Backend/API), cần Tài, Duy, Khải review trước khi khóa hợp đồng. **OpenAPI là nguồn chuẩn về endpoint, method, request và response; chưa phải API đã triển khai.**
 
@@ -104,5 +109,6 @@ Run bắt buộc scope snapshot; failed có error an toàn, completedAt khi term
 
 **Migration 14/11/2026:** client generated types/adapter/mock và shared-core đã migrate D008; `verify_m0.py` kiểm tra 20 operations. Xem [M5 verification](../frontend/m5-verification.md). Test FE/mock không chứng minh worker/Backend thật. Presets M5 theo [D009](../decisions.md#d009--cấu-hình-m5-được-người-dùng-chốt-ngày-14112026); ML method/config và retention thật còn mở.
 ## C2/D018 — cập nhật contract online
+
 
 Ngày16/11/2026: thêm GET `/api/v1/datasets/{id}/profile`, nâng GET `/api/v1/reading-aggregates` từ draft P1 chưa triển khai sang per-station hour/day aggregation. Tổng26 operations,22 online/health;19 có Backend thật (B1–B6+C2),3 Admin B7 còn chờ. Các số cũ bên dưới là baseline lịch sử. [Contract C2 đã duyệt](../backend/c2-contract-proposal.md), [bằng chứng/runbook](../backend/c2-verification.md). Timezone/coverage/budgets và response migration có chủ đích; DTO cũ giữ nguyên. Mock Exploration trả503 `C2_MOCK_NOT_IMPLEMENTED`, không giả số liệu Backend.

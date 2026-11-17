@@ -1,3 +1,4 @@
+const actor = { id: '507f1f77bcf86cd799439011', role: 'admin' as const };
 import { ObjectId } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { createAnomalyReviewService, createAnomalyService } from '../src/modules/anomalies/anomalies.service.js';
@@ -20,28 +21,28 @@ describe('B6 service boundaries (explicit repository doubles)', () => {
       { baseVersion: 0, changes: { note: 'x' } }, { baseVersion: 1, changes: {} },
       { baseVersion: 1, changes: { score: 1 } }, { baseVersion: 1, changes: { status: 'closed' } },
       { baseVersion: 1, changes: { note: null } }]) {
-      await expect(service.review(id, invalid as ReviewRequest)).rejects.toMatchObject({ statusCode: 422 });
+      await expect(service.review(id, invalid as ReviewRequest, actor)).rejects.toMatchObject({ statusCode: 422 });
     }
     expect(f.repository.review).not.toHaveBeenCalled();
     for (const note of ['', '  Ghi chú\nnguyên văn <script>$note</script>  ']) {
-      await expect(service.review(id, { baseVersion: 1, changes: { note } })).rejects.toMatchObject({ statusCode: 404 });
-      expect(f.repository.review).toHaveBeenLastCalledWith(id, { baseVersion: 1, changes: { note } });
+      await expect(service.review(id, { baseVersion: 1, changes: { note } }, actor)).rejects.toMatchObject({ statusCode: 404 });
+      expect(f.repository.review).toHaveBeenLastCalledWith(id, { baseVersion: 1, changes: { note } }, actor);
     }
   });
   it('maps stale version and numeric exhaustion honestly without claiming idempotent PATCH replay', async () => {
     const f = fixture();
     vi.mocked(f.repository.review).mockResolvedValue({ kind: 'conflict', currentVersion: 7 });
-    await expect(f.service.review(id, { baseVersion: 6, changes: { status: 'open' } })).rejects.toMatchObject({ statusCode: 409, details: { currentVersion: 7 } });
+    await expect(f.service.review(id, { baseVersion: 6, changes: { status: 'open' } }, actor)).rejects.toMatchObject({ statusCode: 409, details: { currentVersion: 7 } });
     vi.mocked(f.repository.review).mockResolvedValue({ kind: 'version-exhausted' });
-    await expect(f.service.review(id, { baseVersion: Number.MAX_SAFE_INTEGER, changes: { note: '' } })).rejects.toMatchObject({ statusCode: 422 });
+    await expect(f.service.review(id, { baseVersion: Number.MAX_SAFE_INTEGER, changes: { note: '' } }, actor)).rejects.toMatchObject({ statusCode: 422 });
   });
   it('normalizes closed UTC bounds and rejects invalid cursors/ranges before reading candidates', async () => {
     const f = fixture();
-    await f.service.list({ datasetId, analysisRunId: runId, from: '2026-11-16T00:00:00Z', to: '2026-11-16T00:00:00.000Z', method: 'zscore' });
-    expect(f.repository.list).toHaveBeenCalledWith({ datasetId, analysisRunId: runId, from: '2026-11-16T00:00:00.000Z', to: '2026-11-16T00:00:00.000Z', method: 'zscore', direction: 'asc', limit: 101 });
+    await f.service.list({ datasetId, analysisRunId: runId, from: '2026-11-16T00:00:00Z', to: '2026-11-16T00:00:00.000Z', method: 'zscore' }, actor);
+    expect(f.repository.list).toHaveBeenCalledWith({ actor, datasetId, analysisRunId: runId, from: '2026-11-16T00:00:00.000Z', to: '2026-11-16T00:00:00.000Z', method: 'zscore', direction: 'asc', limit: 101 });
     for (const change of [{ from: '2026-11-16T00:00:00+00:00' }, { from: '2026-11-16T00:00:00.0001Z' },
       { from: '2026-11-17T00:00:00Z', to: '2026-11-16T00:00:00Z' }, { cursor: 'tampered' },
-      { cursor: codec.encode({ id: 'opaque', key: 'invalid-date' }, 'wrong-query') }]) await expect(f.service.list({ datasetId, ...change })).rejects.toMatchObject({ statusCode: expect.any(Number) });
+      { cursor: codec.encode({ id: 'opaque', key: 'invalid-date' }, 'wrong-query') }]) await expect(f.service.list({ datasetId, ...change }, actor)).rejects.toMatchObject({ statusCode: expect.any(Number) });
   });
   it('whitelists DTO fields and rejects nonfinite scores rather than exposing persistence or reading values', () => {
     const document = { _id: new ObjectId(), datasetId: new ObjectId(), sensorId: new ObjectId(), readingId: new ObjectId(), analysisRunId: new ObjectId(),

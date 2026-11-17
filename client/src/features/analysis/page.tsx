@@ -36,6 +36,7 @@ function RunDetail({ datasetId, id }: { datasetId: string; id: string }) {
       <p>Tạo: {formatWorkspaceTime(run.createdAt, zone)} · {zoneLabel(zone)}{run.completedAt && ` · Kết thúc: ${formatWorkspaceTime(run.completedAt, zone)}`}</p>
       {run.status === 'failed' && <p role="alert" className="ux-warning">Lần phân tích không hoàn tất: {run.error?.code} — {run.error?.message}. Chỉnh phạm vi/phương pháp và chuẩn bị lần chạy mới nếu muốn tiếp tục.</p>}
       {run.status === 'queued' && <p className="ux-notice">Server đã tiếp nhận và đang chờ thực thi. Bạn vẫn có thể khám phá dữ liệu.</p>}{run.status === 'running' && <p className="ux-notice">Server đang phân tích; rời trang không hủy job.</p>}
+      {run.scoringSummary && <p className="ux-warning" data-testid="scoring-summary">Đã chấm {run.scoringSummary.scoredCount}/{run.scoringSummary.targetCount} targets · chưa chấm {run.scoringSummary.unscorableCount}. Thiếu temporal: {run.scoringSummary.reasons.temporalOnly}; thiếu spatial: {run.scoringSummary.reasons.spatialOnly}; thiếu cả hai: {run.scoringSummary.reasons.both}. Các nhóm không đếm trùng; target chưa chấm không được coi là normal.</p>}
       <details><summary>Nguồn & chi tiết kỹ thuật của run</summary><TechnicalId label="Run ID" id={run.id} /><p>Engine: {run.engineVersion ?? 'Chưa có'} · Model: {run.modelVersion ?? 'Chưa có'}</p><pre>{JSON.stringify({ scope: run.scope, config: run.config }, null, 2)}</pre></details>
       {run.status === 'completed' && <AnalysisResults key={run.id} run={run} />}</>}
   </section>;
