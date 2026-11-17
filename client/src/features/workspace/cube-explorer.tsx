@@ -1,6 +1,7 @@
 import { explorationOffset } from '@pm25/shared-core';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useStore } from 'zustand';
+import { createPortal } from 'react-dom';
 import type { Anomaly, Sensor } from '../../shared/api/generated/wire';
 import { useServices } from '../../app/services';
 import { createCursorPager } from '../../shared/lib/cursor-pager';
@@ -31,7 +32,10 @@ function StationChart({ rows, scope, offset, onSelect }: { rows: Reading[]; scop
   </svg>;
 }
 
-export function CubeExplorer({ active=true, initialTimestamp, datasetId, filters, anchor, seedReady, seedError, retrySeed, sensors, sensorsComplete, sensorsError, retrySensors, loadSensors, onMap, onDock, onRows }: {
+export function CubeExplorer({ controlsHost, timelineHost, descriptionHost, active=true, initialTimestamp, datasetId, filters, anchor, seedReady, seedError, retrySeed, sensors, sensorsComplete, sensorsError, retrySensors, loadSensors, onMap, onDock, onRows }: {
+  controlsHost?: HTMLElement | null;
+  timelineHost?: HTMLElement | null;
+  descriptionHost?: HTMLElement | null;
   active?:boolean;
   initialTimestamp?: string; datasetId: string; filters: WorkspaceFilters; anchor?: string; seedReady: boolean; seedError?: string; retrySeed: () => void; sensors: Sensor[]; sensorsComplete: boolean; sensorsError?: string;
   retrySensors: () => void; loadSensors?: () => void; onMap: (ts?: string) => void; onDock: () => void; onRows: (rows: Reading[]) => void;
@@ -121,9 +125,12 @@ export function CubeExplorer({ active=true, initialTimestamp, datasetId, filters
     workspace.getState().setResults(resultRun, [...new Map([...existing, item].map(a => [a.id, a])).values()]);
     workspace.getState().selectReading(item.readingId); workspace.getState().openAnomalies(item.analysisRunId, item.id, true);
   }
-  return <div className="cube-explorer">
+  const timeline = <div className="cube-timeline"><Button aria-pressed={playing} disabled={!complete || times.length < 2} onClick={() => { if (!playing && frame >= times.length - 1) workspace.getState().setVisualTime(times[0]); play(v => !v); }}>{playing ? 'Tạm dừng Cube' : 'Phát Cube'}</Button><Button variant="secondary" aria-label="Mốc Cube trước" disabled={frame <= 0} onClick={() => chooseTime(times[frame - 1])}>‹</Button><label className="cube-time-select">Lát thời gian · {offset === 0 ? 'UTC' : `UTC+0${offset}`}<select aria-label="Lát thời gian Cube" value={timestamp ?? ''} onChange={e => chooseTime(e.target.value)}>{!times.length && <option value="">Chưa có dữ liệu</option>}{timestamp&&!times.includes(timestamp)&&<option value={timestamp}>{cubeTime(timestamp,offset)} · mốc liên kết</option>}{times.map(ts => <option key={ts} value={ts}>{cubeTime(ts, offset)}</option>)}</select></label><Button variant="secondary" aria-label="Mốc Cube sau" disabled={frame < 0 || frame >= times.length - 1} onClick={() => chooseTime(times[frame + 1])}>›</Button><label className="cube-slider">Timestamp thực đã tải<input aria-label="Timeline Cube" type="range" min="0" max={Math.max(0, times.length - 1)} value={Math.max(0, frame)} disabled={times.length < 2} aria-valuetext={timestamp ? `${cubeTime(timestamp, offset)} UTC+0${offset}` : 'Chưa có dữ liệu'} onChange={e => chooseTime(times[Number(e.target.value)])} /></label><label className="field">Tốc độ<select aria-label="Tốc độ Cube" value={speed} onChange={e => setSpeed(Number(e.target.value))}><option value="1800">1,8 giây / mốc</option><option value="3000">3 giây / mốc</option><option value="1000">1 giây / mốc</option></select></label></div>;
+  const heading = <header className="cube-heading"><h2 className="sr-only">{titles[mode]}</h2><p>{descriptions[mode]}</p></header>;
+  const controls = <div className="cube-explorer cube-bottom-controls">
+    {!descriptionHost && heading}
+    <div className="cube-command-row">
     <nav className="cube-submodes" aria-label="Chế độ Cube">{(['overview', 'station', 'anomaly'] as const).map(id => <Button key={id} variant="secondary" aria-pressed={mode === id} onClick={() => setMode(id)}>{titles[id]}</Button>)}</nav>
-    <header className="cube-heading"><h2 className="sr-only">{titles[mode]}</h2><p>{descriptions[mode]}</p></header>
     <form className="cube-filters" onSubmit={e => { e.preventDefault(); applyScope(); }}>
       <label className="field">{mode === 'station' ? 'Trạm tập trung' : 'Trạm làm nổi bật / lọc kết quả'}<select aria-label="Trạm trong Cube" value={mode === 'station' ? focusedId : focused} onChange={e => focus(e.target.value)}>{mode !== 'station' && <option value="">Tất cả trạm đã tải</option>}{[...new Set([...sensors.map(s => s.id), ...rows.map(r => r.sensorId)])].map(id => <option key={id} value={id}>{name(id)}</option>)}</select></label>
       <label className="field">Cửa sổ thời gian<select aria-label="Cửa sổ Cube" value={windowHours} onChange={e => setHours(e.target.value)}><option value="24">24 giờ</option><option value="48">48 giờ</option><option value="168">7 ngày · có thể chưa tải hết</option><option value="custom">Tùy chọn</option></select></label>
@@ -134,9 +141,13 @@ export function CubeExplorer({ active=true, initialTimestamp, datasetId, filters
       <Button variant="secondary" onClick={()=>readingsCache.clear()}>Làm mới dữ liệu</Button>
       {mode === 'station' && <label className="cube-check"><input type="checkbox" checked={!showContext} onChange={e => setContext(!e.target.checked)} />Chỉ trạm này</label>}
     </form>
-    <ReadingDistribution datasetId={datasetId} filters={filters} onScope={value=>{setScope(value);setHours('custom');setFrom(undefined);setTo(undefined);setScopeError('');workspace.getState().setVisualTime(value.from);play(false);}} />
-    {scopeError && <p role="alert" className="text-error">{scopeError}</p>}
+    </div>
     <div className="cube-coverage" data-testid="cube-coverage"><span><strong>{r.scanned}</strong> readings đã kiểm tra trong phạm vi{total !== undefined && ` · Tổng dataset: ${num(total)} readings`}</span><span>{sensors.length} trạm metadata đã tải{filters.bbox ? ' trong bbox' : ''} · {offset === 0 ? 'UTC' : `UTC+0${offset}`}</span>{scope && <span>{cubeTime(scope.from, offset)} → {cubeTime(scope.to, offset)}</span>}<Button variant="secondary" onClick={onDock}>Xem bảng dữ liệu</Button></div>
+    <ReadingDistribution datasetId={datasetId} filters={filters} onScope={value=>{setScope(value);setHours('custom');setFrom(undefined);setTo(undefined);setScopeError('');workspace.getState().setVisualTime(value.from);play(false);}} />
+    <details className="cube-help"><summary>Cách đọc Cube và dữ liệu bổ trợ</summary><p>Kéo để xoay, cuộn để zoom. Tất cả chế độ giữ chung vị trí và thang thời gian. Lát ±30 phút dùng timestamp thực, không nội suy; thiếu mẫu không phải 0. Thống kê chỉ mô tả phần đã tải. Điểm PM2.5 cao chưa đủ để kết luận anomaly.</p></details>
+    {scopeError && <p role="alert" className="text-error">{scopeError}</p>}
+  </div>;
+  return <div className="cube-explorer">
     {(r.status === 'loading' || (!scope && !seedReady && !seedError)) && <LoadingState label="Đang tải phạm vi Cube…" />}
     {!scope && seedReady && <p role="status">Không có phép đo trong khoảng đã chọn.</p>}
     {!scope && seedError && <ErrorState message={seedError} retry={retrySeed} />}
@@ -154,8 +165,10 @@ export function CubeExplorer({ active=true, initialTimestamp, datasetId, filters
       {selected && <section className="cube-card cube-inspector"><h3>Chi tiết reading</h3>{chosen ? <><strong>{name(chosen.sensorId)}</strong><div className="cube-reading-value">{num(chosen.value)} <small>µg/m³</small></div><p>{cubeTime(chosen.ts, offset)} · {offset === 0 ? 'UTC' : `UTC+0${offset}`}</p><p className="reading-reference">Reading: {chosen.id}</p><Button variant="secondary" onClick={() => onMap(chosen.ts)}>Xem reading trên Mapbox</Button></> : <p>Reading đã chọn chưa nằm trong phạm vi đã tải. Thu hẹp hoặc đổi khoảng Cube để xem; không tạo điểm từ anomaly.</p>}</section>}
       <section className="cube-card cube-legend"><h3>PM2.5 đo tại trạm (µg/m³)</h3><div className="cube-color-ramp" style={{ background: `linear-gradient(90deg, ${PM25_STOPS.map(([v, c]) => `${c} ${v / 370 * 100}%`).join(',')})` }} /><div className="cube-color-ticks">{[0, 35, 55, 100, 150, 250, 370].map(v => <span key={v} style={{left:`${v/370*100}%`}}>{v}</span>)}</div><p>Thang màu cố định · giá trị đo thực.</p>{mode === 'anomaly' && <p><span className="cube-ring-key" />Anomaly từ AnalysisRun · tâm giữ màu PM2.5.</p>}<p className="muted">Vòng lớn: reading đang chọn. Chỉ các phép đo tồn tại được vẽ.</p></section>
     </aside></div>
-    <div className="cube-timeline"><Button aria-pressed={playing} disabled={!complete || times.length < 2} onClick={() => { if (!playing && frame >= times.length - 1) workspace.getState().setVisualTime(times[0]); play(v => !v); }}>{playing ? 'Tạm dừng Cube' : 'Phát Cube'}</Button><Button variant="secondary" aria-label="Mốc Cube trước" disabled={frame <= 0} onClick={() => chooseTime(times[frame - 1])}>‹</Button><label className="cube-time-select">Lát thời gian · {offset === 0 ? 'UTC' : `UTC+0${offset}`}<select aria-label="Lát thời gian Cube" value={timestamp ?? ''} onChange={e => chooseTime(e.target.value)}>{!times.length && <option value="">Chưa có dữ liệu</option>}{timestamp&&!times.includes(timestamp)&&<option value={timestamp}>{cubeTime(timestamp,offset)} · mốc liên kết</option>}{times.map(ts => <option key={ts} value={ts}>{cubeTime(ts, offset)}</option>)}</select></label><Button variant="secondary" aria-label="Mốc Cube sau" disabled={frame < 0 || frame >= times.length - 1} onClick={() => chooseTime(times[frame + 1])}>›</Button><label className="cube-slider">Timestamp thực đã tải<input aria-label="Timeline Cube" type="range" min="0" max={Math.max(0, times.length - 1)} value={Math.max(0, frame)} disabled={times.length < 2} aria-valuetext={timestamp ? `${cubeTime(timestamp, offset)} UTC+0${offset}` : 'Chưa có dữ liệu'} onChange={e => chooseTime(times[Number(e.target.value)])} /></label><label className="field">Tốc độ<select aria-label="Tốc độ Cube" value={speed} onChange={e => setSpeed(Number(e.target.value))}><option value="1800">1,8 giây / mốc</option><option value="3000">3 giây / mốc</option><option value="1000">1 giây / mốc</option></select></label></div>
-    <details className="cube-help"><summary>Cách đọc Cube và dữ liệu bổ trợ</summary><p>Kéo để xoay, cuộn để zoom. Tất cả chế độ giữ chung vị trí và thang thời gian. Lát ±30 phút dùng timestamp thực, không nội suy; thiếu mẫu không phải 0. Thống kê chỉ mô tả phần đã tải. Điểm PM2.5 cao chưa đủ để kết luận anomaly.</p></details>
+    {timelineHost ? createPortal(<div className="cube-explorer cube-toolbar-timeline">{timeline}</div>, timelineHost) : timeline}
+
     </>}
+    {controlsHost ? createPortal(controls, controlsHost) : controls}
+    {descriptionHost && createPortal(heading, descriptionHost)}
   </div>;
 }

@@ -48,6 +48,8 @@ async function setup(page:Page,options:{failCubePage?:boolean}={}){
   return route.fulfill({json:fixture(path.endsWith('/auth/tokens')?'login':path.endsWith('/users/me')?'me':'health')});
  });
  await page.goto('/datasets');await page.getByLabel('Tên đăng nhập',{exact:true}).fill('analyst01');await page.getByLabel('Mật khẩu',{exact:true}).fill('demo-password');await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();await page.getByRole('link',{name:'Mở dữ liệu',exact:true}).click();
+ await expect(page.locator('.reading-distribution')).not.toHaveAttribute('open');
+ await page.locator('.reading-distribution>summary').click();
  if(!options.failCubePage)await expect(page.getByTestId('cube-coverage')).toContainText('144 readings');await expect(page.getByTestId('distribution-count')).toContainText('500.000 readings');
  return {calls,errors,raw:()=>calls.filter(u=>u.pathname.endsWith('/readings'))};
 }
