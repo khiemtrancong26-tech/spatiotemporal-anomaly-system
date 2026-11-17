@@ -1,3 +1,4 @@
+import { datasetAccessFilter, type DatasetActor } from '../datasets/dataset-access.js';
 import { ObjectId, type Db, type MongoClient, type Document } from 'mongodb';
 import { AnomalySchema } from '@pm25/shared-core/contracts';
 import { toObjectId, toPublicId, toGeoPoint, toUtcIso } from '../../shared/persistence/mapping.js';
@@ -21,7 +22,7 @@ export function toAnomalyDto(document: AnomalyDocument): Anomaly {
 }
 
 /** Shared by all read paths: apply before limit, never page private candidates first. */
-function publishedPipeline(): Document[] {
+function publishedPipeline(actor: DatasetActor): Document[] {
   return [
     { $lookup: { from: 'analysisRuns', let: { runId: '$analysisRunId', datasetId: '$datasetId', family: '$family', method: '$method' },
       pipeline: [{ $match: { status: 'completed', $expr: { $and: [
@@ -30,7 +31,7 @@ function publishedPipeline(): Document[] {
       ] } } }, { $project: { _id: 1 } }, { $limit: 1 }], as: '_publishedRun' } },
     { $match: { '_publishedRun.0': { $exists: true } } },
     { $lookup: { from: 'datasets', localField: 'datasetId', foreignField: '_id',
-      pipeline: [{ $match: { status: 'imported' } }, { $project: { _id: 1 } }], as: '_publishedDataset' } },
+      pipeline: [{ $match: { ...datasetAccessFilter(actor), status: 'imported' } }, { $project: { _id: 1 } }], as: '_publishedDataset' } },
     { $match: { '_publishedDataset.0': { $exists: true } } },
   ];
 }
@@ -48,18 +49,18 @@ export function createAnomalyRepository(client: MongoClient, db: Db) {
       if (input.after) filter.$and = [keysetPredicate('ts', input.direction, { key: new Date(input.after.key), id: toObjectId(input.after.id) })];
       const direction = input.direction === 'asc' ? 1 : -1;
       return (await anomalies.aggregate<AnomalyDocument>([
-        { $match: filter }, { $sort: { ts: direction, _id: direction } }, ...publishedPipeline(),
+        { $match: filter }, { $sort: { ts: direction, _id: direction } }, ...publishedPipeline(input.actor),
         { $limit: input.limit }, { $project: projection },
       ], { readPreference: 'primary', readConcern: { level: 'majority' } }).toArray()).map(toAnomalyDto);
     },
-    async get(id: string): Promise<Anomaly | null> {
+    async get(id: string, actor: DatasetActor): Promise<Anomaly | null> {
       if (!validId(id)) return null;
       const documents = await anomalies.aggregate<AnomalyDocument>([
-        { $match: { _id: toObjectId(id) } }, ...publishedPipeline(), { $limit: 1 }, { $project: projection },
+        { $match: { _id: toObjectId(id) } }, ...publishedPipeline(actor), { $limit: 1 }, { $project: projection },
       ], { readPreference: 'primary', readConcern: { level: 'majority' } }).toArray();
       return documents[0] ? toAnomalyDto(documents[0]) : null;
     },
-    async review(id: string, request: ReviewRequest): Promise<ReviewOutcome> {
+    async review(id: string, request: ReviewRequest, actor: DatasetActor): Promise<ReviewOutcome> {
       if (!validId(id)) return { kind: 'not-found' };
       const session = client.startSession();
       try {
@@ -69,7 +70,7 @@ export function createAnomalyRepository(client: MongoClient, db: Db) {
           // Actual writes lock the parents against concurrent visibility transitions.
           // A no-op $set or a preflight read does not provide the same protection.
           // All reviews use dataset -> run -> anomaly order, and failed CAS rolls back fences.
-          const dataset = await db.collection('datasets').updateOne({ _id: existing.datasetId, status: 'imported' },
+          const dataset = await db.collection('datasets').updateOne({ ...datasetAccessFilter(actor), _id: existing.datasetId, status: 'imported' },
             { $inc: { reviewFence: 1 } }, { session });
           if (!dataset.matchedCount) throw new ReviewRollback({ kind: 'not-found' });
           const run = await db.collection('analysisRuns').updateOne({ _id: existing.analysisRunId, datasetId: existing.datasetId,

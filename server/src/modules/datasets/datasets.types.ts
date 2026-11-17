@@ -1,3 +1,4 @@
+import type { DatasetActor } from './dataset-access.js';
 export interface ImportIssue {
   rowNumber: number;
   reason: 'DUPLICATE_SAME_VALUE' | 'DUPLICATE_VALUE_CONFLICT' | 'INVALID_ROW';
@@ -16,7 +17,7 @@ export interface Dataset {
 export interface DatasetListQuery { sort?: string; limit?: number; cursor?: string }
 /** Public read boundary for Query/Analysis; no BSON or internal repository access. */
 export interface DatasetReadAccess {
-  getState: (id: string) => Promise<{ id: string; status: Dataset['status'] } | null>;
+  getState: (id: string, actor: DatasetActor) => Promise<{ id: string; status: Dataset['status'] } | null>;
 }
 export const requiredSourceFields = ['sensorId', 'latitude', 'longitude', 'timestamp', 'value'] as const;
 export type SourceField = typeof requiredSourceFields[number] | 'unit' | 'name' | 'region';
@@ -30,5 +31,5 @@ export interface ValidationReport {
   mappingSuggestions: Record<string, string>; issues: ImportIssue[];
 }
 export interface DatasetRepository {
-  listImported: (input: { direction: 'asc' | 'desc'; limit: number; after?: { key: string; id: string } }) => Promise<Dataset[]>;
+  listImported: (input: { actor: DatasetActor; direction: 'asc' | 'desc'; limit: number; after?: { key: string; id: string } }) => Promise<Dataset[]>;
 }

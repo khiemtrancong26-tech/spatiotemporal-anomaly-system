@@ -1,0 +1,118 @@
+{
+  "id": "pm25-iforest-uci501-v2",
+  "purpose": "three-feature-integration-baseline-not-quality-validated",
+  "filename": "isolation_forest.joblib",
+  "sha256": "0b891da07da2ffcd83f647d296b9642bfb4f2331c3ee0512947bf6eb2af7209c",
+  "bytes": 241932,
+  "features": [
+    "value",
+    "temporal_delta",
+    "spatial_delta"
+  ],
+  "unit": "ug/m3",
+  "pythonVersion": "3.11.9",
+  "sklearnVersion": "1.9.1",
+  "runtime": {
+    "scikit-learn": "1.9.1",
+    "numpy": "2.4.6",
+    "scipy": "1.17.1",
+    "joblib": "1.6.0",
+    "threadpoolctl": "3.8.0"
+  },
+  "policyId": "pm25-st-features-v2-2026-11-17",
+  "featurePolicy": {
+    "id": "pm25-st-features-v2-2026-11-17",
+    "features": [
+      "value",
+      "temporal_delta",
+      "spatial_delta"
+    ],
+    "temporalMaxGapMs": 7200000,
+    "neighborCount": 3,
+    "neighborRadiusKm": 50,
+    "minSpatialReadings": 2,
+    "spatialTime": "exact",
+    "distance": "haversine-6371.0088-km",
+    "tieBreak": "externalId-codepoint"
+  },
+  "featurePolicySha256": "a749e662b3c4864f8fe9bf8adfa0a809d387569e8481b40f7e3ca99360ea7b66",
+  "featureBuilderSha256": "158a2360777fd8736cfaf3c29ad8d15cfb2056936e7f4c49e096e8b9159f2687",
+  "source": {
+    "url": "https://archive.ics.uci.edu/static/public/501/beijing%2Bmulti%2Bsite%2Bair%2Bquality%2Bdata.zip",
+    "archiveSha256": "b04da438b2f331ac0ffd45aebdfec0d20d2367feb5f6948c4b1f7ce1191e33c4",
+    "csvSha256": {
+      "PRSA_Data_Aotizhongxin_20130301-20170228.csv": "a94fbcfc71708b6ffdc033360163d91efb7f675e496f6b5860929aa96b96351b",
+      "PRSA_Data_Changping_20130301-20170228.csv": "a2e21402a6d95fb7043f87959e6e3dcbecb957aac356a6f8028a85b047c772e7",
+      "PRSA_Data_Dingling_20130301-20170228.csv": "3d8dff81f18a80d9f455876a785642bffe1e9b9924ec1e6b7ce8cca790432eeb",
+      "PRSA_Data_Dongsi_20130301-20170228.csv": "9c0020214425e5ee2a64d42f97a1f632e1d8f6b53ad50edd85a686cc7999f27e",
+      "PRSA_Data_Guanyuan_20130301-20170228.csv": "59390fee3b032597b387491f5230e7edb90a8558e30217ebd6d9befbe669fbf9",
+      "PRSA_Data_Gucheng_20130301-20170228.csv": "10ae48801ea55869fee56a48b885fb1127859c130551888d71673f34216ba951",
+      "PRSA_Data_Huairou_20130301-20170228.csv": "812dcbe848b3ba2c2d25731064797bff803c46eb0c602156a1fa044df136dc26",
+      "PRSA_Data_Nongzhanguan_20130301-20170228.csv": "572cf87b65ef543cd55d3a711b28474def224a46b0ec3fc8add8aaf13b67a487",
+      "PRSA_Data_Shunyi_20130301-20170228.csv": "520b59e4ead3b0cfe7f1ed673e30275de8441e999db6f413d5172d2277b8c15a",
+      "PRSA_Data_Tiantan_20130301-20170228.csv": "0743e34799cf1ee36195b73321b91baa5625276532e7263c588f68cdef3b4daa",
+      "PRSA_Data_Wanliu_20130301-20170228.csv": "0b1a6d754a07f0def2f55434ddfa3870dcd0063b7f766a6f66b6c11bb05a377a",
+      "PRSA_Data_Wanshouxigong_20130301-20170228.csv": "ab1d6a356d6997a45f6d657ad47de1e05a4a08d4a7015b38a329a90665ab74d0"
+    },
+    "sourceRows": 420768,
+    "missingRows": 8739,
+    "coordinateProvenance": "Owner-provided golden coordinates, explicitly approved 2026-11-17 for integration baseline; not independently verified geodetic truth. Source local timestamps interpreted as fixed +08:00 by approval.",
+    "stationManifestSha256": "dfd9c3421213c71708fb2bf5f63736b81e2e8a0fc339126d94a96bfbb0db8d26",
+    "timeZone": "+08:00",
+    "license": "CC BY 4.0"
+  },
+  "training": {
+    "parameters": {
+      "n_estimators": 100,
+      "max_samples": 256,
+      "contamination": "auto",
+      "max_features": 1.0,
+      "bootstrap": false,
+      "n_jobs": 1,
+      "random_state": 42,
+      "warm_start": false
+    },
+    "reference": "2013-03-01 through 2014-12-31 local +08; eligible rows only",
+    "summary": {
+      "targetCount": 189157,
+      "scoredCount": 188422,
+      "unscorableCount": 735,
+      "reasons": {
+        "temporalOnly": 406,
+        "spatialOnly": 326,
+        "both": 3
+      }
+    },
+    "sha256": "f1caa8c2598fb081beb429086d72de7cc8b119bec75bb6e002f27da455174b98"
+  },
+  "holdout": {
+    "reference": "2015-01-01 through 2015-02-28 local +08; not fitted; historical context allowed",
+    "summary": {
+      "targetCount": 16832,
+      "scoredCount": 16777,
+      "unscorableCount": 55,
+      "reasons": {
+        "temporalOnly": 40,
+        "spatialOnly": 15,
+        "both": 0
+      }
+    },
+    "sha256": "294e9d8fce28fd9f495804a1245b41160ac6e22d93eb5ec3575046e511b6f293",
+    "flagged": 3111,
+    "quality": "No anomaly labels; not accuracy/precision/recall"
+  },
+  "golden": {
+    "reference": "March 2015 isolated golden dataset; never fitted or tuned",
+    "summary": {
+      "targetCount": 8782,
+      "scoredCount": 8722,
+      "unscorableCount": 60,
+      "reasons": {
+        "temporalOnly": 48,
+        "spatialOnly": 12,
+        "both": 0
+      }
+    },
+    "sha256": "89098dfb7ffb773f1e6ce38674382646f639be2f32ee6185ba8809ffd3666ed5"
+  }
+}

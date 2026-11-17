@@ -1,5 +1,7 @@
 # Spatiotemporal Anomaly System
 
+**B2-Email Extension:** Register có email bắt buộc, xác minh email trước Login cho tài khoản tự đăng ký mới; Forgot/Reset Password có thu hồi JWT cũ. Legacy/admin/seed giữ hành vi. [Thiết lập Gmail SMTP, kiểm chứng và demo](docs/backend/b2-email-verification.md). Mock email trả unavailable, không giả lập gửi thư.
+
 Hệ thống phân tích và phát hiện bất thường trong dữ liệu không gian – thời gian bằng trực quan 3D.
 
 ## Phạm vi
@@ -32,17 +34,10 @@ Xem `docs/ownership.md` để biết phân công.
 
 ## Trạng thái
 
-Frontend online đã có các màn hình đến M7 theo báo cáo kiểm chứng: từ root dùng `npm ci`, sau đó `npm run dev:mock`
-để xem giao diện nền với dữ liệu mô phỏng tại `http://127.0.0.1:5173`.
-`npm run dev` dùng transport API online. Backend B2 đã có health, Register/Login, current user và datasets list thật;
-chạy bằng `npm run dev:server`, xem [server/README.md](server/README.md).
-Luồng FE M2 đã được E2E với Backend/DB thật; import/query/analysis/review/admin CRUD còn tiếp tục ở B3 trở đi.
+Backend B1–B6/C2/C3 và luồng Frontend online đã có kiểm thử với API/MongoDB thật. Chạy `npm ci`, cấu hình `.env` và MongoDB Replica Set, rồi `npm run dev:server` + `npm run dev`. Setup tài khoản/runtime tại [server README](server/README.md); không có mật khẩu mặc định.
 
-Xem [client/README.md](client/README.md) để cấu hình, build và kiểm thử;
-[kế hoạch frontend](docs/frontend-online-plan.md) và
-[bằng chứng M7](docs/frontend/m7-verification.md) để theo dõi phạm vi đã hoàn thành.
+ML chỉ có **một Isolation Forest 3 features** `[value, temporal_delta, spatial_delta]`, artifact đã train offline tại C3. Frontend chọn Isolation Forest là gửi `config:{}`; không chọn phiên bản. Cần artifact đúng hash tại `.local/models/pm25-iforest-v2` hoặc `ANALYSIS_ARTIFACT`. Xem [demo và kiểm chứng pipeline một model](docs/backend/c3-single-model-verification.md) và [ML setup](server/ml/README.md). Không train lại trong request/Worker.
 
-Backend B2: xem [kết quả kiểm chứng](docs/backend/b2-verification.md). Cần JWT secret trong env;
-xem hướng dẫn seed tài khoản demo trong server README, không có password mặc định.
-`npm run check` hiện kiểm tra cả client và server; kiểm thử MongoDB thật dùng
-`npm run test:server:integration`; E2E B2 thật chạy bằng `npm run test:e2e:b2`.
+`npm run dev:mock` chỉ xem giao diện với dữ liệu mô phỏng. Mock ML chưa triển khai, trả503 rõ ràng; không tạo kết quả inference giả. `npm run check` kiểm type/lint/unit/build; `npm run test:server:integration` chạy MongoDB functional regression; `npm run test:e2e:c3` chạy Desktop E2E với model thật.
+
+B7/Admin, C4 và B8/deployment/performance vẫn ngoài phạm vi task này. PWA/Offline/Sync là roadmap, không được suy thành đã nghiệm thu. Xem [client README](client/README.md), [kế hoạch Backend](docs/backend-online-plan.md), [decisions](docs/decisions.md).

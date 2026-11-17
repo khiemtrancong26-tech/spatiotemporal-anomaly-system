@@ -51,9 +51,9 @@ it('feeds actual imported/query DTOs directly into all library adapters without 
     expect(evaluation.candidates.map(candidate => candidate.readingId)).toEqual([last.id]);
     expect(evaluation.candidates[0]).toMatchObject({ datasetId, sensorId: last.sensorId, ts: last.ts, value: 100, location: { type: 'Point', coordinates: [106, 10] } });
   }
-  // Explicit upstream synthetic features linked to DB IDs, NOT extraction/training
-  // of PM2.5 features. This proves the bridge and references, not model quality.
-  const features = readings.map((reading, index) => ({ readingId: reading.id, values: index === readings.length - 1 ? [10, 10] : [1.9, 2] }));
+  // Explicit three-column adapter vectors linked to DB IDs, not context extraction.
+  // The real Feature Builder/context/Worker pipeline is covered independently in C3.
+  const features = readings.map((reading, index) => ({ readingId: reading.id, values: index === readings.length - 1 ? [10000, 9950, 9950] : [50, 0, 0] }));
   const ml = await createIsolationForestAdapter(isolationOptions())(readings, features, { id: 'EXPERIMENT-ONLY/negative-decision', score: point => -point.decisionFunction });
   expect(ml.candidates.map(candidate => candidate.readingId)).toEqual([last.id]);
   expect(ml.candidates[0]).toMatchObject({ datasetId, sensorId: last.sensorId, ts: last.ts, value: 100 });

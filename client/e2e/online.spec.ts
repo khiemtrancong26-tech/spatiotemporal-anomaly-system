@@ -437,7 +437,8 @@ for (const terminal of ['completed', 'failed'] as const) {
     let results = 0;
     const body = { datasetId: 'dataset-001', family: 'ml', method: 'isolation_forest', config: {}, scope: {} };
     const run = () => ({ ...(fixture('analysis-detail') as { data: Record<string, unknown> }).data, ...body,
-      id: 'ml-run', status, modelVersion: 'server-model-v1',
+      id: 'ml-run', status, modelVersion: 'pm25-iforest-uci501-v2',
+      scoringSummary: status === 'completed' ? { targetCount: 10, scoredCount: 7, unscorableCount: 3, reasons: { temporalOnly: 1, spatialOnly: 1, both: 1 } } : undefined,
       completedAt: status === 'completed' || status === 'failed' ? '2026-11-15T00:00:00.000Z' : undefined,
       error: status === 'failed' ? { code: 'MODEL_UNAVAILABLE', message: 'Model is unavailable' } : undefined });
     await page.route('http://localhost:3001/api/v1/**', async route => {
@@ -462,7 +463,7 @@ for (const terminal of ['completed', 'failed'] as const) {
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
     await page.getByRole('button', { name: 'Analysis', exact: true }).click();
     await page.getByRole('radio', {name: /Isolation Forest/}).check();
-    await expect(page.getByText('Model value-only do Server quản lý', {exact:true})).toBeVisible();
+    await expect(page.getByText('Một model 3 features, không cần cấu hình', {exact:true})).toBeVisible();
     await expect(page.getByRole('button', { name: 'Chạy phát hiện bất thường', exact: true })).toBeDisabled();
     await page.getByRole('checkbox').check();
     await page.getByRole('button', { name: 'Chạy phát hiện bất thường', exact: true }).click();
@@ -475,7 +476,7 @@ for (const terminal of ['completed', 'failed'] as const) {
     await expect(page.getByTestId('run-status')).toContainText('running');
     await page.reload();
     await expect(page.getByTestId('run-status')).toContainText('running');
-    await expect(page.getByText('Engine:', { exact: false })).toContainText('server-model-v1');
+    await expect(page.getByText('Engine:', { exact: false })).toContainText('pm25-iforest-uci501-v2');
     expect(sent).toHaveLength(1); expect(results).toBe(0);
     status = terminal;
     await page.getByRole('button', { name: 'Đọc lại run' }).click();

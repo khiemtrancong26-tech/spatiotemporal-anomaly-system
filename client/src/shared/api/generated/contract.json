@@ -77,7 +77,7 @@
         }
       },
       "AnalysisRun": {
-        "description": "queued -> running -> completed hoặc failed; queued có thể failed trước khi chạy. Terminal không tự quay lại running. completed chỉ sau khi toàn bộ kết quả đã lưu và đọc được; failed không công bố partial. scope là snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại. completedAt có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng khi trạng thái khác.",
+        "description": "queued -> running -> completed hoặc failed; queued có thể failed trước khi chạy. Terminal không tự quay lại running. completed chỉ sau khi toàn bộ kết quả đã lưu và đọc được; failed không công bố partial. scope là snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại. completedAt có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng khi trạng thái khác. D020: a single three-feature Isolation Forest uses config {}. modelVersion is server-owned provenance, not a client selector. scoringSummary is required only for completed ML runs; targetCount=scoredCount+unscorableCount and reason counts are disjoint.",
         "type": "object",
         "properties": {
           "id": {
@@ -134,6 +134,9 @@
           },
           "modelVersion": {
             "type": "string"
+          },
+          "scoringSummary": {
+            "$ref": "#/components/schemas/ScoringSummary"
           }
         },
         "additionalProperties": false,
@@ -203,6 +206,58 @@
                   "completedAt",
                   "error"
                 ]
+              }
+            ]
+          },
+          {
+            "oneOf": [
+              {
+                "required": [
+                  "family",
+                  "status",
+                  "scoringSummary"
+                ],
+                "properties": {
+                  "family": {
+                    "enum": [
+                      "ml"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "completed"
+                    ]
+                  }
+                }
+              },
+              {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "scoringSummary"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "family",
+                        "status"
+                      ],
+                      "properties": {
+                        "family": {
+                          "enum": [
+                            "ml"
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "completed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
               }
             ]
           }
@@ -390,6 +445,18 @@
           "data",
           "page"
         ]
+      },
+      "AuthMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
       },
       "Coverage": {
         "type": "object",
@@ -600,6 +667,7 @@
         }
       },
       "DetectionRequest": {
+        "description": "ML uses method isolation_forest and config {}; model selection is server-owned. Nonempty ML config is rejected with 422.",
         "type": "object",
         "properties": {
           "datasetId": {
@@ -632,6 +700,34 @@
           "method",
           "config"
         ]
+      },
+      "EmailRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 254
+          }
+        }
+      },
+      "EmailTokenRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        }
       },
       "Error": {
         "type": "object",
@@ -1329,13 +1425,38 @@
           "password": {
             "type": "string",
             "minLength": 8
+          },
+          "email": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 254
           }
         },
         "additionalProperties": false,
         "required": [
           "username",
-          "password"
+          "password",
+          "email"
         ]
+      },
+      "ResetPasswordRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "token",
+          "newPassword"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 8
+          }
+        }
       },
       "ReviewChanges": {
         "type": "object",
@@ -1371,6 +1492,53 @@
           "baseVersion",
           "changes"
         ]
+      },
+      "ScoringSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "targetCount",
+          "scoredCount",
+          "unscorableCount",
+          "reasons"
+        ],
+        "properties": {
+          "targetCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "scoredCount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "unscorableCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reasons": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "temporalOnly",
+              "spatialOnly",
+              "both"
+            ],
+            "properties": {
+              "temporalOnly": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "spatialOnly": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "both": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
       },
       "Sensor": {
         "type": "object",
@@ -1789,6 +1957,9 @@
         "401": {
           "$ref": "#/components/schemas/Error"
         },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
         "405": {
           "$ref": "#/components/schemas/Error"
         },
@@ -1872,7 +2043,13 @@
         "422": {
           "$ref": "#/components/schemas/Error"
         },
+        "429": {
+          "$ref": "#/components/schemas/Error"
+        },
         "500": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "503": {
           "$ref": "#/components/schemas/Error"
         }
       }
@@ -3232,6 +3409,198 @@
           "$ref": "#/components/schemas/Error"
         },
         "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "post_api_v1_auth_verify_email": {
+      "method": "POST",
+      "path": "/api/v1/auth/verify-email",
+      "authenticated": false,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": {
+        "contentType": "application/json",
+        "schema": {
+          "$ref": "#/components/schemas/EmailTokenRequest"
+        }
+      },
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/AuthMessage"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "429": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "post_api_v1_auth_resend_verification": {
+      "method": "POST",
+      "path": "/api/v1/auth/resend-verification",
+      "authenticated": false,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": {
+        "contentType": "application/json",
+        "schema": {
+          "$ref": "#/components/schemas/EmailRequest"
+        }
+      },
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/AuthMessage"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "429": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "post_api_v1_auth_forgot_password": {
+      "method": "POST",
+      "path": "/api/v1/auth/forgot-password",
+      "authenticated": false,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": {
+        "contentType": "application/json",
+        "schema": {
+          "$ref": "#/components/schemas/EmailRequest"
+        }
+      },
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/AuthMessage"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "429": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "post_api_v1_auth_reset_password": {
+      "method": "POST",
+      "path": "/api/v1/auth/reset-password",
+      "authenticated": false,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": {
+        "contentType": "application/json",
+        "schema": {
+          "$ref": "#/components/schemas/ResetPasswordRequest"
+        }
+      },
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/AuthMessage"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "429": {
           "$ref": "#/components/schemas/Error"
         },
         "500": {

@@ -11,6 +11,6 @@ export function createDatasetRoutes(service: ReturnType<typeof createDatasetServ
       schema: { querystring: datasetQuerySchema, response: {
         200: datasetPageSchema, 400: errorSchema, 401: errorSchema, 403: errorSchema, 500: errorSchema,
       } },
-    }, async (request) => service.list(request.query));
+    }, async (request) => service.list(request.query, request.principal!));
   };
 }

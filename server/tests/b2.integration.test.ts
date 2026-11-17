@@ -19,17 +19,22 @@ beforeAll(async () => {
 });
 afterEach(async () => { await Promise.all(apps.splice(0).map(app => app.close())); });
 afterAll(async () => { await client?.close(); await mongo?.stop(); });
+const sent = new Map<string, string>();
 const password = 'B2-integration-password';
 async function fixture(overrides: NodeJS.ProcessEnv = {}) {
   const database = `b2_test_${randomUUID().replaceAll('-', '')}`;
   const config = loadTestConfig({ MONGODB_URI: mongo.getUri(database), LOG_LEVEL: 'silent', LOGIN_RATE_LIMIT_MAX: '1000', ...overrides });
-  const app = buildApp({ config, logger: false });
+  const app = buildApp({ config, logger: false, analysisWorkerEnabled: false, emailSender: { verification: async (email, token) => { sent.set(email, token); }, reset: async () => {} } });
   apps.push(app);
   await app.ready();
   return { app, config, db: client.db(database) };
 }
-function register(app: FastifyInstance, username: string, extra: Record<string, unknown> = {}) {
-  return app.inject({ method: 'POST', url: '/api/v1/auth/register', payload: { username, password, ...extra } });
+async function register(app: FastifyInstance, username: string, extra: Record<string, unknown> = {}) {
+  const email = `${randomUUID()}@example.com`;
+  const response = await app.inject({ method: 'POST', url: '/api/v1/auth/register', payload: { username, email, password, ...extra } });
+  // Updated B2 regression explicitly verifies through the public API; pending rules have dedicated tests.
+  if (response.statusCode === 201) expect((await app.inject({ method: 'POST', url: '/api/v1/auth/verify-email', payload: { token: sent.get(email)! } })).statusCode).toBe(200);
+  return response;
 }
 function login(app: FastifyInstance, username: string, loginPassword = password) {
   return app.inject({ method: 'POST', url: '/api/v1/auth/tokens', payload: { username, password: loginPassword } });

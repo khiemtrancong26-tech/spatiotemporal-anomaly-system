@@ -188,7 +188,7 @@ describe('B3 actual HTTP, files and MongoDB replica-set transactions', () => {
     const repository = createImportRepository(f.app.mongo.db, receipts, f.config.imports);
     const claim = await receipts.claim({ userId: f.userId.toHexString(), key: randomUUID(), operation: 'test interrupted', requestHash: 'test', resourceId: id, kind: 'import' });
     if (!('guard' in claim)) throw new Error('Expected ownership');
-    const previous = await repository.get(id); await repository.start(claim.guard, previous!);
+    const previous = await repository.get(id); await repository.start(claim.guard, previous!, { id: String(f.userId), role: 'analyst' });
     const normalized = { rowNumber: 1, externalId: 'A', name: 'A', longitude: 106, latitude: 10, ts: '2026-01-01T00:00:00.000Z', value: 0 };
     const sensor = { id: repository.newId(), ...normalized };
     await repository.batch(claim.guard, [normalized], [sensor]);
@@ -239,7 +239,7 @@ describe('B3 actual HTTP, files and MongoDB replica-set transactions', () => {
     const abandoned = await receipts.claim({ ...intent, key });
     const other = await receipts.claim({ ...intent, key: randomUUID() });
     if (!('guard' in abandoned) || !('guard' in other)) throw new Error('Expected guards');
-    await repository.start(other.guard, (await repository.get(id))!);
+    await repository.start(other.guard, (await repository.get(id))!, { id: String(f.userId), role: 'analyst' });
     await f.db.collection('idempotencyReceipts').updateOne({ _id: new ObjectId(abandoned.guard.id) }, { $set: { leaseUntil: new Date(0) } });
     expect((await f.get(`datasets/${id}/validation`)).json().status).toBe('importing');
     expect((await repository.get(id))?.attempt?.receiptId).toBe(other.guard.id);

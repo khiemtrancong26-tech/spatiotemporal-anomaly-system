@@ -1,3 +1,4 @@
+import { datasetCursorScope, type DatasetActor } from '../datasets/dataset-access.js';
 import type { DatasetReadAccess } from '../datasets/index.js';
 import type { AnalysisReadAccess } from '../analysis/index.js';
 import { HttpError } from '../../shared/http/errors.js';
@@ -9,7 +10,7 @@ import type { AnomaliesQuery, AnomalyFilters, ReviewRequest } from './anomalies.
 /** Public domain review boundary; no HTTP/Sync transport or offline ledger here. */
 export function createAnomalyReviewService(repository: AnomalyRepository) {
   return {
-    async review(id: string, request: ReviewRequest) {
+    async review(id: string, request: ReviewRequest, actor: DatasetActor) {
       if (!Number.isSafeInteger(request.baseVersion) || request.baseVersion < 1) throw new HttpError(422, 'INVALID_VERSION', 'baseVersion must be a positive safe integer.');
       // Validate at the reusable service boundary as well as the HTTP schema.
       const changes = request.changes;
@@ -18,7 +19,7 @@ export function createAnomalyReviewService(repository: AnomalyRepository) {
           (changes.status !== undefined && !['open', 'confirmed', 'false_positive'].includes(changes.status)) ||
           (changes.note !== undefined && typeof changes.note !== 'string')) throw new HttpError(422, 'INVALID_REVIEW', 'Review changes must contain only status and/or note.');
       const outcome = await repository.review(id, { baseVersion: request.baseVersion,
-        changes: { ...(changes.status !== undefined ? { status: changes.status } : {}), ...(changes.note !== undefined ? { note: changes.note } : {}) } });
+        changes: { ...(changes.status !== undefined ? { status: changes.status } : {}), ...(changes.note !== undefined ? { note: changes.note } : {}) } }, actor);
       if (outcome.kind === 'not-found') throw new HttpError(404, 'ANOMALY_NOT_FOUND', 'Anomaly is unavailable.');
       if (outcome.kind === 'conflict') throw new HttpError(409, 'VERSION_CONFLICT', 'Review changed. Read the current anomaly before saving again.', { currentVersion: outcome.currentVersion });
       if (outcome.kind === 'version-exhausted') throw new HttpError(422, 'VERSION_LIMIT_REACHED', 'Review version cannot be incremented safely.');
@@ -30,21 +31,21 @@ export function createAnomalyService(repository: AnomalyRepository, datasets: Da
   runs: AnalysisReadAccess, codec: ReturnType<typeof createCursorCodec>) {
   return {
     ...createAnomalyReviewService(repository),
-    async detail(id: string) {
-      const data = await repository.get(id);
+    async detail(id: string, actor: DatasetActor) {
+      const data = await repository.get(id, actor);
       if (!data) throw new HttpError(404, 'ANOMALY_NOT_FOUND', 'Anomaly is unavailable.');
       return { data };
     },
-    async list(query: AnomaliesQuery) {
+    async list(query: AnomaliesQuery, actor: DatasetActor) {
       const page = parsePageQuery(query, listSorts.anomalies, 'ts:asc');
       const from = parseUtcTime(query.from), to = parseUtcTime(query.to);
       if (from && to && from > to) throw new HttpError(422, 'INVALID_TIME_RANGE', 'from must be less than or equal to to.');
-      const parent = await datasets.getState(query.datasetId);
+      const parent = await datasets.getState(query.datasetId, actor);
       if (!parent) throw new HttpError(422, 'DATASET_NOT_FOUND', 'Dataset does not exist.');
       if (parent.status !== 'imported') throw new HttpError(422, 'DATASET_NOT_READY', 'Dataset is not imported.');
       let runId: string | undefined;
       if (query.analysisRunId !== undefined) {
-        const run = await runs.getState(query.analysisRunId);
+        const run = await runs.getState(query.analysisRunId, actor);
         if (!run) throw new HttpError(422, 'ANALYSIS_RUN_NOT_FOUND', 'Analysis run does not exist.');
         if (run.datasetId !== parent.id) throw new HttpError(422, 'ANALYSIS_RUN_NOT_IN_DATASET', 'Analysis run belongs to a different dataset.');
         if (run.status !== 'completed') throw new HttpError(409, 'ANALYSIS_NOT_READY', 'Analysis run results are not published.');
@@ -54,10 +55,10 @@ export function createAnomalyService(repository: AnomalyRepository, datasets: Da
         ...(query.status !== undefined ? { status: query.status } : {}), ...(query.severity !== undefined ? { severity: query.severity } : {}),
         ...(query.family !== undefined ? { family: query.family } : {}), ...(query.method !== undefined ? { method: query.method } : {}),
         ...(from ? { from } : {}), ...(to ? { to } : {}) };
-      const fingerprint = queryFingerprint('anomalies.list', { ...filters }, page.sort);
+      const fingerprint = queryFingerprint('anomalies.list', { ...filters, ...datasetCursorScope(actor) }, page.sort);
       const after = page.cursor ? codec.decode(page.cursor, fingerprint) : undefined;
       if (after && (!/^[\da-f]{24}$/i.test(after.id) || !Number.isFinite(Date.parse(after.key)) || new Date(after.key).toISOString() !== after.key)) throw new HttpError(400, 'INVALID_CURSOR', 'Cursor is invalid for this query.');
-      const documents = await repository.list({ ...filters, direction: page.sort.endsWith(':asc') ? 'asc' : 'desc', limit: page.limit + 1, ...(after ? { after } : {}) });
+      const documents = await repository.list({ ...filters, actor, direction: page.sort.endsWith(':asc') ? 'asc' : 'desc', limit: page.limit + 1, ...(after ? { after } : {}) });
       const data = documents.slice(0, page.limit), last = data.at(-1);
       return { data, page: { limit: page.limit, nextCursor: documents.length > page.limit && last ? codec.encode({ key: last.ts, id: last.id }, fingerprint) : null } };
     },

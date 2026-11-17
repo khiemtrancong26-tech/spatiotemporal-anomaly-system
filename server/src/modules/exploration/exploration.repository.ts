@@ -1,3 +1,4 @@
+import { datasetAccessFilter } from '../datasets/dataset-access.js';
 import type { Db, Document } from 'mongodb';
 import { ExplorationMetadataSchema, type ExplorationScope, type Sampling } from '@pm25/shared-core';
 import { toObjectId } from '../../shared/persistence/mapping.js';
@@ -24,8 +25,8 @@ export function buildExplorationPipeline(id: string, ids: string[], scope: Explo
 }
 export function createExplorationRepository(db: Db, maxReadings: number): ExplorationRepository {
   return {
-    async dataset(id, ctx) {
-      const row = await db.collection('datasets').findOne({ _id: toObjectId(id) }, { ...options(ctx), projection: { status: 1, explorationMetadata: 1, importSummary: 1 } });
+    async dataset(id, ctx, actor) {
+      const row = await db.collection('datasets').findOne({ ...datasetAccessFilter(actor), _id: toObjectId(id) }, { ...options(ctx), projection: { status: 1, explorationMetadata: 1, importSummary: 1 } });
       if (!row) return null;
       const metadata = row.explorationMetadata ? ExplorationMetadataSchema.parse(row.explorationMetadata) : {
         version: null, timeZone: '+07:00' as const, source: 'fallback' as const, provenance: null, sampling: null,

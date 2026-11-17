@@ -1,5 +1,10 @@
 # Shared Data Contract v0.1 — PM2.5 Anomaly System
 
+**D021 — Private Dataset Ownership (17/11/2026):** Analyst chỉ thấy và truy cập dataset có `createdBy` là ID tài khoản hiện hành của mình; Admin truy cập mọi dataset hợp lệ. Readings/sensors/Profile/aggregates/runs/anomalies và import/review kế thừa quyền dataset gốc, không chia sẻ mặc định. Quy tắc này thay thế mọi mô tả cũ “mọi Analyst đọc được imported datasets”. Giữ điều kiện status và HTTP not-found semantics từng endpoint, không lộ tài nguyên trái quyền. Owner thiếu/sai kiểu bị cách ly, không migration/xóa/tự gán owner. Cursor gắn user+role; logout/account change xóa private state/cache và chặn response trễ. [Audit và bằng chứng](backend/ownership-verification.md).
+
+**D020 — 17/11/2026, kiến trúc hiện hành:** hệ thống chỉ dùng một Isolation Forest với `[value, temporal_delta, spatial_delta]`. Request ML là `method: "isolation_forest", config: {}`; Backend tự chọn artifact đã pin. Không có selector/flag/dispatch v1/v2. `modelVersion` chỉ là provenance do Server ghi; giữ nguyên ID/hash manifest C3, không train lại. `scoringSummary` bắt buộc trên completed ML, vắng ở statistical/queued/running/failed; partition và atomic fencing không đổi. Xem [kiểm chứng và demo một model](backend/c3-single-model-verification.md). Những mô tả dual-version/value-only bên dưới là lịch sử đã được thay thế, không phải hướng dẫn chạy hiện tại.
+
+
 **Áp dụng:** `client/` (Tài + Duy), `server/` (Khiêm), `shared-core/` (Khải).  
 **Nguồn:** SRS v0.4, SDD v0.1 Bước 1, kế hoạch thống nhất ngày 11/11/2026.  
 **Trạng thái:** Hợp đồng dữ liệu **đề xuất để bắt đầu tích hợp**; nhóm trưởng và Khải cần review trước khi merge làm chuẩn. **Không phải OpenAPI / MongoDB schema vật lý cuối cùng.**
@@ -7,6 +12,7 @@
 **C2/D018 bổ sung:** [contract đã duyệt](backend/c2-contract-proposal.md) và [`exploration.ts`](../shared-core/src/contracts/exploration.ts) định nghĩa các DTO strict riêng `DatasetProfile`, `ReadingAggregation`, `Coverage`, scope và metadata. Không thêm field vào Dataset/Reading/Sensor/AnalysisRun/Anomaly cũ. Unknown dùng null/reason, empty count0/mean null, not_applicable ratio null; UTC wire giữ nguyên. Source-quality, sampling missing và FE chưa tải là ba khái niệm riêng. Response draft aggregation P1 được thay có chủ đích; generated online contract có22 operations. Chỉ timezone cố định UTC/+07:00/+08:00; metadata CLI/version/provenance tường minh. Chưa có Feature Contract ML v2 trong bổ sung này.
 
 ## A. Các quy ước chung (không tùy ý sửa)
+
 
 1. **ID public:** chuỗi opaque không rỗng (`string`). Ví dụ `reading-001` chỉ là fixture; Backend được dùng `ObjectId` nội bộ nhưng API **không trả BSON**.
 2. **Phép đo duy nhất:** PM2.5, trường `value`, đơn vị chuẩn `unit: "ug/m3"` (UI hiển thị `µg/m³`). Không nhầm ngưỡng anomaly với ngưỡng ô nhiễm/sức khỏe.

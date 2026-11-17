@@ -1,4 +1,6 @@
 import type * as W from '../api/generated/wire';
+import { AnalysisRunSchema } from '@pm25/shared-core';
+import { DataSourceError } from '../api/errors';
 import { createHttpClient } from '../api/http-client';
 import type { OnlineDataSource, OnlineAdapterOptions, Bbox } from './types';
 
@@ -8,12 +10,20 @@ function bbox(value?: Bbox): string | undefined {
   if (value.length !== 4 || !value.every(Number.isFinite) || west < -180 || east > 180 || south < -90 || north > 90 || west > east || south > north) throw new TypeError('Invalid bbox.');
   return value.join(',');
 }
+function checkedRun(run: W.AnalysisRun, status = 200): W.AnalysisRun {
+  if (!AnalysisRunSchema.safeParse(run).success) throw new DataSourceError('invalid-response', 'Invalid analysis lifecycle or scoring partition', status);
+  return run;
+}
 export function createOnlineDataSource(options: OnlineAdapterOptions): OnlineDataSource {
   const request = createHttpClient(options);
   return {
     health: (opts) => request<W.HealthResponse>('get_api_v1_health', opts),
     auth: {
       register: async (body, opts) => (await request<W.UserResponse>('post_api_v1_auth_register', { ...opts, body })).data,
+      verifyEmail: (body, opts) => request<W.AuthMessage>('post_api_v1_auth_verify_email', { ...opts, body }),
+      resendVerification: (body, opts) => request<W.AuthMessage>('post_api_v1_auth_resend_verification', { ...opts, body }),
+      forgotPassword: (body, opts) => request<W.AuthMessage>('post_api_v1_auth_forgot_password', { ...opts, body }),
+      resetPassword: (body, opts) => request<W.AuthMessage>('post_api_v1_auth_reset_password', { ...opts, body }),
       login: (body, opts) => request<W.LoginResponse>('post_api_v1_auth_tokens', { ...opts, body }),
       me: async (opts) => (await request<W.UserResponse>('get_api_v1_users_me', opts)).data,
     },
@@ -29,9 +39,9 @@ export function createOnlineDataSource(options: OnlineAdapterOptions): OnlineDat
     readings: { list: (query, opts) => request<W.ReadingPage>('get_api_v1_readings', { ...opts, query: { ...query, bbox: bbox(query.bbox) } }) },
     aggregates: { get: async (query, opts) => (await request<W.ReadingAggregationResponse>('get_api_v1_reading_aggregates', { ...opts, query: { ...query, bbox: bbox(query.bbox) } })).data },
     analysis: {
-      get: async (id, opts) => (await request<W.AnalysisCreateResponse>('get_api_v1_analysis_runs_id', { ...opts, path: { id } })).data,
-      list: (query, opts) => request<W.AnalysisRunPage>('get_api_v1_analysis_runs', { ...opts, query }),
-      create: (body, opts) => request<W.AnalysisCreateResponse>('post_api_v1_analysis_runs', { ...opts, body }),
+      get: async (id, opts) => checkedRun((await request<W.AnalysisCreateResponse>('get_api_v1_analysis_runs_id', { ...opts, path: { id } })).data),
+      list: async (query, opts) => { const page = await request<W.AnalysisRunPage>('get_api_v1_analysis_runs', { ...opts, query }); page.data.forEach(run => checkedRun(run)); return page; },
+      create: async (body, opts) => { const response = await request<W.AnalysisCreateResponse>('post_api_v1_analysis_runs', { ...opts, body }); checkedRun(response.data, 202); return response; },
     },
     anomalies: {
       list: (query, opts) => request<W.AnomalyPage>('get_api_v1_anomalies', { ...opts, query }),

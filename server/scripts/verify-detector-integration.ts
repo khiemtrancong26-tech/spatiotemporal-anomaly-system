@@ -13,20 +13,19 @@ const readings: Reading[] = [...Array.from({ length: 21 }, (_, index) => index %
 }));
 const statistics = [];
 for (const method of ['zscore', 'iqr', 'moving_avg'] as const) {
-  const started = performance.now();
   const config = method === 'iqr' ? { multiplier: 1.5 as const } : method === 'moving_avg' ? { threshold: 3, windowSize: 3 } : { threshold: 3 };
   const evaluation = runStatisticalAdapter({ method, readings, config }, experimentalPolicy(method));
   statistics.push({ method, config, engineVersion: evaluation.engineVersion, policyId: evaluation.policyId, status: evaluation.output.status,
-    results: evaluation.output.results.length, message: evaluation.output.message ?? null, candidates: evaluation.candidates, elapsedMs: performance.now() - started });
+    results: evaluation.output.results.length, message: evaluation.output.message ?? null, candidates: evaluation.candidates });
 }
-const before = performance.now();
-const rows = readings.map((reading, index) => ({ readingId: reading.id, values: index === readings.length - 1 ? [10, 10] : [1.9, 2] }));
+
+const rows = readings.map((reading, index) => ({ readingId: reading.id, values: index === readings.length - 1 ? [10000, 9950, 9950] : [50, 0, 0] }));
 const ml = await createIsolationForestAdapter(isolationOptions())(readings, rows, { id: 'EXPERIMENT-ONLY/negative-decision', score: point => -point.decisionFunction });
 const report = { checkedAt: new Date().toISOString(), node: process.version, purpose: 'library integration only, not B5 or detector-quality evaluation',
   profileStatus: 'explicit experiment; no production defaults/severity or API method chosen', statistical: statistics,
-  ml: { manifest, engineVersion: ml.engineVersion, featureOrigin: 'Explicit synthetic upstream model vectors, NOT extracted from PM2.5 readings',
-    policyId: ml.policyId, normalExample: ml.points[0], outlierExample: ml.points.at(-1), candidates: ml.candidates, elapsedMs: performance.now() - before },
+  ml: { manifest, engineVersion: ml.engineVersion, featureOrigin: 'Explicit three-column PM2.5 adapter vectors; actual context extraction is tested in C3',
+    policyId: ml.policyId, normalExample: ml.points[0], outlierExample: ml.points.at(-1), candidates: ml.candidates },
   persistedAnalysisRuns: false, persistedAnomalies: false, addedApiOperations: 0 };
-const output = new URL('../../docs/backend/detector-integration-results.json', import.meta.url);
+const output = new URL('../../.local/detector-single-model-results.json', import.meta.url);
 await mkdir(new URL('./', output), { recursive: true }); await writeFile(output, `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify({ report: fileURLToPath(output), statisticalMethods: statistics.map(item => [item.method, item.status]), model: ml.modelId }));

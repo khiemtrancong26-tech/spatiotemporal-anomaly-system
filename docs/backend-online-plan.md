@@ -1,5 +1,12 @@
 # Kế hoạch triển khai Backend P0 online — PM2.5
 
+**B7 hoàn tất17/11/2026:** ba API Admin thật, keyset/transaction idempotency và last-active-admin concurrency đã kiểm chứng; FE Admin list/create/update có E2E thật. [B7 verification](backend/b7-verification.md). Các dòng “B7 chờ” trong baseline cũ phía dưới là lịch sử; B8 vẫn chưa triển khai.
+
+**D020 — 17/11/2026, kiến trúc hiện hành:** hệ thống chỉ dùng một Isolation Forest với `[value, temporal_delta, spatial_delta]`. Request ML là `method: "isolation_forest", config: {}`; Backend tự chọn artifact đã pin. Không có selector/flag/dispatch v1/v2. `modelVersion` chỉ là provenance do Server ghi; giữ nguyên ID/hash manifest C3, không train lại. `scoringSummary` bắt buộc trên completed ML, vắng ở statistical/queued/running/failed; partition và atomic fencing không đổi. Xem [kiểm chứng và demo một model](backend/c3-single-model-verification.md). Những mô tả dual-version/value-only bên dưới là lịch sử đã được thay thế, không phải hướng dẫn chạy hiện tại.
+
+
+**C3/D019 ngày17/11/2026:** v2 đúng3 features, shared TS train–serve builder, native inference và functional integration/regression đã PASS; [verification/contract/runbook](backend/c3-verification.md). V1 được bảo toàn, v2 admission opt-in sau parser/worker migration. Không tăng số operations (19/22 thật); không mở C4/B7/B8. Benchmark/load/stress/tối ưu chuyển B8 và không là gate C3; các câu “C3 còn chờ” phía dưới là trạng thái lịch sử trước D019.
+
 **C2/D018 ngày16/11/2026:** Profile/quality và hour/day comparison theo trạm đã bổ sung online; [contract](backend/c2-contract-proposal.md), [verification/runbook](backend/c2-verification.md). Trạng thái hiện tại19/22 online operations (26 tổng), B7 còn3 operations, C3/B8 còn chờ. Ma trận20 operations và các dòng hoãn aggregation bên dưới là baseline lịch sử B0–B6; chỉ subset C2 được nâng ưu tiên, không mở toàn P1/LOD. Không đổi DTO/API B1–B6.
 
 **Bổ sung 16/11/2026 — D016:** [Backend Change Plan](backend-change-plan.md) ghi hướng nâng cấp đã được chủ dự án duyệt: **B6 theo contract hiện tại → Exploration tối thiểu → Isolation Forest v2 → nghiệm thu Analyst**, FE/test tích hợp từng chặng. Đây là mở rộng có giới hạn đối với phạm vi dưới đây; các API/feature/timezone mới còn gate, không tự sửa OpenAPI. B0–B8 giữ mã/tiêu chí; B7/B8 không bị hủy. Các dòng hoãn P1 bên dưới là baseline cũ; chỉ subset được chỉ rõ trong Change Plan được nâng ưu tiên sau khi khóa contract.
@@ -29,7 +36,7 @@ Nguồn đã đọc và đối chiếu:
 | `server/` | B1–B6 có API thật, Analysis worker, receipts/fencing/recovery, keyset và review CAS | FE M2–M6 đã có E2E API thật cho statistical/history/review; B7 còn chờ |
 | Root workspace | Scripts check/build/typecheck/lint/test đã bao phủ client + server; dev client giữ nguyên, thêm dev:server | Integration MongoDB thật chạy riêng bằng `npm run test:server:integration` hoặc server coverage |
 | `client/` | FE đến M7; M2–M5 statistical/history đã chạy với API thật; ML vẫn khóa tại FE; B6 API chưa có | Tài nhận method/config ML và replay24h từ B5; Admin/Mapbox thật còn chờ |
-| `shared-core/` | Statistical implementation simple-statistics thật; schema/DTO D008; Server đã infer scikit-learn PM2.5 baseline thật | Model một feature và severity tạm low đã được chủ dự án duyệt; Khải tiếp tục đánh giá chất lượng |
+| `shared-core/` | Statistical implementation simple-statistics thật; schema/DTO D008; Server đã infer scikit-learn PM2.5 baseline thật | D020: model duy nhất 3 features, severity tạm low; Khải tiếp tục đánh giá chất lượng |
 | `infra/`, `tests/` | Replica-set integration/fault injection; 14 online indexes trên8 collections, thêm claim index và queue counter B5 | Cường tiếp tục Docker/Nginx/TLS/CI, volume và stress; Sync vẫn hoãn |
 | Tài liệu | Một số mục lục, đoạn SDD/DB và báo cáo FE M0/M1 giữ version/URL/số operations cũ | Dùng file nguồn hiện tại: 25 operations tổng cộng, 20 thuộc online/health; không tạo alias URL cũ |
 
@@ -289,17 +296,19 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 **Endpoint:** `GET /admin/users` → `200 UserPage`; `POST /admin/users` → `201 UserResponse`; `PATCH /admin/users/{id}` → `200 UserResponse`.
 
-- [ ] List username sort asc/desc (mặc định asc), keyset trên usernameNormalized + ID, cursor/limit; không thêm server search/delete/reset-password.
-- [ ] Create dùng nghiệp vụ User của B2 và idempotency; nhận username/password/role, enforce unique chung với Register, không lộ hash.
-- [ ] PATCH chỉ role/isActive và ít nhất một field; enforce admin tại Server. OpenAPI hiện **đã cấm hạ quyền/vô hiệu last active admin**: đây là rule phải làm, không phải câu hỏi nghiệp vụ còn mở của FE R10.
-- [ ] Review cách bảo đảm rule last admin khi có request đồng thời trước implementation; không dùng count rồi update không có bảo vệ cạnh tranh và coi là an toàn.
-- [ ] Áp dụng chính sách hiệu lực thay đổi role/isActive lên token/session đã thống nhất với B2; Tài kiểm tra UI current user và `401/403` nhất quán.
+- [x] List username sort asc/desc (mặc định asc), keyset trên usernameNormalized + ID, cursor/limit; không thêm server search/delete/reset-password.
+- [x] Create dùng nghiệp vụ User của B2 và idempotency; nhận username/password/role, enforce unique chung với Register, không lộ hash.
+- [x] PATCH chỉ role/isActive và ít nhất một field; enforce admin tại Server. OpenAPI hiện **đã cấm hạ quyền/vô hiệu last active admin**: đây là rule phải làm, không phải câu hỏi nghiệp vụ còn mở của FE R10.
+- [x] Đã review và triển khai transaction + write fence trên các active admins để bảo đảm rule khi cạnh tranh; không dùng count rồi update không có bảo vệ cạnh tranh và coi là an toàn.
+- [x] Áp dụng chính sách hiệu lực thay đổi role/isActive lên token/session đã thống nhất với B2; Tài kiểm tra UI current user và `401/403` nhất quán.
 
 **Dependency:** B1/B2, idempotency chung và quyết định auth/atomic last-admin guard. Có thể thực hiện ngay sau B2 trong khi B3/B5 chờ quyết định; không phụ thuộc engine hoặc import.
 
 **Kiểm thử:** analyst bị `403` trên cả ba operations, JWT thiếu/sai `401`; validate payload/username trùng; replay create không nhân đôi user; Register và Admin create cạnh tranh cùng username; pagination chuẩn. Concurrent hạ quyền/vô hiệu nhiều admin vẫn còn ít nhất một active admin; update không tồn tại `404`, stale state theo `409`; test token cũ sau đổi role/isActive theo chính sách đã duyệt.
 
 **Bàn giao/ nghiệm thu:** admin list/create/update bằng API thật, analyst không thể vượt quyền dù gọi trực tiếp; rule last admin chịu được race, các response không chứa secret. FE M7 có thể nghiệm thu độc lập với B5.
+
+**Bằng chứng B7 (17/11/2026):** [báo cáo](backend/b7-verification.md): targeted B7/contract7 PASS; regression Auth/B2/email/B7/contract25 PASS, client adapter6 PASS; typecheck/lint/build Server+Client PASS;1 Desktop E2E Admin1440×900 qua API/MongoDB thật PASS. Không triển khai B8.
 
 ### B8 — Tích hợp online, hiệu năng và bàn giao
 

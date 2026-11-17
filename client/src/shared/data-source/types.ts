@@ -21,6 +21,10 @@ export interface OnlineDataSource {
   health(options?: RequestOptions): Promise<Wire.HealthResponse>;
   auth: {
     register(input: Wire.RegisterRequest, options?: RequestOptions): Promise<Wire.UserPublic>;
+    verifyEmail(input: Wire.EmailTokenRequest, options?: RequestOptions): Promise<Wire.AuthMessage>;
+    resendVerification(input: Wire.EmailRequest, options?: RequestOptions): Promise<Wire.AuthMessage>;
+    forgotPassword(input: Wire.EmailRequest, options?: RequestOptions): Promise<Wire.AuthMessage>;
+    resetPassword(input: Wire.ResetPasswordRequest, options?: RequestOptions): Promise<Wire.AuthMessage>;
     login(input: Wire.LoginRequest, options?: RequestOptions): Promise<Wire.LoginResponse>;
     me(options?: RequestOptions): Promise<Wire.UserPublic>;
   };
@@ -60,6 +64,7 @@ export interface OnlineDataSource {
 export interface OnlineAdapterOptions {
   baseUrl: string; // Ends in /api/v1; URL assembly must not drop the /api/v1 prefix.
   getAccessToken: () => string | undefined;
+  getSessionRevision?: () => number;
   fetch: typeof globalThis.fetch;
 }
 

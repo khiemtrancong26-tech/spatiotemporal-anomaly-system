@@ -50,7 +50,7 @@ export interface paths {
         put?: never;
         /**
          * Tự đăng ký tài khoản analyst
-         * @description Public; chỉ nhận username/password. Tái sử dụng User, validation, password hashing và quy tắc username duy nhất của luồng tạo tài khoản. Server luôn gán role=analyst, isActive=true; không nhận role/isActive từ client (422). Username trùng trả 409, kể cả request đồng thời với tạo user qua Admin. Thành công không trả token/password/hash; FE chuyển về Login, không auto-login. Không yêu cầu Idempotency-Key; gửi lại sau khi đã tạo có thể trả 409.
+         * @description Public Register requires username/email/password; creates pending analyst. No JWT. 503 REGISTRATION_EMAIL_FAILED means account exists pending verification; resend instead of registering again.
          */
         post: operations["post_api_v1_auth_register"];
         delete?: never;
@@ -437,6 +437,74 @@ export interface paths {
         patch: operations["patch_api_v1_admin_users_id"];
         trace?: never;
     };
+    "/api/v1/auth/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** verify-email */
+        post: operations["post_api_v1_auth_verify_email"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/resend-verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** resend-verification */
+        post: operations["post_api_v1_auth_resend_verification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/forgot-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** forgot-password */
+        post: operations["post_api_v1_auth_forgot_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** reset-password */
+        post: operations["post_api_v1_auth_reset_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -535,7 +603,7 @@ export interface components {
             /** @enum {string} */
             unit: "ug/m3";
         };
-        /** @description queued -> running -> completed hoặc failed; queued có thể failed trước khi chạy. Terminal không tự quay lại running. completed chỉ sau khi toàn bộ kết quả đã lưu và đọc được; failed không công bố partial. scope là snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại. completedAt có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng khi trạng thái khác. */
+        /** @description queued -> running -> completed hoặc failed; queued có thể failed trước khi chạy. Terminal không tự quay lại running. completed chỉ sau khi toàn bộ kết quả đã lưu và đọc được; failed không công bố partial. scope là snapshot phạm vi đã tiếp nhận, không lấy từ bộ lọc UI hiện tại. completedAt có khi terminal (completed hoặc failed); error bắt buộc khi failed và vắng khi trạng thái khác. D020: a single three-feature Isolation Forest uses config {}. modelVersion is server-owned provenance, not a client selector. scoringSummary is required only for completed ML runs; targetCount=scoredCount+unscorableCount and reason counts are disjoint. */
         AnalysisRun: {
             /** @description Opaque ID string; do not assume MongoDB _id format */
             id: string;
@@ -563,7 +631,8 @@ export interface components {
             completedAt?: string;
             engineVersion?: string;
             modelVersion?: string;
-        } & ({
+            scoringSummary?: components["schemas"]["ScoringSummary"];
+        } & (({
             /** @enum {unknown} */
             status?: "queued" | "running";
         } | {
@@ -572,7 +641,12 @@ export interface components {
         } | {
             /** @enum {unknown} */
             status?: "failed";
-        });
+        }) & ({
+            /** @enum {unknown} */
+            family: "ml";
+            /** @enum {unknown} */
+            status: "completed";
+        } | unknown));
         Anomaly: {
             /** @description Opaque ID string; do not assume MongoDB _id format */
             id: string;
@@ -639,6 +713,7 @@ export interface components {
         RegisterRequest: {
             username: string;
             password: string;
+            email: string;
         };
         LoginRequest: {
             username: string;
@@ -697,6 +772,7 @@ export interface components {
              */
             to?: string;
         };
+        /** @description ML uses method isolation_forest and config {}; model selection is server-owned. Nonempty ML config is rejected with 422. */
         DetectionRequest: {
             /** @description Opaque ID string; do not assume MongoDB _id format */
             datasetId: string;
@@ -913,6 +989,29 @@ export interface components {
         ReadingAggregationResponse: {
             data: components["schemas"]["ReadingAggregation"];
         };
+        ScoringSummary: {
+            targetCount: number;
+            scoredCount: number;
+            unscorableCount: number;
+            reasons: {
+                temporalOnly: number;
+                spatialOnly: number;
+                both: number;
+            };
+        };
+        EmailRequest: {
+            email: string;
+        };
+        EmailTokenRequest: {
+            token: string;
+        };
+        ResetPasswordRequest: {
+            token: string;
+            newPassword: string;
+        };
+        AuthMessage: {
+            message: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -1016,6 +1115,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description EMAIL_NOT_VERIFIED only after correct credentials. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Method Not Allowed */
             405: {
                 headers: {
@@ -1062,7 +1170,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Created analyst; FE chuyển về Login */
+            /** @description Account created pending email verification. No automatic login. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -1115,8 +1223,26 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Request failed */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Internal Server Error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request failed */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3288,6 +3414,246 @@ export interface operations {
                 };
             };
             /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    post_api_v1_auth_verify_email: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Verification/reset completed, or generic email request acknowledged; no JWT and no confirmed delivery claim. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthMessage"];
+                };
+            };
+            /** @description Request failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request failed */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    post_api_v1_auth_resend_verification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Verification/reset completed, or generic email request acknowledged; no JWT and no confirmed delivery claim. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthMessage"];
+                };
+            };
+            /** @description Request failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request failed */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    post_api_v1_auth_forgot_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Verification/reset completed, or generic email request acknowledged; no JWT and no confirmed delivery claim. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthMessage"];
+                };
+            };
+            /** @description Request failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request failed */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    post_api_v1_auth_reset_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Verification/reset completed, or generic email request acknowledged; no JWT and no confirmed delivery claim. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthMessage"];
+                };
+            };
+            /** @description Request failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request failed */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request failed */
             500: {
                 headers: {
                     [name: string]: unknown;

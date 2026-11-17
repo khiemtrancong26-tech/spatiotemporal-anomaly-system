@@ -91,11 +91,16 @@ export const AnalysisFamilySchema = z.enum(['statistical', 'ml']);
 export const StatisticalMethodSchema = z.enum(['zscore', 'iqr', 'moving_avg']);
 export const AnalysisRunStatusSchema = z.enum(['queued', 'running', 'completed', 'failed']);
 export const AnalysisScopeSchema = z.object({ sensorIds: z.array(IdSchema).optional(), from: UtcIsoSchema.optional(), to: UtcIsoSchema.optional() }).strict();
+export const ScoringSummarySchema = z.object({ targetCount: z.number().int().nonnegative(), scoredCount: z.number().int().positive(),
+  unscorableCount: z.number().int().nonnegative(), reasons: z.object({ temporalOnly: z.number().int().nonnegative(), spatialOnly: z.number().int().nonnegative(), both: z.number().int().nonnegative() }).strict(),
+}).strict().superRefine((s, ctx) => {
+  if (s.targetCount !== s.scoredCount + s.unscorableCount || s.unscorableCount !== s.reasons.temporalOnly + s.reasons.spatialOnly + s.reasons.both) ctx.addIssue({ code: 'custom', message: 'Scoring counts must form a disjoint partition of targets.' });
+});
 export const AnalysisRunSchema = z.object({
   id: IdSchema,
   datasetId: IdSchema,
   family: AnalysisFamilySchema,
-  method: z.string().min(1), // ML model/method not finalized.
+  method: z.string().min(1),
   config: z.object({}).passthrough(),
   scope: AnalysisScopeSchema,
   error: z.object({ code: z.string().min(1), message: z.string().min(1) }).strict().optional(),
@@ -104,10 +109,13 @@ export const AnalysisRunSchema = z.object({
   completedAt: UtcIsoSchema.optional(),
   engineVersion: z.string().optional(),
   modelVersion: z.string().optional(),
+  scoringSummary: ScoringSummarySchema.optional(),
 }).strict().superRefine((run, ctx) => {
   const terminal = run.status === 'completed' || run.status === 'failed';
   if (terminal !== (run.completedAt !== undefined)) ctx.addIssue({ code: 'custom', path: ['completedAt'], message: 'Terminal runs require completedAt; pending runs must omit it.' });
   if ((run.status === 'failed') !== (run.error !== undefined)) ctx.addIssue({ code: 'custom', path: ['error'], message: 'Only failed runs require error.' });
+  const ml = run.family === 'ml';
+  if ((ml && run.status === 'completed') !== (run.scoringSummary !== undefined)) ctx.addIssue({ code: 'custom', path: ['scoringSummary'], message: 'Only completed ML runs require scoringSummary.' });
 });
 
 export const ReviewStatusSchema = z.enum(['open', 'confirmed', 'false_positive']);
@@ -201,3 +209,9 @@ export type CacheCoverage = z.infer<typeof CacheCoverageSchema>;
 export type StatisticalDetectorInput = z.infer<typeof StatisticalDetectorInputSchema>;
 export type StatisticalDetectorOutput = z.infer<typeof StatisticalDetectorOutputSchema>;
 export type GeoPoint = z.infer<typeof GeoPointSchema>;
+
+// B2-Email Extension public inputs; authentication state never enters UserPublic.
+export const RegisterRequestSchema = z.object({ username: z.string().min(1), email: z.string().trim().email(), password: z.string().min(8) }).strict();
+export const EmailRequestSchema = z.object({ email: z.string().trim().email() }).strict();
+export const EmailTokenRequestSchema = z.object({ token: z.string().min(1).max(256) }).strict();
+export const ResetPasswordRequestSchema = EmailTokenRequestSchema.extend({ newPassword: z.string().min(8) }).strict();

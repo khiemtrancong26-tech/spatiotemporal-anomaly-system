@@ -13,12 +13,12 @@ it('register sends only credentials without auth headers and rejects an admin re
   const registered = { id: 'new-user', username: 'newanalyst', role: 'analyst', isActive: true };
   const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValueOnce(new Response(JSON.stringify({ data: registered }), { status: 201 })).mockResolvedValueOnce(new Response(JSON.stringify({ data: { ...registered, role: 'admin' } }), { status: 201 }));
   const api = createOnlineDataSource({ baseUrl: 'http://test.local/api/v1', getAccessToken: () => 'existing-token', fetch });
-  await expect(api.auth.register({ username: 'newanalyst', password: 'demo-password' })).resolves.toEqual(registered);
-  expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ username: 'newanalyst', password: 'demo-password' });
+  await expect(api.auth.register({ username: 'newanalyst', email: 'new@example.com', password: 'demo-password' })).resolves.toEqual(registered);
+  expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ username: 'newanalyst', email: 'new@example.com', password: 'demo-password' });
   expect(new Headers(fetch.mock.calls[0][1]?.headers).has('Authorization')).toBe(false);
-  await expect(api.auth.register({ username: 'newanalyst', password: 'demo-password', role: 'admin' } as never)).rejects.toBeInstanceOf(TypeError);
+  await expect(api.auth.register({ username: 'newanalyst', email: 'new@example.com', password: 'demo-password', role: 'admin' } as never)).rejects.toBeInstanceOf(TypeError);
   expect(fetch).toHaveBeenCalledTimes(1);
-  await expect(api.auth.register({ username: 'newanalyst', password: 'demo-password' })).rejects.toMatchObject({ kind: 'invalid-response' });
+  await expect(api.auth.register({ username: 'newanalyst', email: 'new@example.com', password: 'demo-password' })).rejects.toMatchObject({ kind: 'invalid-response' });
 });
 
 it('routes every adapter method through the mock HTTP transport with the right envelope', async () => {

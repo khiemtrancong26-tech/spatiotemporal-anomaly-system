@@ -1,5 +1,8 @@
+import type { DatasetActor } from '../datasets/dataset-access.js';
 import type { AnalysisRun, Reading } from '@pm25/shared-core/contracts';
 import type { Candidate } from '../../engines/results.js';
+import type { ScoringSummary } from '@pm25/shared-core';
+import type { FeatureContext } from './analysis.context.repository.js';
 
 export interface DetectionRequest {
   datasetId: string; family: 'statistical' | 'ml'; method: string;
@@ -7,14 +10,15 @@ export interface DetectionRequest {
 }
 export interface HistoryQuery { datasetId: string; sort?: string; limit?: number; cursor?: string }
 export interface AnalysisReadAccess {
-  getState: (id: string) => Promise<{ id: string; datasetId: string; status: AnalysisRun['status'] } | null>;
+  getState: (id: string, actor: DatasetActor) => Promise<{ id: string; datasetId: string; status: AnalysisRun['status'] } | null>;
 }
 export interface RunGuard { id: string; owner: string; attempt: number; run: AnalysisRun; policyId: string; modelHash?: string }
-export interface EngineResult { candidates: Candidate[]; engineVersion: string; modelVersion?: string }
+export interface EngineResult { candidates: Candidate[]; engineVersion: string; modelVersion?: string; scoringSummary?: ScoringSummary; scoredReadingIds?: string[] }
+export interface RunMetadata { engineVersion: string; modelVersion?: string; modelHash?: string; policyId?: string }
 export interface AnalysisEngine {
   ready: () => Promise<void>;
-  metadata: (family: DetectionRequest['family']) => { engineVersion: string; modelVersion?: string; modelHash?: string };
-  run: (run: RunGuard, readings: Reading[], signal: AbortSignal) => Promise<EngineResult>;
+  metadata: (family: DetectionRequest['family']) => RunMetadata;
+  run: (run: RunGuard, readings: Reading[], signal: AbortSignal, context?: FeatureContext) => Promise<EngineResult>;
 }
 /** Fault injection through composition only; main.ts never sets these hooks. */
 export interface AnalysisTestHooks {

@@ -1,5 +1,8 @@
 # B5 — Analysis online: implementation và kiểm chứng
 
+**Tài liệu lịch sử — đã được D020 thay thế về model/setup/rollout.** Nội dung và kết quả dưới đây phản ánh thời điểm kiểm chứng, không phải hướng dẫn chạy hiện tại. Manifest/train CLI/artifact cũ có thể đã xóa; xem [pipeline một model và demo hiện hành](c3-single-model-verification.md). Không chạy lại các recipe cũ.
+
+
 Ngày: 15/11/2026. Chủ dự án đã đồng ý cả ba nhóm ở [readiness](b5-readiness.md); [D015](../decisions.md#d015--hướng-worker-b5-15112026) chốt baseline. **B5a/statistical và B5b/ML có API, worker và detector thật.** Không thêm Redis/BullMQ, endpoint ngoài OpenAPI, PWA/Offline/Sync, B6 hoặc B7.
 
 ## 1. Phạm vi bàn giao và trạng thái thật/mock
@@ -58,7 +61,7 @@ Hai ca bắt buộc đã có kill Backend process thật: (a) sau receipt/run/co
 
 ## 5. Model và setup tái lập
 
-Chủ dự án đồng ý baseline offline do agent tự chọn dữ liệu. [Manifest](../../server/ml/pm25-manifest.json), [CLI](../../server/ml/train_pm25_baseline.py), [ML runbook](../../server/ml/README.md) ghi provenance, train/holdout, seed, dependencies và hash. Python đã kiểm chứng3.11.9. Source license/attribution trong manifest; không gộp data license với cam kết chất lượng model.
+Chủ dự án đồng ý baseline offline do agent tự chọn dữ liệu. Manifest (`manifest cũ đã xóa theo D020; xem Git history`), [CLI](../../server/ml/train_pm25_baseline.py), [ML runbook](../../server/ml/README.md) ghi provenance, train/holdout, seed, dependencies và hash. Python đã kiểm chứng3.11.9. Source license/attribution trong manifest; không gộp data license với cam kết chất lượng model.
 
 - Model `pm25-iforest-uci381-v1`, SHA256 `554e03b3c2ba9f37c58ba9bae98ff020898738283883b430c40cd19c4f31329b`,343.467 bytes. Feature duy nhất value ug/m3. Runtime sklearn1.9.1/numpy2.4.6/scipy1.17.1/joblib1.6.0/threadpoolctl3.8.0.
 - Chỉ train offline; CLI kiểm tra hash nguồn/runtime, từ chối ghi đè artifact/manifest khác. Chạy lại trong môi trường đang dùng đã tái lập cùng hash. Không train/fetch khi backend start, nhận request hoặc worker chạy.

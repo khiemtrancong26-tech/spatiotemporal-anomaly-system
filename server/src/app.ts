@@ -1,3 +1,5 @@
+import { adminRoutes } from './modules/admin/index.js';
+import type { EmailSender } from './modules/auth/email.js';
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
@@ -20,6 +22,7 @@ import { explorationRoutes } from './modules/exploration/index.js';
 
 interface AppOptions {
   config?: ServerConfig;
+  emailSender?: EmailSender;
   logger?: FastifyServerOptions['logger'];
   verifyAccessToken?: VerifyAccessToken;
   importTestHooks?: ImportTestHooks;
@@ -41,8 +44,8 @@ export function buildApp(options: AppOptions = {}) {
       ...typeof options.logger === 'object' ? options.logger : {},
       redact: {
         paths: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]',
-          'password', 'passwordHash', 'accessToken', 'token', 'jwtSecret', 'cursorSecret', 'mongodbUri',
-          '*.password', '*.passwordHash', '*.accessToken', '*.token', '*.jwtSecret', '*.cursorSecret', '*.mongodbUri'],
+          'newPassword', 'GMAIL_APP_PASSWORD', 'gmailAppPassword', 'password', 'passwordHash', 'accessToken', 'token', 'jwtSecret', 'cursorSecret', 'mongodbUri',
+          '*.newPassword', '*.gmailAppPassword', '*.GMAIL_APP_PASSWORD', '*.password', '*.passwordHash', '*.accessToken', '*.token', '*.jwtSecret', '*.cursorSecret', '*.mongodbUri'],
         censor: '[REDACTED]',
       },
       serializers: {
@@ -64,7 +67,8 @@ export function buildApp(options: AppOptions = {}) {
     errorResponseBuilder: () => new HttpError(429, 'RATE_LIMITED', 'Too many login attempts. Please try again later.'),
   });
   app.register(usersPlugin);
-  app.register(authenticationPlugin, { config, ...(options.verifyAccessToken ? { verifyAccessToken: options.verifyAccessToken } : {}) });
+  app.register(authenticationPlugin, { config, ...(options.emailSender ? { emailSender: options.emailSender } : {}), ...(options.verifyAccessToken ? { verifyAccessToken: options.verifyAccessToken } : {}) });
+  app.register(adminRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret });
   app.register(healthRoutes, { prefix: '/api/v1' });
   app.register(datasetRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret, imports: config.imports,
     ...(options.importTestHooks ? { importTestHooks: options.importTestHooks } : {}) });

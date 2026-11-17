@@ -26,7 +26,7 @@ async function bootstrap() {
   const session = createSession(sessionStorage, `pm25.auth.${config.mode}`);
   const workspace = createWorkspaceStore();
   const datasets = new Map<string, Dataset>();
-  session.store.subscribe((next, previous) => { if (next.revision !== previous.revision) { workspace.getState().clear(); datasets.clear(); try { sessionStorage.removeItem(`pm25.import.${config.mode}`); Object.keys(sessionStorage).filter(key => key.startsWith(`pm25.analysis.${config.mode}.`)).forEach(key => sessionStorage.removeItem(key)); } catch { /* Storage may be unavailable. */ } } });
+  session.store.subscribe((next, previous) => { if (next.revision !== previous.revision) { try { sessionStorage.removeItem(`pm25.import.${config.mode}`); Object.keys(sessionStorage).filter(key => key.startsWith(`pm25.analysis.${config.mode}.`)).forEach(key => sessionStorage.removeItem(key)); } catch { /* Storage may be unavailable. */ } } });
   const guardedFetch: typeof fetch = async (input, init) => {
     const sent = new Headers(init?.headers).get('Authorization');
     const response = await transport(input, init);
@@ -36,7 +36,7 @@ async function bootstrap() {
   const services: Services = {
     session, workspace, datasets,
     config, mock, preview: createPreviewStore(),
-    data: createOnlineDataSource({ baseUrl: config.apiBaseUrl, fetch: guardedFetch, getAccessToken: session.getToken }),
+    data: createOnlineDataSource({ baseUrl: config.apiBaseUrl, fetch: guardedFetch, getAccessToken: session.getToken, getSessionRevision: () => session.store.getState().revision }),
   };
   void session.restore(services.data);
   createRoot(document.getElementById('root')!).render(<StrictMode><ServicesProvider services={services}><RouterProvider router={router} /></ServicesProvider></StrictMode>);
