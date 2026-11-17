@@ -1,6 +1,6 @@
 # Spatiotemporal Anomaly System
 
-**B2-Email Extension:** Register có email bắt buộc, xác minh email trước Login cho tài khoản tự đăng ký mới; Forgot/Reset Password có thu hồi JWT cũ. Legacy/admin/seed giữ hành vi. [Thiết lập Resend, kiểm chứng và demo](docs/backend/b2-email-verification.md). Mock email trả unavailable, không giả lập gửi thư.
+**B2-Email Extension:** Register có email bắt buộc, xác minh email trước Login cho tài khoản tự đăng ký mới; Forgot/Reset Password có thu hồi JWT cũ. Legacy/admin/seed giữ hành vi. [Thiết lập Gmail SMTP, kiểm chứng và demo](docs/backend/b2-email-verification.md). Mock email trả unavailable, không giả lập gửi thư.
 
 Hệ thống phân tích và phát hiện bất thường trong dữ liệu không gian – thời gian bằng trực quan 3D.
 

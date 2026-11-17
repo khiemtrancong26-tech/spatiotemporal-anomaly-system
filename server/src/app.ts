@@ -43,8 +43,8 @@ export function buildApp(options: AppOptions = {}) {
       ...typeof options.logger === 'object' ? options.logger : {},
       redact: {
         paths: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]',
-          'newPassword', 'RESEND_API_KEY', 'apiKey', 'password', 'passwordHash', 'accessToken', 'token', 'jwtSecret', 'cursorSecret', 'mongodbUri',
-          '*.newPassword', '*.apiKey', '*.RESEND_API_KEY', '*.password', '*.passwordHash', '*.accessToken', '*.token', '*.jwtSecret', '*.cursorSecret', '*.mongodbUri'],
+          'newPassword', 'GMAIL_APP_PASSWORD', 'gmailAppPassword', 'password', 'passwordHash', 'accessToken', 'token', 'jwtSecret', 'cursorSecret', 'mongodbUri',
+          '*.newPassword', '*.gmailAppPassword', '*.GMAIL_APP_PASSWORD', '*.password', '*.passwordHash', '*.accessToken', '*.token', '*.jwtSecret', '*.cursorSecret', '*.mongodbUri'],
         censor: '[REDACTED]',
       },
       serializers: {

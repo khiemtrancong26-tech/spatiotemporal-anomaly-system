@@ -10,7 +10,7 @@ import { createAuthService } from './auth.service.js';
 import { createAuthRoutes } from './auth.routes.js';
 
 export const authenticationPlugin = fp<{ config: ServerConfig; verifyAccessToken?: VerifyAccessToken; emailSender?: EmailSender }>(async (app, options) => {
-  if (!options.emailSender && (!options.config.email.apiKey || !options.config.email.from || !options.config.email.appUrl)) app.log.warn('Email delivery not configured: RESEND_API_KEY, RESEND_FROM_EMAIL and PUBLIC_APP_URL required; legacy login remains available.');
+  if (!options.emailSender && (!options.config.email.gmailUser || !options.config.email.gmailAppPassword || !options.config.email.appUrl)) app.log.warn('Email delivery not configured: GMAIL_USER, GMAIL_APP_PASSWORD and PUBLIC_APP_URL required; legacy login remains available.');
   const tokens = createTokens(options.config.jwtSecret);
   const verifyAccessToken = options.verifyAccessToken ?? (async (token: string) => {
     const session = await tokens.verifySession(token);
