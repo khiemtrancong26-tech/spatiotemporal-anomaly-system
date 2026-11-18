@@ -1,7 +1,8 @@
 import { useStore } from 'zustand';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { explorationUtcTime } from '@pm25/shared-core';
-import { useServices } from '../../app/services';
+import { useOfflineState, useServices } from '../../app/services';
+import { analysisOfflineMessage, unavailable } from '../../offline/data';
 import { StatusBadge, Button, ErrorState, LoadingState, Field } from '../../shared/ui/primitives';
 import { createCursorPager } from '../../shared/lib/cursor-pager';
 import { DataSourceError, errorMessage } from '../../shared/api/errors';
@@ -43,7 +44,8 @@ function RunDetail({ datasetId, id }: { datasetId: string; id: string }) {
 }
 
 export function AnalysisPage({ datasetId, filters, runId, selectRun, active: visible = true }: { datasetId: string; filters: WorkspaceFilters; runId?: string; selectRun: (id?: string) => void; active?: boolean }) {
-  const { data, config, session, workspace, datasets } = useServices(), zone = useStore(workspace, s => s.timeZone);
+  const { data, config, session, workspace, datasets, offline } = useServices(), zone = useStore(workspace, s => s.timeZone);
+  const local = useOfflineState();
   const prepared = useStore(workspace, s => s.analysisDraft), sensors = useAnalystSensors(datasetId);
   const storageKey = `pm25.analysis.${config.mode}.${session.store.getState().user?.id}.${datasetId}`;
   const [intent, setIntent] = useState(() => { const value = readIntent(sessionStorage, storageKey); return value?.body.datasetId === datasetId ? value : undefined; });
@@ -93,17 +95,20 @@ export function AnalysisPage({ datasetId, filters, runId, selectRun, active: vis
     if (!current) { if (!confirmed) return; current = { key: crypto.randomUUID(), body: structuredClone(body), createdAt: Date.now() }; }
     const controller = new AbortController(); active.current = controller; setPending(true); setError('');
     try {
+      if (offline && (offline.isOffline() || !await offline.checkBackend())) { setError(analysisOfflineMessage); return; }
+      if (controller.signal.aborted) return;
       sessionStorage.setItem(storageKey, JSON.stringify(current)); setIntent(current);
       const response = await data.analysis.create(current.body, { idempotencyKey: current.key, signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]) });
       if (controller.signal.aborted) return;
       if (response.data.datasetId !== datasetId || response.data.status !== 'queued') throw new Error('Response tiếp nhận không khớp dataset/trạng thái queued.');
       const accepted: Intent = { ...current, runId: response.data.id };
       setIntent(accepted); history.dispose(); refreshHistory(value => value + 1); selectRun(response.data.id); sessionStorage.setItem(storageKey, JSON.stringify(accepted));
-    } catch (cause) { if (!controller.signal.aborted) setError(`${cause instanceof DataSourceError ? errorMessage(cause) : 'Không thể xác nhận/lưu ngữ cảnh tiếp nhận.'} Chưa có ID tiếp nhận xác nhận; giữ nguyên key và payload. Đối soát lịch sử hoặc chủ động thử lại cùng key trong cửa sổ replay.`); }
+    } catch (cause) { if (!controller.signal.aborted) setError(`${unavailable(cause) ? analysisOfflineMessage : cause instanceof DataSourceError ? errorMessage(cause) : 'Không thể xác nhận/lưu ngữ cảnh tiếp nhận.'} Chưa có ID tiếp nhận xác nhận; giữ nguyên key và payload. Đối soát lịch sử hoặc chủ động thử lại cùng key trong cửa sổ replay.`); }
     finally { if (!controller.signal.aborted) { active.current = undefined; setPending(false); } }
   }
   return <section className="analyst-ux ux-analysis"><header className="ux-page-heading"><div><p className="ux-eyebrow">02 · CHẠY PHÁT HIỆN BẤT THƯỜNG</p><h2>Tạo một lần phân tích</h2><p>Chọn rõ dữ liệu và phương pháp. Server xử lý toàn bộ scope đã xác nhận.</p></div><span className="badge">{intent?.runId ? 'Đã tiếp nhận' : pending ? 'Đang gửi yêu cầu' : intent ? 'Chưa xác nhận tiếp nhận' : 'Chưa gửi run'}</span></header>
     {config.mode === 'mock' && <p className="ux-notice">DEMO: dữ liệu/lifecycle mô phỏng, không chạy detector thật; run demo mới nằm trong RAM và mất khi reload.</p>}
+    {local.offline && <p role="status" className="ux-warning">{analysisOfflineMessage}. Có thể xem lại kết quả đã lưu.</p>}
     <div className="ux-analysis-grid"><section className="ux-panel"><h3><span className="ux-step">1</span>Phạm vi phân tích</h3><p>{datasets.get(datasetId)?.name ?? datasetId}</p><div className="ux-scope-summary"><ScopeText scope={submittedScope} sensors={sensors.data} zone={zone} /></div><p>{intent ? 'Snapshot của thao tác đã lưu; bộ lọc mới không thay đổi payload này.' : prepared?.source ?? 'Phạm vi workspace hiện tại'}</p>
       <div className="ux-limit"><span>Readings trong scope</span><strong>{profilePending ? 'Đang kiểm tra…' : profile ? number(profile.scoped.readingCount, 0) : 'Chưa xác nhận'}</strong><span>Giới hạn Backend: 50.000 readings / run</span>{profile && <meter min="0" max="50000" value={Math.min(profile.scoped.readingCount, 50000)} aria-label="Readings so với giới hạn Analysis" />}<small>{profile ? profile.scoped.readingCount > 50000 ? 'Vượt giới hạn; thu hẹp thời gian hoặc số trạm.' : 'Trong giới hạn dự kiến; Backend vẫn kiểm tra độc lập.' : 'Profile chưa xác nhận count; Backend vẫn là nguồn kiểm tra cuối cùng.'}</small></div>
       {profileError && <p className="ux-warning">Chưa xác nhận số readings: {profileError}</p>}{overLimit && <p role="alert" className="ux-warning">Phạm vi có nhiều hơn 50.000 readings. Thu hẹp thời gian hoặc số trạm.</p>}
@@ -113,7 +118,7 @@ export function AnalysisPage({ datasetId, filters, runId, selectRun, active: vis
       </div>}
       {filters.bbox && !intent && <div className="ux-warning"><p>Analysis không nhận bbox. Chọn rõ các trạm muốn phân tích trước khi chạy.</p><Button variant="secondary" disabled={!scope.sensorIds?.length} onClick={() => { resolveBbox(true); setConfirmed(false); }}>Dùng các trạm đã chọn, bỏ bbox khỏi Analysis</Button>{bboxResolved && <p>Đã xác nhận scope trạm; bbox không được gửi trong body.</p>}</div>}
     </section><section className="ux-panel"><h3><span className="ux-step">2</span>Chọn phương pháp</h3><fieldset className="ux-methods"><legend className="sr-only">Phương pháp</legend>{(Object.keys(METHODS) as Method[]).map(id => <label key={id} className={`ux-method ${method === id ? 'is-selected' : ''}`}><input type="radio" name="detector-method" value={id} checked={method === id} disabled={pending || Boolean(intent)} onChange={() => { setMethod(id); setConfirmed(false); }} /><span><strong>{METHODS[id].name}</strong><p>{METHODS[id].description}</p><small>{METHODS[id].setting}</small></span></label>)}</fieldset>{method === 'isolation_forest' && <p className="ux-warning">Score không phải xác suất. Severity low là metadata tạm, không phải mức ô nhiễm hoặc mức nguy hiểm sức khỏe.</p>}</section>
-    <section className="ux-panel"><h3><span className="ux-step">3</span>Xác nhận và chạy</h3><p>Tạo một Analysis Run mới.</p><p>Queued → Running → Completed / Failed</p><p>Kết quả lưu trên Server, có thể xem lại từ lịch sử.</p><label className="ux-confirm"><input type="checkbox" checked={confirmed} disabled={pending || Boolean(intent)} onChange={e => setConfirmed(e.target.checked)} />Tôi đã kiểm tra phạm vi và phương pháp phân tích.</label><Button className="ux-wide" disabled={pending || corrupt || Boolean(intent?.runId) || (!intent && (!confirmed || bboxBlocked || overLimit || scope.sensorIds?.length === 0)) || !replayable} onClick={() => { void send(); }}>{pending ? 'Đang gửi…' : intent ? 'Thử lại cùng key' : 'Chạy phát hiện bất thường'}</Button><p>Chỉ 202 xác nhận tiếp nhận job. Mất phản hồi không có nghĩa Server chưa nhận; không tạo key mới.</p>
+    <section className="ux-panel"><h3><span className="ux-step">3</span>Xác nhận và chạy</h3><p>Tạo một Analysis Run mới.</p><p>Queued → Running → Completed / Failed</p><p>Kết quả lưu trên Server, có thể xem lại từ lịch sử.</p><label className="ux-confirm"><input type="checkbox" checked={confirmed} disabled={pending || Boolean(intent)} onChange={e => setConfirmed(e.target.checked)} />Tôi đã kiểm tra phạm vi và phương pháp phân tích.</label><Button className="ux-wide" disabled={local.offline || pending || corrupt || Boolean(intent?.runId) || (!intent && (!confirmed || bboxBlocked || overLimit || scope.sensorIds?.length === 0)) || !replayable} onClick={() => { void send(); }}>{pending ? 'Đang gửi…' : intent ? 'Thử lại cùng key' : 'Chạy phát hiện bất thường'}</Button><p>Chỉ 202 xác nhận tiếp nhận job. Mất phản hồi không có nghĩa Server chưa nhận; không tạo key mới.</p>
       {intent && !intent.runId && !replayable && <p role="alert">Cửa sổ replay đã hết hạn. Đối soát Backend trước khi tiếp tục.</p>}{corrupt && <p role="alert">Ngữ cảnh chờ tiếp nhận không hợp lệ. Đối soát Backend trước khi tạo thao tác mới.</p>}
       {intent?.runId && <div className="ux-actions"><Button variant="secondary" onClick={() => selectRun(intent.runId)}>Theo dõi run đã tiếp nhận</Button><Button variant="secondary" onClick={() => { if (window.confirm('Tạo ý định phân tích mới? Run cũ vẫn giữ trên Server.')) { sessionStorage.removeItem(storageKey); setIntent(undefined); setConfirmed(false); selectRun(undefined); workspace.getState().setResults(); } }}>Chuẩn bị lần chạy mới</Button></div>}
       {intent && <details><summary>Thông tin thao tác đã gửi</summary><TechnicalId label="Idempotency key" id={intent.key} /><p>Gửi lúc {formatWorkspaceTime(new Date(intent.createdAt).toISOString(), zone)} · {zoneLabel(zone)} · cửa sổ replay {config.mode === 'mock' ? '15 phút (demo)' : '24 giờ'}.</p><pre>{JSON.stringify(intent.body, null, 2)}</pre></details>}

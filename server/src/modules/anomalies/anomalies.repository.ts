@@ -1,9 +1,9 @@
 import { datasetAccessFilter, type DatasetActor } from '../datasets/dataset-access.js';
-import { ObjectId, type Db, type MongoClient, type Document } from 'mongodb';
+import { MongoServerError, ObjectId, type ClientSession, type Db, type MongoClient, type Document } from 'mongodb';
 import { AnomalySchema } from '@pm25/shared-core/contracts';
 import { toObjectId, toPublicId, toGeoPoint, toUtcIso } from '../../shared/persistence/mapping.js';
 import { keysetPredicate } from '../../shared/persistence/keyset.js';
-import type { Anomaly, AnomalyPageInput, ReviewRequest, ReviewOutcome } from './anomalies.types.js';
+import type { Anomaly, AnomalyPageInput, ReviewRequest, ReviewOutcome, SyncReviewOutcome } from './anomalies.types.js';
 
 interface AnomalyDocument {
   _id: ObjectId; datasetId: ObjectId; sensorId: ObjectId; readingId: ObjectId; analysisRunId: ObjectId;
@@ -40,6 +40,59 @@ class ReviewRollback extends Error {
 }
 export function createAnomalyRepository(client: MongoClient, db: Db) {
   const anomalies = db.collection<AnomalyDocument>('anomalies');
+  // The collection's built-in unique _id index scopes receipts to the authenticated actor.
+  type ReceiptOutcome = Exclude<ReviewOutcome, { kind: 'updated' }> | { kind: 'applied' };
+  const receipts = db.collection<{ _id: string; fingerprint: string; outcome: ReceiptOutcome }>('processedReviewMutations');
+  const transaction = { readConcern: { level: 'snapshot' as const }, writeConcern: { w: 'majority' as const }, maxCommitTimeMS: 10000, timeoutMS: 15000 };
+
+  async function applyReview(id: string, request: ReviewRequest, actor: DatasetActor, session: ClientSession): Promise<ReviewOutcome> {
+    if (!validId(id)) return { kind: 'not-found' };
+    const [existing] = await anomalies.aggregate<AnomalyDocument>([
+      { $match: { _id: toObjectId(id) } }, ...publishedPipeline(actor), { $project: projection },
+    ], { session }).toArray();
+    if (!existing) return { kind: 'not-found' };
+    if (existing.version !== request.baseVersion) return { kind: 'conflict', currentVersion: existing.version };
+    if (!Number.isSafeInteger(existing.version) || existing.version >= Number.MAX_SAFE_INTEGER) return { kind: 'version-exhausted' };
+    // Actual writes fence concurrent changes to visibility. Keep the dataset -> run -> anomaly order.
+    const dataset = await db.collection('datasets').updateOne({ ...datasetAccessFilter(actor), _id: existing.datasetId, status: 'imported' },
+      { $inc: { reviewFence: 1 } }, { session });
+    if (!dataset.matchedCount) throw new ReviewRollback({ kind: 'not-found' });
+    const run = await db.collection('analysisRuns').updateOne({ _id: existing.analysisRunId, datasetId: existing.datasetId,
+      status: 'completed', family: existing.family, method: existing.method }, { $inc: { reviewFence: 1 } }, { session });
+    if (!run.matchedCount) throw new ReviewRollback({ kind: 'not-found' });
+    const updated = await anomalies.findOneAndUpdate({ _id: existing._id, version: request.baseVersion,
+      datasetId: existing.datasetId, analysisRunId: existing.analysisRunId },
+    { $set: request.changes, $inc: { version: 1 }, $currentDate: { updatedAt: true } },
+    { session, returnDocument: 'after', projection });
+    if (!updated) throw new Error('Review CAS invariant failed');
+    return { kind: 'updated', data: toAnomalyDto(updated) };
+  }
+
+  async function syncReview(id: string, request: ReviewRequest, actor: DatasetActor, mutationId: string, fingerprint: string): Promise<SyncReviewOutcome> {
+    const key = `${actor.id}:${mutationId}`;
+    return client.withSession(async session => {
+      const attempt = () => session.withTransaction(async (): Promise<SyncReviewOutcome> => {
+        const receipt = await receipts.findOne({ _id: key }, { session });
+        if (receipt) {
+          if (receipt.fingerprint !== fingerprint) return { kind: 'mutation-reused' };
+          // Recheck visibility before disclosing even a previous conflict/version.
+          if (receipt.outcome.kind !== 'not-found' && !(await anomalies.aggregate([
+            { $match: { _id: toObjectId(id) } }, ...publishedPipeline(actor), { $limit: 1 },
+          ], { session }).toArray()).length) return { kind: 'not-found' };
+          return receipt.outcome.kind === 'applied' ? { kind: 'duplicate' } : receipt.outcome;
+        }
+        const outcome = await applyReview(id, request, actor, session);
+        await receipts.insertOne({ _id: key, fingerprint, outcome: outcome.kind === 'updated' ? { kind: 'applied' } : outcome }, { session });
+        return outcome;
+      }, transaction);
+      try { return await attempt(); }
+      catch (error) {
+        if (error instanceof ReviewRollback) return error.outcome;
+        if (error instanceof MongoServerError && error.code === 11000) return attempt();
+        throw error;
+      }
+    });
+  }
   return {
     async list(input: AnomalyPageInput): Promise<Anomaly[]> {
       const filter: Document = { datasetId: toObjectId(input.datasetId) };
@@ -64,33 +117,11 @@ export function createAnomalyRepository(client: MongoClient, db: Db) {
       if (!validId(id)) return { kind: 'not-found' };
       const session = client.startSession();
       try {
-        return await session.withTransaction(async (): Promise<ReviewOutcome> => {
-          const existing = await anomalies.findOne({ _id: toObjectId(id) }, { projection, session });
-          if (!existing) throw new ReviewRollback({ kind: 'not-found' });
-          // Actual writes lock the parents against concurrent visibility transitions.
-          // A no-op $set or a preflight read does not provide the same protection.
-          // All reviews use dataset -> run -> anomaly order, and failed CAS rolls back fences.
-          const dataset = await db.collection('datasets').updateOne({ ...datasetAccessFilter(actor), _id: existing.datasetId, status: 'imported' },
-            { $inc: { reviewFence: 1 } }, { session });
-          if (!dataset.matchedCount) throw new ReviewRollback({ kind: 'not-found' });
-          const run = await db.collection('analysisRuns').updateOne({ _id: existing.analysisRunId, datasetId: existing.datasetId,
-            status: 'completed', family: existing.family, method: existing.method }, { $inc: { reviewFence: 1 } }, { session });
-          if (!run.matchedCount) throw new ReviewRollback({ kind: 'not-found' });
-          if (existing.version !== request.baseVersion) throw new ReviewRollback({ kind: 'conflict', currentVersion: existing.version });
-          if (!Number.isSafeInteger(existing.version) || existing.version >= Number.MAX_SAFE_INTEGER) throw new ReviewRollback({ kind: 'version-exhausted' });
-          const changes: Document = {};
-          if (request.changes.status !== undefined) changes.status = request.changes.status;
-          if (request.changes.note !== undefined) changes.note = request.changes.note;
-          const updated = await anomalies.findOneAndUpdate({ _id: existing._id, version: request.baseVersion,
-            datasetId: existing.datasetId, analysisRunId: existing.analysisRunId },
-          { $set: changes, $inc: { version: 1 }, $currentDate: { updatedAt: true } },
-          { session, returnDocument: 'after', projection });
-          if (!updated) throw new Error('Review CAS invariant failed');
-          return { kind: 'updated', data: toAnomalyDto(updated) };
-        }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, maxCommitTimeMS: 10000, timeoutMS: 15000 });
+        return await session.withTransaction(() => applyReview(id, request, actor, session), transaction);
       } catch (error) { if (error instanceof ReviewRollback) return error.outcome; throw error; }
       finally { await session.endSession(); }
     },
+    syncReview,
   };
 }
 export type AnomalyRepository = ReturnType<typeof createAnomalyRepository>;

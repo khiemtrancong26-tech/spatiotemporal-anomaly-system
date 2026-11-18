@@ -5,11 +5,22 @@ export function createSession(storage: Pick<Storage, 'getItem' | 'setItem' | 're
   let token: string | undefined;
   try { token = storage.getItem(key) || undefined; } catch { /* Login reports storage failures explicitly. */ }
   let generation = 0;
-  const store = createStore<{ status: 'anonymous' | 'checking' | 'authenticated' | 'error'; user?: UserPublic; error?: unknown; revision: number }>(() => ({ status: token ? 'checking' : 'anonymous', revision: 0 }));
+  const store = createStore<{ status: 'anonymous' | 'checking' | 'authenticated' | 'offline' | 'error'; user?: UserPublic; error?: unknown; revision: number }>(() => ({ status: token ? 'checking' : 'anonymous', revision: 0 }));
   const clear = () => { generation++; token = undefined; try { storage.removeItem(key); } catch { /* In-memory access is still revoked. */ } store.setState({ status: 'anonymous', user: undefined, error: undefined, revision: store.getState().revision + 1 }); };
   return {
     store, getToken: () => token, logout: clear,
     invalidate(expected: string) { if (token === expected) clear(); },
+    useOffline(user: UserPublic) { store.setState({ status: 'offline', user, error: undefined }); },
+    async verify(api: OnlineDataSource, signal?: AbortSignal) {
+      const current = generation;
+      const expected = store.getState().user?.id;
+      if (!token || !expected) return false;
+      const user = await api.auth.me({ signal });
+      if (generation !== current) return false;
+      if (user.id !== expected || !user.isActive) { clear(); return false; }
+      if (store.getState().status === 'offline') store.setState({ status: 'authenticated', user, error: undefined });
+      return true;
+    },
     async restore(api: OnlineDataSource) {
       if (!token) return;
       const current = ++generation;

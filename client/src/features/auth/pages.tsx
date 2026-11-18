@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { Link, Navigate, useLocation } from '@tanstack/react-router';
 import { useStore } from 'zustand';
-import { useServices } from '../../app/services';
+import { useOfflineState, useServices } from '../../app/services';
 import { AuthFrame, Button, Field, ErrorState, LoadingState, EmptyState } from '../../shared/ui/primitives';
 import { errorMessage, DataSourceError } from '../../shared/api/errors';
 export function safeDestination(value?: string) { return value && /^\/(datasets(?:\/import)?|workspace\/[^/?#]+|admin\/users)(?:\?.*)?$/.test(value) ? value : '/datasets'; }
@@ -9,12 +9,15 @@ export const publicAuthPaths = ['/login', '/register', '/verify-email', '/forgot
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { session, data } = useServices();
   const state = useStore(session.store);
+  const { offline } = useOfflineState();
   const location = useLocation();
   if (publicAuthPaths.includes(location.pathname)) return children;
   if (state.status === 'checking') return <LoadingState label="Đang kiểm tra phiên đăng nhập…" />;
   if (state.status === 'error') return <><ErrorState message={errorMessage(state.error)} retry={() => { void session.restore(data); }} /><Button onClick={session.logout}>Đăng nhập lại</Button></>;
-  if (state.status !== 'authenticated') return <Navigate to="/login" search={{ redirect: location.pathname + location.searchStr }} replace />;
+  if (state.status !== 'authenticated' && state.status !== 'offline') return <Navigate to="/login" search={{ redirect: location.pathname + location.searchStr }} replace />;
   if (location.pathname.startsWith('/admin/') && state.user?.role !== 'admin') return <EmptyState title="Không có quyền truy cập" description="Chức năng này chỉ dành cho Admin (403)." />;
+  if (offline && (location.pathname.startsWith('/admin/') || location.pathname === '/datasets/import'))
+    return <EmptyState title="Cần kết nối Backend" description="Chức năng này chỉ sử dụng được khi có phiên online." />;
   return <div key={state.revision}>{children}</div>;
 }
 export function LoginPage({ destination, registered, reset }: { destination?: string; registered?: boolean; reset?: boolean }) {

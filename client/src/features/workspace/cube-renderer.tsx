@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Reading, Sensor } from '../../shared/api/generated/wire';
 import { Button, LoadingState } from '../../shared/ui/primitives';
 import { cubeProjection, cubeTime, pm25Color, HOUR, type CubeMode, type CubeScope } from './cube-data';
+import type { CubeCamera } from './state';
 
 interface CubeView {
   rows: Reading[]; sensors: Sensor[]; scope: CubeScope; mode: CubeMode;
   focusedSensorId: string; showContext: boolean; timestamp?: string; selected?: string;
   marked: Set<string>; offset: number;
 }
-export default function CubeRenderer(props: CubeView & { onSelect: (id: string) => void }) {
+export default function CubeRenderer(props: CubeView & { onSelect: (id: string) => void; camera?: CubeCamera; onCamera?: (camera: CubeCamera) => void }) {
   const host = useRef<HTMLDivElement>(null), labels = useRef<HTMLDivElement>(null);
   const input = useRef(props), update = useRef<(view: CubeView) => void>(() => {});
   const action = useRef<(name: string) => void>(() => {});
@@ -33,6 +34,11 @@ export default function CubeRenderer(props: CubeView & { onSelect: (id: string) 
       const camera = new T.PerspectiveCamera(43, 1, .01, 100); camera.up.set(0, 0, 1);
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.minDistance = 2.8; controls.maxDistance = 12; controls.enableDamping = false;
+      const saveCamera = () => input.current.onCamera?.({ position: camera.position.toArray(), target: controls.target.toArray() });
+      const initial = input.current.camera;
+      camera.position.fromArray(initial?.position ?? [2.8, -3.6, 2.4]);
+      controls.target.fromArray(initial?.target ?? [0, 0, 0]);
+      controls.update();
       const makeTexture = (ring: boolean) => {
         const canvas = document.createElement('canvas'); canvas.width = canvas.height = 64;
         const ctx = canvas.getContext('2d')!;
@@ -129,9 +135,10 @@ export default function CubeRenderer(props: CubeView & { onSelect: (id: string) 
         if (name === 'reset') { camera.position.set(2.8, -3.6, 2.4); controls.target.set(0, 0, 0); }
         if (name === 'in') camera.position.lerp(controls.target, .18);
         if (name === 'out') camera.position.lerp(controls.target, -.18);
-        controls.update(); render();
+        controls.update(); render(); saveCamera();
       };
       controls.addEventListener('change', render);
+      controls.addEventListener('end', saveCamera);
       const resize = new ResizeObserver(() => { const width = element.clientWidth, height = element.clientHeight; if (!width || !height) return; renderer.setSize(width, height); camera.aspect = width / height; camera.fov = Math.max(43, Math.min(70, 43 / Math.max(.6, camera.aspect))); camera.updateProjectionMatrix(); render(); }); resize.observe(element);
       let down = [0, 0];
       const pointerDown = (event: PointerEvent) => { down = [event.clientX, event.clientY]; };
@@ -150,14 +157,14 @@ export default function CubeRenderer(props: CubeView & { onSelect: (id: string) 
       const lost = (event: Event) => { event.preventDefault(); setError('WebGL context bị mất. Dùng bảng readings hoặc mở lại Cube.'); };
       renderer.domElement.addEventListener('pointerdown', pointerDown); renderer.domElement.addEventListener('pointerup', pick); renderer.domElement.addEventListener('pointermove', pick); renderer.domElement.addEventListener('pointerleave', leave); renderer.domElement.addEventListener('webglcontextlost', lost);
       cleanup = () => {
-        resize.disconnect(); controls.removeEventListener('change', render); controls.dispose();
+        resize.disconnect(); controls.removeEventListener('change', render); controls.removeEventListener('end', saveCamera); controls.dispose();
         renderer.domElement.removeEventListener('pointerdown', pointerDown); renderer.domElement.removeEventListener('pointerup', pick); renderer.domElement.removeEventListener('pointermove', pick); renderer.domElement.removeEventListener('pointerleave', leave); renderer.domElement.removeEventListener('webglcontextlost', lost);
         pointLayers.forEach(p => { p.geometry.dispose(); p.material.dispose(); });
         [edges, gridGeometry, planeGeometry, planeEdgeGeometry, curveGeometry].forEach(g => g.dispose());
         [edgeMaterial, gridMaterial, planeMaterial, planeEdgeMaterial, curveMaterial].forEach(m => m.dispose());
         dot.dispose(); ring.dispose(); renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove(); labelHost.replaceChildren();
       };
-      action.current('reset'); update.current(input.current); setReady(true);
+      update.current(input.current); setReady(true);
     }
     void start().catch(cause => { cleanup(); if (!cancelled) setError(cause instanceof Error ? cause.message : 'Không khởi tạo được Cube.'); });
     return () => { cancelled = true; cleanup(); update.current = () => {}; action.current = () => {}; };

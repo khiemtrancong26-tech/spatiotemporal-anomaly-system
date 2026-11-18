@@ -8,6 +8,8 @@ import { routeTree } from './routeTree.gen';
 import { readConfig } from './app/config';
 import { ServicesProvider, createPreviewStore, type Services } from './app/services';
 import { createOnlineDataSource } from './shared/data-source/online';
+import { createOfflineServices } from './offline/services';
+import { createReadingsCache } from './features/workspace/readings-cache';
 import './app/styles.css';
 
 const router = createRouter({ routeTree, defaultPreload: 'intent' });
@@ -29,16 +31,34 @@ async function bootstrap() {
   session.store.subscribe((next, previous) => { if (next.revision !== previous.revision) { try { sessionStorage.removeItem(`pm25.import.${config.mode}`); Object.keys(sessionStorage).filter(key => key.startsWith(`pm25.analysis.${config.mode}.`)).forEach(key => sessionStorage.removeItem(key)); } catch { /* Storage may be unavailable. */ } } });
   const guardedFetch: typeof fetch = async (input, init) => {
     const sent = new Headers(init?.headers).get('Authorization');
-    const response = await transport(input, init);
+    const authCheck = config.mode === 'online' && String(input).endsWith('/users/me');
+    const signal = authCheck ? AbortSignal.any([AbortSignal.timeout(5000), ...(init?.signal ? [init.signal] : [])]) : init?.signal;
+    const response = await transport(input, { ...init, signal });
     if (response.status === 401 && sent?.startsWith('Bearer ')) session.invalidate(sent.slice(7));
     return response;
   };
+  const online = createOnlineDataSource({ baseUrl: config.apiBaseUrl, fetch: guardedFetch, getAccessToken: session.getToken, getSessionRevision: () => session.store.getState().revision });
+  const offline = config.mode === 'online' ? createOfflineServices(new URL(config.apiBaseUrl).href.replace(/\/$/, ''), online, session, workspace) : undefined;
+  const data = offline?.data ?? online;
+  if (offline) {
+    if (import.meta.env.PROD) {
+      const shellFailed = () => offline.store.setState({ shellError: true });
+      if (!('serviceWorker' in navigator)) shellFailed();
+      else if (navigator.onLine || !navigator.serviceWorker.controller) void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}offline-worker.js`).then(registration => {
+        const worker = registration.installing;
+        const check = () => { if (worker?.state === 'redundant' && !navigator.serviceWorker.controller) shellFailed(); };
+        worker?.addEventListener('statechange', check);
+        check();
+      }).catch(() => { if (!navigator.serviceWorker.controller) shellFailed(); });
+    }
+    await offline.initialize();
+    offline.start();
+  } else void session.restore(online);
   const services: Services = {
-    session, workspace, datasets,
+    session, workspace, datasets, offline, data,
     config, mock, preview: createPreviewStore(),
-    data: createOnlineDataSource({ baseUrl: config.apiBaseUrl, fetch: guardedFetch, getAccessToken: session.getToken, getSessionRevision: () => session.store.getState().revision }),
+    readingsCache: createReadingsCache(data.readings.list, undefined, offline?.isOffline),
   };
-  void session.restore(services.data);
   createRoot(document.getElementById('root')!).render(<StrictMode><ServicesProvider services={services}><RouterProvider router={router} /></ServicesProvider></StrictMode>);
 }
 void bootstrap().catch(() => {

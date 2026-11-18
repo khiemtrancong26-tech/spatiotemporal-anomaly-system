@@ -2,7 +2,7 @@ import { WorkspaceHeader } from '../../app/workspace-header';
 import { resolveInvestigation } from './investigation';
 import type { Reading } from '../../shared/api/generated/wire';
 import { explorationLocalTime, type ExplorationTimeZone } from '@pm25/shared-core';
-import type { DatasetProfile } from '../../shared/api/generated/wire';
+import type { Dataset, DatasetProfile } from '../../shared/api/generated/wire';
 import { explorationError as errorMessage } from './exploration-error';
 import { ExplorationPanel } from './exploration';
 import { formatWorkspaceTime, zoneLabel } from './time';
@@ -12,12 +12,13 @@ import { AnomaliesPage } from '../anomalies/page';
 import { Visualization } from './visualization';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useStore } from 'zustand';
-import { useServices } from '../../app/services';
+import { useOfflineState, useServices } from '../../app/services';
 import { Button, Field, PageTitle } from '../../shared/ui/primitives';
 import { parseWorkspaceFilters } from './filters';
 import type { WorkspaceTab } from './state';
 export function WorkspacePage({ datasetId, runId, selectRun }: { datasetId: string; runId?: string; selectRun: (id?: string) => void }) {
-  const { workspace, datasets, data } = useServices();
+  const { workspace, datasets, data, offline } = useServices();
+  const local = useOfflineState();
   const state = useStore(workspace);
   const tabBar = useRef<HTMLElement>(null);
   useEffect(() => { const reveal = () => { if (workspace.getState().tab !== 'visualization') tabBar.current?.querySelector<HTMLElement>('[aria-pressed=true]')?.scrollIntoView({block:'nearest',inline:'nearest'}); }; reveal(); window.addEventListener('resize',reveal); return () => window.removeEventListener('resize',reveal); }, [workspace,state.tab]);
@@ -45,8 +46,20 @@ export function WorkspacePage({ datasetId, runId, selectRun }: { datasetId: stri
     workspace.getState().selectReading(verified.id);
   }
 
-  useEffect(() => { workspace.getState().openDataset(datasetId); }, [workspace, datasetId]);
-  useEffect(() => { if (runId) workspace.getState().selectTab('analysis'); }, [workspace, runId]);
+  const initialWorkspace = offline?.store.getState().lastWorkspace;
+  const shownRun = useRef(initialWorkspace?.datasetId === datasetId && initialWorkspace?.path === location.pathname + location.search ? runId : undefined);
+  useEffect(() => { if (offline) offline.openDataset(datasetId); else workspace.getState().openDataset(datasetId); }, [workspace, offline, datasetId]);
+  useEffect(() => {
+    if (runId && runId !== shownRun.current) workspace.getState().selectTab('analysis');
+    shownRun.current = runId;
+  }, [workspace, runId]);
+  useEffect(() => { offline?.rememberWorkspace(); }, [offline, runId, state.datasetId]);
+  const [cached, setCached] = useState<{ count: number; pages: number; coverage: 'complete' | 'partial' | 'missing' }>();
+  useEffect(() => {
+    let active = true;
+    void offline?.coverage({ datasetId, ...state.filters }).then(value => { if (active) setCached(value); });
+    return () => { active = false; };
+  }, [offline, datasetId, state.filters, local.readingsRevision]);
   const [draft, setDraft] = useState(() => {
     const filters = workspace.getState().datasetId === datasetId ? workspace.getState().filters : {};
     const local = (utc?: string) => utc ? new Date(Date.parse(utc) + 7 * 3600_000).toISOString().slice(0, 19) : '';
@@ -62,7 +75,7 @@ export function WorkspacePage({ datasetId, runId, selectRun }: { datasetId: stri
       if (!workspace.getState().timeZoneChosen) workspace.getState().setTimeZone(p.metadata.timeZone, false);
     }).catch(e => { if (!controller.signal.aborted) setProfileError(errorMessage(e)); }).finally(() => { if (!controller.signal.aborted) setProfileLoading(false); });
     return () => controller.abort();
-  }, [data, workspace, datasetId, state.datasetId, state.filters, profileRevision]);
+  }, [data, workspace, datasetId, state.datasetId, state.filters, profileRevision, local.offline]);
   useEffect(() => {
     const f = workspace.getState().filters;
     setDraft({ sensorId: f.sensorId ?? '', bbox: f.bbox?.join(',') ?? '', from: f.from ? explorationLocalTime(f.from, state.timeZone) : '', to: f.to ? explorationLocalTime(f.to, state.timeZone) : '' });
@@ -77,12 +90,22 @@ export function WorkspacePage({ datasetId, runId, selectRun }: { datasetId: stri
     document.addEventListener('pointerdown', outside); document.addEventListener('keydown', escape);
     return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape); };
   }, [filtersExpanded]);
-  const dataset = datasets.get(datasetId);
+  const [savedDataset, setSavedDataset] = useState<Dataset>();
+  useEffect(() => {
+    if (!offline || datasets.has(datasetId)) return;
+    let active = true;
+    void offline.dataset(datasetId).then(value => { if (active) setSavedDataset(value); });
+    return () => { active = false; };
+  }, [offline, datasets, datasetId]);
+  const dataset = datasets.get(datasetId) ?? (savedDataset?.id === datasetId ? savedDataset : undefined);
   function apply(event: FormEvent) {
     event.preventDefault(); if (state.reviewDirty && !window.confirm('Bỏ bản review chưa lưu để đổi bộ lọc?')) return;
     try { workspace.getState().applyFilters(parseWorkspaceFilters(draft, state.timeZone)); setError(''); setFiltersExpanded(false); } catch (cause) { setError((cause as Error).message); }
   }
-  const appliedFilter = <p className="muted" data-testid="applied-filter">Bộ lọc đã áp dụng: {state.filters.sensorId || 'Tất cả trạm'} · {state.filters.from ? formatWorkspaceTime(state.filters.from, state.timeZone) : 'Không giới hạn từ'} · {state.filters.to ? formatWorkspaceTime(state.filters.to, state.timeZone) : 'Không giới hạn đến'} · {zoneLabel(state.timeZone)} · {profile?.metadata.source === 'configured' ? 'Metadata dataset' : 'Fallback +07:00'} · {profile && <span data-testid="server-profile-summary">Tổng dataset: {profile.dataset.readingCount} readings · Scope Server: {profile.scoped.readingCount} readings. Số đã tải xem riêng trên Map/Cube.</span>}</p>;
+  const appliedFilter = <><p className="muted" data-testid="applied-filter">Bộ lọc đã áp dụng: {state.filters.sensorId || 'Tất cả trạm'} · {state.filters.from ? formatWorkspaceTime(state.filters.from, state.timeZone) : 'Không giới hạn từ'} · {state.filters.to ? formatWorkspaceTime(state.filters.to, state.timeZone) : 'Không giới hạn đến'} · {zoneLabel(state.timeZone)} · {profile?.metadata.source === 'configured' ? 'Metadata dataset' : 'Fallback +07:00'} · {!local.offline && profile && <span data-testid="server-profile-summary">Tổng dataset: {profile.dataset.readingCount} readings · Scope Server: {profile.scoped.readingCount} readings. Số đã tải xem riêng trên Map/Cube.</span>}</p>
+    {cached && cached.coverage !== 'missing' && <p className="muted" data-testid="offline-coverage">{cached.count} readings đã lưu trong bộ lọc · {cached.pages} trang đã lưu · {cached.coverage === 'complete' ? 'Đủ trang cho phạm vi này' : 'Phạm vi chưa đủ dữ liệu'}</p>}
+    {local.offline && cached?.coverage === 'missing' && <p className="metadata-notice" role="status">Chưa có dữ liệu được lưu để sử dụng offline.</p>}
+  </>;
   return <div className={`workspace-page ${state.tab !== 'visualization' ? 'workspace-analyst' : ''}`}><WorkspaceHeader><div className={`workspace-page workspace-header ${state.tab !== 'visualization' ? 'workspace-analyst' : ''}`}><PageTitle eyebrow="WORKSPACE" title={dataset?.name ?? 'Dataset Workspace'} description={`Dataset ID: ${datasetId}`} /><div className="workspace-layout"><details ref={filterPanel} className="workspace-control-panel" open={filtersExpanded} onToggle={e => setFiltersExpanded(e.currentTarget.open)}><summary className="filter-heading"><Icon name="filter" /><span className="filter-title">Phạm vi tra cứu</span><span>{zoneLabel(state.timeZone)}</span></summary><form className="card workspace-filters" onSubmit={apply}><Field label="Trạm (Sensor ID)" value={draft.sensorId} onChange={(e) => setDraft({ ...draft, sensorId: e.target.value })} placeholder="Tất cả trạm" /><Field label="Vùng bbox" value={draft.bbox} placeholder="west,south,east,north" onChange={(e) => setDraft({ ...draft, bbox: e.target.value })} /><Field label={`Từ · ${zoneLabel(state.timeZone)}`} type="datetime-local" step="1" value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} /><Field label={`Đến · ${zoneLabel(state.timeZone)}`} type="datetime-local" step="1" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} /><div className="filter-actions"><Button type="submit">Áp dụng bộ lọc</Button><Button variant="secondary" onClick={() => { if (state.reviewDirty && !window.confirm('Bỏ bản review chưa lưu để xóa bộ lọc?')) return; setDraft({ sensorId: '', bbox: '', from: '', to: '' }); setError(''); workspace.getState().applyFilters({}); setFiltersExpanded(false); }}>Xóa bộ lọc</Button></div>{error && <p role="alert" className="text-error">{error}</p>}</form></details><div className="workspace-command-bar"><nav ref={tabBar} className="workspace-tabs" aria-label="Khu vực workspace">{(['exploration', 'visualization', 'analysis', 'anomalies'] as WorkspaceTab[]).map((tab) => <Button key={tab} variant={state.tab === tab ? 'primary' : 'secondary'} aria-pressed={state.tab === tab} onClick={() => { if (!state.reviewDirty || window.confirm('Bỏ bản review chưa lưu để đổi tab?')) { if(tab === 'anomalies' && state.tab === 'analysis' && runId) workspace.getState().openAnomalies(runId); else workspace.getState().selectTab(tab); } }}><Icon name={tab === 'visualization' ? 'cube' : tab === 'analysis' ? 'activity' : 'layers'} />{tab === 'exploration' ? 'Data Exploration' : tab === 'visualization' ? 'Visualization' : tab === 'analysis' ? 'Analysis' : 'Anomalies'}</Button>)}</nav><label className="field workspace-timezone">Múi giờ workspace<select aria-label="Múi giờ workspace" value={state.timeZone} onChange={e => workspace.getState().setTimeZone(e.target.value as ExplorationTimeZone)}><option value="UTC">UTC</option><option value="+07:00">UTC+07:00</option><option value="+08:00">UTC+08:00</option></select></label></div></div></div></WorkspaceHeader><div className="workspace-layout"><div className="workspace-content">{state.tab !== 'visualization' && appliedFilter}{state.tab === 'anomalies' && <p className="metadata-notice">Danh sách anomalies chỉ hỗ trợ dataset/thời gian và bộ lọc detector; trạm/bbox không áp dụng theo API hiện tại.</p>}{investigation && state.tab === 'visualization' && <section className="analyst-ux ux-investigation-entry" aria-label="Điều tra reading">
         <div className="ux-panel">
           <header className="investigation-header">

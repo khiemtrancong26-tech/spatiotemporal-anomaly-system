@@ -2942,6 +2942,7 @@ components:
           type: string
           description: Opaque ID string; do not assume MongoDB _id format
           minLength: 1
+          maxLength: 128
         anomalyId:
           type: string
           description: Opaque ID string; do not assume MongoDB _id format
@@ -3182,6 +3183,8 @@ components:
       properties:
         mutations:
           type: array
+          minItems: 1
+          maxItems: 100
           items:
             $ref: '#/components/schemas/OfflineReviewMutation'
       additionalProperties: false
@@ -3194,6 +3197,7 @@ components:
           type: string
           description: Opaque ID string; do not assume MongoDB _id format
           minLength: 1
+          maxLength: 128
         outcome:
           type: string
           enum:

@@ -1,6 +1,6 @@
 import { useStore } from 'zustand';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { useServices } from '../../app/services';
+import { useOfflineState, useServices } from '../../app/services';
 import { StatusBadge, Button, Field, ErrorState, LoadingState } from '../../shared/ui/primitives';
 import { createCursorPager } from '../../shared/lib/cursor-pager';
 import { errorMessage } from '../../shared/api/errors';
@@ -16,6 +16,7 @@ import { AnomalyReview } from './review';
 
 export function AnomaliesPage({ datasetId, filters, runId, initialAnomalyId, active = true }: { datasetId: string; filters: WorkspaceFilters; runId?: string; initialAnomalyId?: string; active?: boolean }) {
   const { data, workspace } = useServices(), zone = useStore(workspace, s => s.timeZone), context = useStore(workspace, s => s.anomalyContext);
+  const local = useOfflineState();
   const sensors = useAnalystSensors(datasetId);
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [draft, setDraft] = useState({ run: context?.runId ?? runId ?? '', family: '', method: '', severity: '', status: '', sort: 'ts:asc' });
@@ -25,7 +26,7 @@ export function AnomaliesPage({ datasetId, filters, runId, initialAnomalyId, act
   const request = useRef<AbortController | undefined>(undefined), handledContext = useRef<number | undefined>(undefined), listRef = useRef<HTMLDivElement>(null);
   const pager = useMemo(() => createCursorPager(data.anomalies.list), [data]);
   const state = useSyncExternalStore(pager.subscribe, pager.getSnapshot);
-  useEffect(() => { if (active) void pager.setQuery(query); }, [pager, query, active]);
+  useEffect(() => { if (active) void pager.setQuery(query); }, [pager, query, active, local.offline]);
   useEffect(() => () => { pager.dispose(); request.current?.abort(); }, [pager]);
   useEffect(() => { setFrom(undefined); setTo(undefined); }, [zone]);
   const lastGlobal = useRef(JSON.stringify([filters.from, filters.to]));
@@ -72,7 +73,7 @@ export function AnomaliesPage({ datasetId, filters, runId, initialAnomalyId, act
       {(['family', 'severity', 'status', 'sort'] as const).map(field => <label className="field" key={field}>{({ family: 'Nhóm phương pháp', severity: 'Metadata severity', status: 'Trạng thái review', sort: 'Thứ tự thời gian' })[field]}<select aria-label={field} value={draft[field]} onChange={e => setDraft({ ...draft, [field]: e.target.value })}>{(field === 'family' ? ['', 'statistical', 'ml'] : field === 'severity' ? ['', 'low', 'medium', 'high'] : field === 'status' ? ['', 'open', 'confirmed', 'false_positive'] : ['ts:asc', 'ts:desc']).map(v => <option key={v} value={v}>{v || 'Tất cả'}</option>)}</select></label>)}
       <Field label={`Anomalies từ · ${zoneLabel(zone)}`} type="datetime-local" step="1" value={dateFrom ?? (query.from ? explorationLocalTime(query.from, zone) : '')} onChange={e => setFrom(e.target.value)} /><Field label={`Anomalies đến · ${zoneLabel(zone)}`} type="datetime-local" step="1" value={dateTo ?? (query.to ? explorationLocalTime(query.to, zone) : '')} onChange={e => setTo(e.target.value)} /><Button type="submit">Lọc anomalies</Button><p className="ux-filter-help">{query.analysisRunId ? `Run đang xem ${shortId(query.analysisRunId)}.` : 'Đang xem nhiều run; score của các phương pháp không so sánh trực tiếp.'} API không lọc theo trạm/bbox. Severity không phải nồng độ hoặc mức sức khỏe.</p>
     </form></details>
-    <div className={`ux-anomaly-layout ${item ? 'has-selection' : ''} ${reviewOpen ? 'is-review' : ''}`}><section className="ux-panel ux-list-panel"><div className="ux-panel-heading"><div><h3>Danh sách phát hiện</h3><p>{state.data.length} mục đã tải{state.nextCursor ? ' · Còn dữ liệu trên Server' : state.status === 'ready' ? ' · Đã hết trang trong phạm vi' : ''}</p></div></div>
+    <div className={`ux-anomaly-layout ${item ? 'has-selection' : ''} ${reviewOpen ? 'is-review' : ''}`}><section className="ux-panel ux-list-panel"><div className="ux-panel-heading"><div><h3>Danh sách phát hiện</h3><p>{state.data.length} mục đã tải{state.nextCursor ? (local.offline ? ' · Còn trang đã lưu' : ' · Còn dữ liệu trên Server') : state.status === 'ready' ? (local.offline ? ' · Kết quả đã lưu' : ' · Đã hết trang trong phạm vi') : ''}</p></div></div>
       {state.status === 'loading' && <LoadingState />}{state.status === 'error' && <ErrorState message={errorMessage(state.error)} retry={() => { void pager.retry(); }} />}{state.status === 'ready' && !rows.length && !state.nextCursor && <p>Không có anomalies phù hợp bộ lọc.</p>}
       <div ref={listRef} className="ux-list-scroll" tabIndex={0} role="region" aria-label="Bảng anomalies"><table className="ux-data-table"><thead><tr><th>Trạm</th><th>Thời gian</th><th>Score</th><th>Review</th><th>Tác vụ</th></tr></thead><tbody>{rows.map(a => <tr key={a.id} aria-selected={a.id === item?.id}><td data-label="Trạm"><strong>{sensorName(a.sensorId, sensors.data)}</strong><small>{methodName(a.method)}</small></td><td data-label="Thời gian">{formatWorkspaceTime(a.ts, zone)} · {zoneLabel(zone)}</td><td data-label={scoreLabel(a.method)}>{number(a.score, 4)}<small>{scoreLabel(a.method)}</small></td><td data-label="Review"><StatusBadge value={a.status} /></td><td data-label="Tác vụ"><Button variant="secondary" aria-label={`Review ${a.id}`} disabled={loading} onClick={() => { void select(a.id); }}>Xem chi tiết</Button></td></tr>)}</tbody></table></div>
       {state.nextCursor && <Button variant="secondary" disabled={state.status === 'loading' || state.data.length >= 2000} onClick={() => { void pager.loadMore(); }}>Tải thêm anomalies</Button>}{state.data.length >= 2000 && state.nextCursor && <p className="ux-warning">Phần kết quả chưa tải hết; đã đạt ngân sách 2.000 anomalies.</p>}

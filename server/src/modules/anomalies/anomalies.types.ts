@@ -19,3 +19,4 @@ export interface AnomalyPageInput extends AnomalyFilters { actor: DatasetActor;
 }
 export type ReviewOutcome = { kind: 'updated'; data: Anomaly } | { kind: 'not-found' } |
   { kind: 'conflict'; currentVersion: number } | { kind: 'version-exhausted' };
+export type SyncReviewOutcome = ReviewOutcome | { kind: 'duplicate' } | { kind: 'mutation-reused' };

@@ -1,7 +1,7 @@
 import type { InvestigationTarget } from './investigation';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useStore } from 'zustand';
-import { useServices } from '../../app/services';
+import { useOfflineState, useServices } from '../../app/services';
 import { createCursorPager } from '../../shared/lib/cursor-pager';
 import { Button, Field, LoadingState, ErrorState } from '../../shared/ui/primitives';
 import { errorMessage } from '../../shared/api/errors';
@@ -18,6 +18,7 @@ import type { WorkspaceFilters } from './state';
 const Renderer = lazy(() => import('./renderer'));
 export function Visualization({ datasetId, filters, onSensor, initialView, filterSummary }: { filterSummary?: ReactNode; datasetId: string; filters: WorkspaceFilters; initialView?: {target: InvestigationTarget; reading: Reading}; onSensor: (id: string) => void }) {
   const { data, workspace, datasets, readingsCache } = useServices();
+  const { offline } = useOfflineState();
   const zone = useStore(workspace, s => s.timeZone);
   const time = (ts: string) => formatWorkspaceTime(ts, zone), localTime = (ts: string) => explorationLocalTime(ts, zone);
   const anomalies = useStore(workspace, s => s.anomalies);
@@ -25,10 +26,11 @@ export function Visualization({ datasetId, filters, onSensor, initialView, filte
   const marked = useMemo(() => new Set(anomalies.map(a => a.readingId)), [anomalies]);
   const selected = useStore(workspace, s => s.selectedReadingId);
   const select = useStore(workspace, s => s.selectReading);
-  const [mode, setMode] = useState<'map' | 'cube'>(initialView?.target.preferredMode ?? (import.meta.env.VITE_MAPBOX_TOKEN ? 'map' : 'cube'));
+  const [mode, setMode] = useState<'map' | 'cube'>(() => offline ? 'cube' :
+    initialView?.target.preferredMode ?? workspace.getState().visualMode ?? (import.meta.env.VITE_MAPBOX_TOKEN ? 'map' : 'cube'));
   const [openedModes,setOpenedModes]=useState({map:mode==='map',cube:mode==='cube'});
   // Keep visited investigation viewers alive: their independent cameras and Cube controls are local.
-  function changeMode(next:'map'|'cube') {setOpenedModes(previous=>({...previous,[next]:true}));setPlaying(false);setMode(next);if(next==='map'&&selected)setInspectorOpen(true);}
+  function changeMode(next:'map'|'cube') {setOpenedModes(previous=>({...previous,[next]:true}));setPlaying(false);setMode(next);workspace.setState({visualMode:next});if(next==='map'&&selected)setInspectorOpen(true);}
   const focusedSensorId=useStore(workspace,s=>s.focusedSensorId);
   const [spatialHeatmap, setSpatialHeatmap] = useState(true);
   const [maxAgeHours, setMaxAgeHours] = useState(2);
@@ -41,12 +43,15 @@ export function Visualization({ datasetId, filters, onSensor, initialView, filte
   const requestedTime=useStore(workspace,s=>s.visualTime);
   const setRequestedTime=useCallback((ts:string)=>workspace.getState().setVisualTime(ts),[workspace]);
   const cacheRevision=useSyncExternalStore(readingsCache.subscribe,readingsCache.getRevision);
-  const pageScope=JSON.stringify([datasetId,filters.sensorId,filters.bbox,filters.from,filters.to,sort]);
+  const pageScope=JSON.stringify([datasetId,filters.sensorId,filters.bbox,filters.from,filters.to,sort,offline]);
   const [paging,setPaging]=useState<{scope:string;cursor?:string;previous:(string|undefined)[]}>({scope:pageScope,previous:[]});
   const pageCursor=paging.scope===pageScope?paging.cursor:undefined;
   const previousPages=paging.scope===pageScope?paging.previous:[];
   const [draftTime, setDraftTime] = useState<string>();
   useEffect(() => { setDraftTime(undefined); }, [zone]);
+  useEffect(() => {
+    if (offline) { setOpenedModes(previous => ({ ...previous, cube: true })); setPlaying(false); setMode('cube'); }
+  }, [offline]);
   const [timeError, setTimeError] = useState('');
   const readings = useMemo(() => createCursorPager((q:ReadingsQuery&{pageCursor?:string},opts)=>{const {pageCursor,...rest}=q;return readingsCache.load({...rest,cursor:pageCursor},opts);}), [readingsCache]);
   const sensors = useMemo(() => createCursorPager(data.sensors.list), [data]);
@@ -54,8 +59,8 @@ export function Visualization({ datasetId, filters, onSensor, initialView, filte
   const r = useSyncExternalStore(readings.subscribe, readings.getSnapshot);
   const s = useSyncExternalStore(sensors.subscribe, sensors.getSnapshot);
   const m = useSyncExternalStore(snapshot.subscribe, snapshot.getSnapshot);
-  useEffect(() => { void readings.setQuery({ datasetId, ...filters, sort, pageCursor, limit:100 }); return () => readings.dispose(); }, [readings,datasetId,filters,sort,pageCursor,cacheRevision]);
-  useEffect(() => { void sensors.setQuery({ datasetId, bbox:filters.bbox, sort:'externalId:asc', limit:100 }); return () => sensors.dispose(); }, [sensors,datasetId,filters.bbox]);
+  useEffect(() => { void readings.setQuery({ datasetId, ...filters, sort, pageCursor, limit:100 }); return () => readings.dispose(); }, [readings,datasetId,filters,sort,pageCursor,cacheRevision,offline]);
+  useEffect(() => { void sensors.setQuery({ datasetId, bbox:filters.bbox, sort:'externalId:asc', limit:100 }); return () => sensors.dispose(); }, [sensors,datasetId,filters.bbox,offline]);
   const rows = r.data;
   const rawTime=requestedTime ?? initialView?.target.ts ?? rows[0]?.ts;
   const timestamp=rawTime?new Date(Math.min(filters.to?Date.parse(filters.to):Infinity,Math.max(filters.from?Date.parse(filters.from):-Infinity,Date.parse(rawTime)))).toISOString():undefined;
@@ -93,17 +98,19 @@ export function Visualization({ datasetId, filters, onSensor, initialView, filte
     else if(replacement)originAbsence=Date.parse(replacement.ts)>Date.parse(origin.ts)?'Trạm có mẫu mới hơn; snapshot chỉ hiển thị mẫu gần nhất tại T.':'Snapshot chọn mẫu khác của cùng trạm theo quy tắc latest-per-station và ID.';
   }
   const stationName = (id: string) => s.data.find(sensor => sensor.id === id)?.name ?? id;
-  const total = datasets.get(datasetId)?.importSummary?.importedRows;
+  const total = offline ? undefined : datasets.get(datasetId)?.importSummary?.importedRows;
   const inspect = useCallback((id: string) => { select(id);const row=[...rows,...mapRows,...cubeRows].find(r=>r.id===id);if(row){workspace.getState().focusSensor(row.sensorId);workspace.getState().rememberVisualReading(row);if(mode==='cube')setRequestedTime(row.ts);}setInspectorOpen(true); },[select,rows,mapRows,cubeRows,workspace,mode,setRequestedTime]);
   const dockRef = useRef<HTMLDetailsElement>(null);
   const [cubeControlsHost, setCubeControlsHost] = useState<HTMLDivElement | null>(null);
   const [cubeTimelineHost, setCubeTimelineHost] = useState<HTMLDivElement | null>(null);
   const [cubeDescriptionHost, setCubeDescriptionHost] = useState<HTMLDivElement | null>(null);
   function chooseTime(ts: string) {setPlaying(false);setRequestedTime(ts);setDraftTime(undefined);setTimeError('');}
-  const dockRows = mode === 'cube' ? [...cubeRows].sort((a,b) => sort === 'ts:asc' ? Date.parse(a.ts)-Date.parse(b.ts) : Date.parse(b.ts)-Date.parse(a.ts)) : rows;
+  const pagedDock = mode === 'map' || (offline && !cubeRows.length);
+  const dockRows = pagedDock ? rows : [...cubeRows].sort((a,b) => sort === 'ts:asc' ? Date.parse(a.ts)-Date.parse(b.ts) : Date.parse(b.ts)-Date.parse(a.ts));
   function loadMore() {if(r.nextCursor)setPaging({scope:pageScope,cursor:r.nextCursor,previous:[...previousPages,pageCursor]});}
   function previousPage(){setPaging({scope:pageScope,cursor:previousPages.at(-1),previous:previousPages.slice(0,-1)});}
   return <section className="card visualization explorer-v2 explorer-layout-v3">
+    {offline && mode === 'map' && <p className="metadata-notice" role="status">Nền Mapbox có thể thiếu khi offline. Dùng nút Cube hoặc bảng để xem readings đã lưu.</p>}
     {(mode === 'cube' || (initialView && openedModes.cube)) && <div hidden={mode !== 'cube'}><CubeExplorer descriptionHost={cubeDescriptionHost} timelineHost={cubeTimelineHost} controlsHost={cubeControlsHost} active={mode === 'cube'} initialTimestamp={timestamp} datasetId={datasetId} filters={filters} anchor={rows[0]?.ts} seedReady={r.status === 'ready'} seedError={r.status === 'error' ? errorMessage(r.error) : undefined} retrySeed={() => {void readings.retry();}} sensors={s.data} sensorsComplete={s.status === 'ready' && !s.nextCursor} sensorsError={s.status === 'error' ? errorMessage(s.error) : undefined} retrySensors={() => {void sensors.retry();}} loadSensors={s.nextCursor ? () => {void sensors.loadMore();} : undefined} onRows={setCubeRows} onMap={ts => {if(ts)chooseTime(ts);changeMode('map');}} onDock={() => {setDock('readings');setDockOpen(true);requestAnimationFrame(()=>dockRef.current?.scrollIntoView({behavior:'smooth',block:'start'}));}} /></div>}
     {(mode === 'map' || (initialView && openedModes.map)) && <div hidden={mode !== 'map'}>
     {initialView&&origin&&m.status==='ready'&&m.timestamp===timestamp&&!m.hasMore&&!mapRows.some(row=>row.id===origin.id)&&<p className="metadata-notice" role="status" data-testid="investigation-snapshot-context">{initialView.target.anomalyId?`Anomaly ${initialView.target.anomalyId}`:'Điều tra reading'} · Reading {origin.id}: {originAbsence} Ngữ cảnh điều tra vẫn được giữ.</p>}
@@ -132,7 +139,7 @@ export function Visualization({ datasetId, filters, onSensor, initialView, filte
     <div className="explorer-summary" hidden={mode !== 'map'}>{mode === 'map' && filterSummary}{mode === 'map' && <div className="explorer-status"><span><strong>{mode === 'map' ? mapRows.length : rows.length}</strong> {mode === 'map' ? 'trạm tại thời điểm đang xem' : 'readings trong Cube'}</span><span>Trang {previousPages.length+1} · {rows.length} readings{total !== undefined && ` · dataset ${total.toLocaleString('vi-VN')} readings`}</span><div className="explorer-status-actions"><Button variant="secondary" disabled={!previousPages.length||r.status==='loading'} onClick={previousPage}>Trang readings trước</Button><Button variant="secondary" onClick={()=>{setPaging({scope:pageScope,previous:[]});readingsCache.clear();}}>Làm mới dữ liệu</Button>{r.nextCursor && <Button variant="secondary" disabled={r.status === 'loading'} onClick={loadMore}>Trang readings tiếp theo</Button>}<Button variant="secondary" onClick={() => {setDock('readings');setDockOpen(true);requestAnimationFrame(()=>dockRef.current?.scrollIntoView({behavior:'smooth',block:'start'}));}}>Xem bảng dữ liệu</Button></div></div>}</div>
     <div className="cube-controls-slot" hidden={mode !== 'cube'} ref={setCubeControlsHost} />
     <details className="explorer-dock" ref={dockRef} open={dockOpen} onToggle={e=>setDockOpen(e.currentTarget.open)}><summary className="dock-summary"><Icon name="dataset" size={17}/><strong>Dữ liệu bổ trợ</strong><span>{dockRows.length} readings đã tải</span><span className="dock-disclosure-hint">Mở / thu gọn</span></summary><nav aria-label="Dữ liệu bổ trợ" className="dock-tabs">{([['readings','Bảng readings'],['heatmap','Heatmap thời gian'],['stations','Trạm'],['help','Hướng dẫn']] as const).map(([id,label])=><Button key={id} variant="secondary" aria-pressed={dock === id} onClick={()=>setDock(id)}>{label}</Button>)}</nav>
-      <div hidden={dock !== 'readings'} className="dock-content"><div className="records-toolbar"><div><h3>Readings</h3><p>{dockRows.length} đã tải{mode === 'map' && r.nextCursor ? ' · Còn dữ liệu' : ''}. Chọn dòng chỉ xem chi tiết, không lọc bản đồ.</p></div><label className="field">Thứ tự thời gian<select aria-label="Thứ tự thời gian" value={sort} onChange={e=>{select(undefined);setPaging({scope:pageScope,previous:[]});setSort(e.target.value as typeof sort);}}><option value="ts:asc">Cũ → mới</option><option value="ts:desc">Mới → cũ</option></select></label>{mode === 'map' && r.nextCursor && <Button disabled={r.status === 'loading'} onClick={loadMore}>Trang readings tiếp theo</Button>}</div><div className="table-scroll records-scroll" tabIndex={0} role="region" aria-label="Bảng readings"><table><thead><tr><th>Trạm</th><th>Thời gian · {zoneLabel(zone)}</th><th>PM2.5 · µg/m³</th><th>Chi tiết</th><th>Reading ID</th></tr></thead><tbody>{dockRows.map(row=><tr key={row.id} aria-selected={row.id===selected}><td title={row.sensorId}>{stationName(row.sensorId)}</td><td>{time(row.ts)}</td><td className="numeric-cell">{row.value}</td><td><Button variant="secondary" aria-label={`Chọn ${row.id}`} onClick={()=>inspect(row.id)}>Xem chi tiết</Button></td><td className="reading-reference">{row.id}</td></tr>)}</tbody></table></div></div>
+      <div hidden={dock !== 'readings'} className="dock-content"><div className="records-toolbar"><div><h3>Readings</h3><p>{dockRows.length} đã tải{pagedDock && r.nextCursor ? ' · Còn trang' : ''}. Chọn dòng chỉ xem chi tiết, không lọc bản đồ.</p></div><label className="field">Thứ tự thời gian<select aria-label="Thứ tự thời gian" value={sort} onChange={e=>{select(undefined);setPaging({scope:pageScope,previous:[]});setSort(e.target.value as typeof sort);}}><option value="ts:asc">Cũ → mới</option><option value="ts:desc">Mới → cũ</option></select></label>{offline && pagedDock && previousPages.length > 0 && <Button variant="secondary" disabled={r.status === 'loading'} onClick={previousPage}>Trang readings trước</Button>}{pagedDock && r.nextCursor && <Button disabled={r.status === 'loading'} onClick={loadMore}>Trang readings tiếp theo</Button>}</div><div className="table-scroll records-scroll" tabIndex={0} role="region" aria-label="Bảng readings"><table><thead><tr><th>Trạm</th><th>Thời gian · {zoneLabel(zone)}</th><th>PM2.5 · µg/m³</th><th>Chi tiết</th><th>Reading ID</th></tr></thead><tbody>{dockRows.map(row=><tr key={row.id} aria-selected={row.id===selected}><td title={row.sensorId}>{stationName(row.sensorId)}</td><td>{time(row.ts)}</td><td className="numeric-cell">{row.value}</td><td><Button variant="secondary" aria-label={`Chọn ${row.id}`} onClick={()=>inspect(row.id)}>Xem chi tiết</Button></td><td className="reading-reference">{row.id}</td></tr>)}</tbody></table></div></div>
       <div hidden={dock !== 'heatmap'} className="dock-content"><TemporalHeatmap rows={dockRows} offset={explorationOffset(zone)} /></div>
       <div hidden={dock !== 'stations'} className="dock-content"><h3>Trạm trong dataset/vùng đã áp dụng ({s.data.length} đã tải)</h3><p>Danh sách metadata không lọc theo thời gian.</p>{s.status === 'error' && <ErrorState message={errorMessage(s.error)} retry={()=>{void sensors.retry();}} />}<label className="field">Chọn trạm đã tải<select value={filters.sensorId??''} onChange={e=>onSensor(e.target.value)}><option value="">Tất cả trạm</option>{filters.sensorId&&!s.data.some(sensor=>sensor.id===filters.sensorId)&&<option value={filters.sensorId}>{filters.sensorId}</option>}{s.data.map(sensor=><option key={sensor.id} value={sensor.id}>{sensor.name} · {sensor.externalId}</option>)}</select></label>{s.nextCursor&&<Button disabled={s.status==='loading'||s.data.length>=POINT_LIMIT} onClick={()=>{void sensors.loadMore();}}>Tải thêm trạm</Button>}</div>
       <div hidden={dock !== 'help'} className="dock-content technical-details"><h3>Cách đọc bản đồ</h3><p>Mapbox đọc cửa sổ [T − độ cũ tối đa, T] trong phạm vi bộ lọc, lấy tối đa một reading gần nhất mỗi trạm. Mẫu đúng giới hạn độ cũ vẫn được giữ; mẫu cũ hơn bị loại. Không nội suy readings. Hiệu ứng chuyển tiếp chỉ hòa trộn hai hình ảnh heatmap, không tạo phép đo trung gian. Cube giữ các readings đã tải trong khoảng thời gian. Chọn một điểm/dòng chỉ mở chi tiết.</p><p>Trước/Sau và danh sách thời điểm lấy từ readings đã tải; nạp thêm để có thêm thời điểm, hoặc nhập ngày giờ bất kỳ trong phạm vi bộ lọc. Snapshot đọc hết các trang trong cửa sổ maxAge; danh sách/timeline đọc chủ động từng trang 100. Có thể nhập trực tiếp thời điểm sâu trong dataset mà không tải các trang trước. Phát qua các mốc đã tải, tạm dừng khi tab ẩn; giữ khung trước trong lúc tải để tránh nhấp nháy.</p><p>Cube: X = kinh độ, Y = vĩ độ, Z = thời gian; màu điểm biểu diễn PM2.5 đo thực. Kéo để xoay, cuộn để zoom, chuột phải để pan.</p><p>Lớp anomaly: {resultRun ? `run ${resultRun.id}, ${anomalies.length} đã tải` : `${anomalies.length} chi tiết đã tải`}; tô/viền tím chỉ các reading khớp, không thay thang PM2.5.</p></div>
