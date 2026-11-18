@@ -4,6 +4,7 @@ import type { Bbox } from '../../shared/data-source/types';
 import type { ExplorationTimeZone } from '@pm25/shared-core';
 import type { AnalysisScope } from './analyst';
 import type { InvestigationTarget } from './investigation';
+import type { CubeMode } from './cube-data';
 
 export interface WorkspaceFilters {
   sensorId?: string;
@@ -12,12 +13,17 @@ export interface WorkspaceFilters {
   to?: string;
 }
 export type WorkspaceTab = 'exploration' | 'visualization' | 'analysis' | 'anomalies';
+export interface CubeCamera { position: [number, number, number]; target: [number, number, number] }
 export interface WorkspaceState {
   datasetId?: string;
   filters: WorkspaceFilters;
   visualReading?: Reading;
   rememberVisualReading:(reading:Reading)=>void;
   visualTime?: string;
+  visualMode?: 'map' | 'cube';
+  cubeMode?: CubeMode;
+  cubeCamera?: CubeCamera;
+  cubeRunId?: string;
   focusedSensorId?: string;
   cubeScope?: {from:string;to:string};
   cubeWindowMs?:number;
@@ -48,7 +54,7 @@ export interface WorkspaceState {
   clear: () => void;
 }
 
-/** A separate instance per application session; never persisted to browser storage. */
+/** A separate instance per application session. Offline storage saves a workspace snapshot. */
 export function createWorkspaceStore() {
   return createStore<WorkspaceState>((set, get) => ({
     filters: {},
@@ -76,13 +82,13 @@ export function createWorkspaceStore() {
     openDataset(id) {
       if (!id.trim()) throw new TypeError('Dataset ID is required.');
       if (get().datasetId === id) return;
-      set({ datasetId: id, filters: {}, visualTime:undefined,visualReading:undefined,focusedSensorId:undefined,cubeScope:undefined,cubeWindowMs:undefined, timeZone: '+07:00', timeZoneChosen: false, selectedReadingId: undefined, tab: 'visualization', resultRun: undefined, anomalies: [], reviewDirty: false, analysisDraft: undefined, anomalyContext: undefined, investigation: undefined });
+      set({ datasetId: id, filters: {}, visualTime:undefined,visualMode:undefined,cubeMode:undefined,cubeCamera:undefined,cubeRunId:undefined,visualReading:undefined,focusedSensorId:undefined,cubeScope:undefined,cubeWindowMs:undefined, timeZone: '+07:00', timeZoneChosen: false, selectedReadingId: undefined, tab: 'visualization', resultRun: undefined, anomalies: [], reviewDirty: false, analysisDraft: undefined, anomalyContext: undefined, investigation: undefined });
     },
     applyFilters(filters) {
       set({ filters: { ...filters, bbox: filters.bbox ? [...filters.bbox] as Bbox : undefined }, selectedReadingId: undefined });
     },
     selectTab: (tab) => set({ tab }),
     selectReading: (selectedReadingId) => set({ selectedReadingId }),
-    clear: () => set({ datasetId: undefined, filters: {}, visualTime:undefined,visualReading:undefined,focusedSensorId:undefined,cubeScope:undefined,cubeWindowMs:undefined, timeZone: '+07:00', timeZoneChosen: false, tab: 'visualization', selectedReadingId: undefined, resultRun: undefined, anomalies: [], reviewDirty: false, analysisDraft: undefined, anomalyContext: undefined, investigation: undefined }),
+    clear: () => set({ datasetId: undefined, filters: {}, visualTime:undefined,visualMode:undefined,cubeMode:undefined,cubeCamera:undefined,cubeRunId:undefined,visualReading:undefined,focusedSensorId:undefined,cubeScope:undefined,cubeWindowMs:undefined, timeZone: '+07:00', timeZoneChosen: false, tab: 'visualization', selectedReadingId: undefined, resultRun: undefined, anomalies: [], reviewDirty: false, analysisDraft: undefined, anomalyContext: undefined, investigation: undefined }),
   }));
 }

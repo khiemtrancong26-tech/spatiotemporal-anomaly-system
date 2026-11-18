@@ -1,3 +1,4 @@
+import { runClientTask } from '../../app/error-handling';
 import type { AnalysisRun } from '../../shared/api/generated/wire';
 /** One in-flight read; disposal and generation prevent late responses crossing scopes. */
 export function followRun(options: {
@@ -21,10 +22,10 @@ export function followRun(options: {
       busy = false;
       if (!disposed && !terminal && !halted) {
         const delay = Math.min(options.maxBackoff, options.interval * 2 ** Math.min(failures, 6));
-        timer = setTimeout(() => { void refresh(); }, Math.min(options.maxBackoff, delay * (failures ? 0.8 + (options.random ?? Math.random)() * 0.2 : 1)));
+        timer = setTimeout(() => { runClientTask(refresh()); }, Math.min(options.maxBackoff, delay * (failures ? 0.8 + (options.random ?? Math.random)() * 0.2 : 1)));
       }
     }
   }
-  void refresh();
+  runClientTask(refresh());
   return { refresh, dispose() { disposed = true; clearTimeout(timer); controller?.abort(); } };
 }

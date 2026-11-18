@@ -1,6 +1,6 @@
 import type { Error as WireError } from './generated/wire';
 
-export type ErrorKind = 'http' | 'network' | 'aborted' | 'invalid-response';
+export type ErrorKind = 'http' | 'network' | 'aborted' | 'invalid-response' | 'offline';
 export class DataSourceError extends Error {
   constructor(
     public readonly kind: ErrorKind,
@@ -12,6 +12,7 @@ export class DataSourceError extends Error {
 
 export function errorMessage(error: unknown): string {
   if (!(error instanceof DataSourceError)) return 'Không thể hoàn tất thao tác. Vui lòng thử lại.';
+  if (error.kind === 'offline') return error.message;
   if (error.kind === 'network') return 'Không kết nối được Backend. Kiểm tra kết nối rồi thử lại.';
   if (error.kind === 'aborted') return 'Đã dừng chờ phản hồi. Thao tác ghi có thể vẫn được Server xử lý.';
   if (error.kind === 'invalid-response') return 'Phản hồi Server không đúng hợp đồng dữ liệu.';

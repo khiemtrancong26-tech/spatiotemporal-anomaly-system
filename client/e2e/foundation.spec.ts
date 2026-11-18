@@ -1,4 +1,31 @@
 import { test, expect } from '@playwright/test';
+
+test('public account pages load without browser warnings or a missing favicon', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => {
+    if (message.type() === 'error' || message.type() === 'warning') errors.push(message.text());
+  });
+
+  const pages = [
+    ['/login', 'Đăng nhập'],
+    ['/register', 'Đăng ký tài khoản'],
+    ['/forgot-password', 'Quên mật khẩu'],
+    ['/verify-email', 'Xác minh email'],
+    ['/reset-password?token=test-only', 'Đặt lại mật khẩu'],
+  ];
+  for (const [path, title] of pages) {
+    await page.goto(path);
+    await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+    const icon = await page.locator('link[rel="icon"]').evaluate(async (element: HTMLLinkElement) => {
+      const response = await fetch(element.href);
+      return { status: response.status, type: response.headers.get('content-type') };
+    });
+    expect(icon).toEqual({ status: 200, type: 'image/svg+xml' });
+  }
+  expect(errors).toEqual([]);
+});
+
 async function login(page: import('@playwright/test').Page, username = 'analyst01') {
   await page.getByLabel('Tên đăng nhập', { exact: true }).fill(username);
   await page.getByLabel('Mật khẩu', { exact: true }).fill('demo-password');

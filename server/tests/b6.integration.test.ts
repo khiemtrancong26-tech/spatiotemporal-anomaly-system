@@ -163,7 +163,8 @@ describe('B6 actual HTTP/MongoDB Replica Set', () => {
           await f.db.collection(parent).updateOne({ _id: parent === 'datasets' ? f.datasetId : f.runId }, { $set: { status: 'failed' } }, { session });
           patch = f.patch(String(row!._id), { baseVersion: 1, changes: { note: 'must not publish' } });
           // Dispatch while a conflicting visibility transition is still uncommitted.
-          void patch.then(() => {}); await new Promise(resolve => setTimeout(resolve, 50));
+          patch.catch(() => { /* The original promise is awaited after this transaction. */ });
+          await new Promise(resolve => setTimeout(resolve, 50));
         });
       } finally { await session.endSession(); }
       expect((await patch).statusCode).toBe(404); expect((await f.db.collection('anomalies').findOne({ _id: row!._id }))?.version).toBe(1);
@@ -189,6 +190,29 @@ describe('B6 actual HTTP/MongoDB Replica Set', () => {
     const current = await f.get(`anomalies/${row!._id}`); expect(current.json().data).toMatchObject({ note: payload.changes.note, version: 2 });
     expect((await f.patch(String(row!._id), payload)).statusCode).toBe(409);
     expect((await f.db.collection('anomalies').findOne({ _id: row!._id }))?.version).toBe(2);
+  });
+  it('reuses a persisted sync receipt after restart and rejects reused payloads and foreign accounts', async () => {
+    const f = await fixture(), [row] = await f.seed();
+    const url = '/api/v1/review-mutation-batches';
+    const mutation = { clientMutationId: randomUUID(), anomalyId: String(row!._id), createdAt: '2026-11-18T00:00:00.000Z',
+      baseVersion: 1, changes: { status: 'confirmed' } };
+    const push = (app: FastifyInstance, item = mutation, headers = f.headers) =>
+      app.inject({ method: 'POST', url, headers, payload: { mutations: [item] } });
+    expect((await f.app.inject({ method: 'POST', url, payload: { mutations: [mutation] } })).statusCode).toBe(401);
+    expect((await push(f.app, { ...mutation, userId: String(f.userId) } as typeof mutation)).statusCode).toBe(400);
+    expect((await push(f.app)).json().results[0]).toMatchObject({ outcome: 'applied', anomaly: { status: 'confirmed', note: '', version: 2 } });
+    await f.app.close();
+    const restarted = buildApp({ config: f.config, logger: false, analysisWorkerEnabled: false });
+    apps.push(restarted); await restarted.ready();
+    expect((await push(restarted)).json().results[0]).toMatchObject({ outcome: 'duplicate', clientMutationId: mutation.clientMutationId });
+    expect((await push(restarted, { ...mutation, changes: { status: 'open' } })).json().results[0])
+      .toMatchObject({ outcome: 'rejected', error: { error: { code: 'MUTATION_ID_REUSED' } } });
+    const foreign = new ObjectId();
+    await f.db.collection('users').insertOne({ _id: foreign, username: 'Foreign analyst', usernameNormalized: 'foreign analyst', role: 'analyst', isActive: true });
+    const token = await createTokens(f.config.jwtSecret).issue(String(foreign));
+    expect((await push(restarted, mutation, { authorization: `Bearer ${token}` })).json().results[0])
+      .toMatchObject({ outcome: 'rejected', error: { error: { code: 'ANOMALY_NOT_FOUND' } } });
+    expect(await f.db.collection('anomalies').findOne({ _id: row!._id })).toMatchObject({ status: 'confirmed', version: 2 });
   });
   it('enforces auth, strict payload/query fields, semantic time errors, opaque IDs and deferred endpoints', async () => {
     const f = await fixture(), [row] = await f.seed();

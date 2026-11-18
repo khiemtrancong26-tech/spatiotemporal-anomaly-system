@@ -48,6 +48,7 @@ export function createOnlineDataSource(options: OnlineAdapterOptions): OnlineDat
       get: async (id, opts) => (await request<W.SingleAnomaly>('get_api_v1_anomalies_id', { ...opts, path: { id } })).data,
       review: async (id, body, opts) => (await request<W.SingleAnomaly>('patch_api_v1_anomalies_id', { ...opts, path: { id }, body })).data,
     },
+    pushReviews: (body, opts) => request<W.SyncPushResponse>('post_api_v1_review_mutation_batches', { ...opts, body }),
     adminUsers: {
       list: (query, opts) => request<W.UserPage>('get_api_v1_admin_users', { ...opts, query }),
       create: async (body, opts) => (await request<W.UserResponse>('post_api_v1_admin_users', { ...opts, body })).data,

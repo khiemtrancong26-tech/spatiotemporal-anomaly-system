@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
 import { loadTestConfig as loadConfig } from './helpers.js';
 import type { VerifyAccessToken } from '../src/plugins/auth.js';
+import { HttpError } from '../src/shared/http/errors.js';
 
 const apps: FastifyInstance[] = [];
 function appForTest(verifyAccessToken?: VerifyAccessToken, logger?: NonNullable<Parameters<typeof buildApp>[0]>['logger']) {
@@ -97,10 +98,27 @@ describe('HTTP foundation using Fastify inject', () => {
     expect(response.statusCode).toBe(500);
     expect(response.json()).toEqual({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred.' } });
     expect(logs).toContain('request_failed');
+    expect(logs).toContain('"route":"/test-error"');
     expect(logs).toContain('[REDACTED]');
     for (const secret of ['private-password', 'private-hash', 'private-token', 'private-driver-password', 'private-query', 'private-header', 'private-cookie', 'internal-stack']) {
       expect(logs + response.body).not.toContain(secret);
     }
+  });
+
+  it('reports handled 5xx failures while preserving the public API error envelope', async () => {
+    let logs = '';
+    const app = appForTest(undefined, { level: 'error', stream: { write: (chunk: string) => { logs += chunk; } } });
+    app.register(async (scope) => {
+      scope.get('/test-service-failure', async () => {
+        throw new HttpError(503, 'SERVICE_UNAVAILABLE', 'Please retry.', undefined, { cause: new Error('private-driver-message') });
+      });
+    });
+    const result = await app.inject('/test-service-failure');
+    expect(result.statusCode).toBe(503);
+    expect(result.json()).toEqual({ error: { code: 'SERVICE_UNAVAILABLE', message: 'Please retry.' } });
+    expect(logs).toContain('"event":"request_failed"');
+    expect(logs).toContain('"errorCode":"SERVICE_UNAVAILABLE"');
+    expect(logs + result.body).not.toContain('private-driver-message');
   });
 });
 

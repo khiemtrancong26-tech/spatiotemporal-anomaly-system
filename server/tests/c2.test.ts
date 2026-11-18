@@ -26,7 +26,7 @@ describe('C2 deadline/admission, visibility and time policies', () => {
     } finally { vi.useRealTimers(); }
   });
   it('maps Mongo query resource exhaustion and rechecks publication after aggregating', async () => {
-    const repo: ExplorationRepository = { sensors: async () => [], groups: async () => { throw { code: 50 }; }, dataset: async () => ({ status: 'imported', metadata }) };
+    const repo: ExplorationRepository = { sensors: async () => [], groups: async () => { throw Object.assign(new Error('Query timed out'), { code: 50 }); }, dataset: async () => ({ status: 'imported', metadata }) };
     const service = createExplorationService(repo, loadTestConfig().exploration);
     await expect(service.profile(id, {}, undefined, actor)).rejects.toMatchObject({ statusCode: 503 });
     repo.groups = async () => []; repo.dataset = vi.fn().mockResolvedValueOnce({ status: 'imported', metadata }).mockResolvedValueOnce({ status: 'failed', metadata });

@@ -11,7 +11,7 @@ const directory = path.join(client, 'src/shared/api/generated');
 await mkdir(directory, { recursive: true });
 await writeFile(path.join(directory, 'openapi.d.ts'), astToString(await openapiTS(pathToFileURL(source))));
 
-const excluded = new Set(['reading-batches', 'exports', 'review-changes', 'review-mutation-batches']);
+const excluded = new Set(['reading-batches', 'exports', 'review-changes']);
 const operations = {};
 const references = new Set();
 function collect(value) {

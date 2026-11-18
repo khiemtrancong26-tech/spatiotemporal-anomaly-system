@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { datasetCursorScope, type DatasetActor } from '../datasets/dataset-access.js';
 import type { DatasetReadAccess } from '../datasets/index.js';
 import type { AnalysisReadAccess } from '../analysis/index.js';
@@ -7,23 +8,30 @@ import { parseUtcTime } from '../../shared/utc-time.js';
 import type { AnomalyRepository } from './anomalies.repository.js';
 import type { AnomaliesQuery, AnomalyFilters, ReviewRequest } from './anomalies.types.js';
 
-/** Public domain review boundary; no HTTP/Sync transport or offline ledger here. */
+function validateReview(request: ReviewRequest): ReviewRequest {
+  if (!Number.isSafeInteger(request.baseVersion) || request.baseVersion < 1) throw new HttpError(422, 'INVALID_VERSION', 'baseVersion must be a positive safe integer.');
+  const changes = request.changes;
+  if (!changes || typeof changes !== 'object' || Array.isArray(changes) || Object.keys(changes).some(key => !['status', 'note'].includes(key)) ||
+      (changes.status === undefined && changes.note === undefined) ||
+      (changes.status !== undefined && !['open', 'confirmed', 'false_positive'].includes(changes.status)) ||
+      (changes.note !== undefined && typeof changes.note !== 'string')) throw new HttpError(422, 'INVALID_REVIEW', 'Review changes must contain only status and/or note.');
+  return { baseVersion: request.baseVersion,
+    changes: { ...(changes.status !== undefined ? { status: changes.status } : {}), ...(changes.note !== undefined ? { note: changes.note } : {}) } };
+}
+
 export function createAnomalyReviewService(repository: AnomalyRepository) {
   return {
     async review(id: string, request: ReviewRequest, actor: DatasetActor) {
-      if (!Number.isSafeInteger(request.baseVersion) || request.baseVersion < 1) throw new HttpError(422, 'INVALID_VERSION', 'baseVersion must be a positive safe integer.');
-      // Validate at the reusable service boundary as well as the HTTP schema.
-      const changes = request.changes;
-      if (!changes || typeof changes !== 'object' || Array.isArray(changes) || Object.keys(changes).some(key => !['status', 'note'].includes(key)) ||
-          (changes.status === undefined && changes.note === undefined) ||
-          (changes.status !== undefined && !['open', 'confirmed', 'false_positive'].includes(changes.status)) ||
-          (changes.note !== undefined && typeof changes.note !== 'string')) throw new HttpError(422, 'INVALID_REVIEW', 'Review changes must contain only status and/or note.');
-      const outcome = await repository.review(id, { baseVersion: request.baseVersion,
-        changes: { ...(changes.status !== undefined ? { status: changes.status } : {}), ...(changes.note !== undefined ? { note: changes.note } : {}) } }, actor);
+      const outcome = await repository.review(id, validateReview(request), actor);
       if (outcome.kind === 'not-found') throw new HttpError(404, 'ANOMALY_NOT_FOUND', 'Anomaly is unavailable.');
       if (outcome.kind === 'conflict') throw new HttpError(409, 'VERSION_CONFLICT', 'Review changed. Read the current anomaly before saving again.', { currentVersion: outcome.currentVersion });
       if (outcome.kind === 'version-exhausted') throw new HttpError(422, 'VERSION_LIMIT_REACHED', 'Review version cannot be incremented safely.');
       return { data: outcome.data };
+    },
+    syncReview(id: string, request: ReviewRequest, actor: DatasetActor, mutationId: string, createdAt: string) {
+      const normalized = validateReview(request);
+      const fingerprint = createHash('sha256').update(JSON.stringify([id, parseUtcTime(createdAt), normalized])).digest('hex');
+      return repository.syncReview(id, normalized, actor, mutationId, fingerprint);
     },
   };
 }

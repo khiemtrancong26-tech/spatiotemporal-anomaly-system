@@ -1,9 +1,10 @@
 import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Reading } from '../../shared/api/generated/wire';
+import type { MapOptions } from 'mapbox-gl';
 const mocks = vi.hoisted(() => ({ instances: vi.fn(), remove: vi.fn(), addSource: vi.fn(), addLayer: vi.fn(), layout: vi.fn(), sourceData: vi.fn(), fit: vi.fn(), paint:vi.fn(), popup:vi.fn(), clicks:new Map<string,(event:unknown)=>void>(), loaded:true }));
 vi.mock('mapbox-gl', () => ({ default: { supported: () => true, NavigationControl: class {}, Popup:class {remove(){} setLngLat(){return this;} setDOMContent(node:HTMLElement){mocks.popup(node);return this;} addTo(){return this;}}, LngLatBounds: class { extend() {return this;} }, Map: class {
-  constructor() { mocks.instances(); }
+  constructor(options: MapOptions) { mocks.instances(options); }
   remove = mocks.remove; addSource = mocks.addSource; addLayer = mocks.addLayer; setLayoutProperty = mocks.layout; setPaintProperty = mocks.paint;
   addControl() {} easeTo() {} resize() {}
   isSourceLoaded(){return mocks.loaded;} off(){}
@@ -13,8 +14,30 @@ vi.mock('mapbox-gl', () => ({ default: { supported: () => true, NavigationContro
   on(event: string, layerOrCallback: unknown, callback?: (event:unknown)=>void) { if (event === 'load') queueMicrotask(layerOrCallback as ()=>void); if(callback)mocks.clicks.set(`${event}:${String(layerOrCallback)}`,callback); }
 } } }));
 import Renderer from './renderer';
-beforeEach(() => { mocks.clicks.clear(); vi.stubGlobal('matchMedia',()=>({matches:false}));vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} }); });
+beforeEach(() => {
+  mocks.clicks.clear();
+  vi.stubGlobal('matchMedia', () => ({ matches: false }));
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => Response.json({ version: 8, sources: {}, layers: [] })));
+});
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks(); vi.clearAllMocks(); });
+it('uses draped lines for the two zero-offset Mapbox Standard fence layers', async () => {
+  vi.stubEnv('VITE_MAPBOX_TOKEN', 'pk.test');
+  const layers = ['gate-fence-hedge', 'gate-fence-hedge-shade', 'other-ground-line'].map(id => ({
+    id, type: 'line', source: 'composite', layout: { 'line-elevation-reference': 'ground' },
+  }));
+  vi.mocked(fetch).mockResolvedValueOnce(Response.json({ version: 8, sources: {}, layers }));
+
+  const ui = render(<Renderer rows={[]} mode="map" marked={new Set()} onSelect={vi.fn()} />);
+  await waitFor(() => expect(mocks.instances).toHaveBeenCalledOnce());
+
+  const style = mocks.instances.mock.calls[0][0].style;
+  expect(style.imports[0].id).toBe('basemap');
+  expect(style.imports[0].data.layers.map((layer: typeof layers[number]) => layer.layout['line-elevation-reference']))
+    .toEqual(['none', 'none', 'ground']);
+  ui.unmount();
+});
+
 it('highlights the focused station without marking its latest reading as the original anomaly',async()=>{
  vi.stubEnv('VITE_MAPBOX_TOKEN','pk.test');
  const rows=[{id:'newer',sensorId:'A',value:40,ts:'2026-11-11T01:00:00Z',location:{type:'Point',coordinates:[105,21]}},{id:'other',sensorId:'B',value:50,ts:'2026-11-11T01:00:00Z',location:{type:'Point',coordinates:[106,21]}}] as Reading[];

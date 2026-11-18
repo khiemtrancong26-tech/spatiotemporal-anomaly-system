@@ -4,8 +4,9 @@ export class HttpError extends Error {
     readonly code: string,
     message: string,
     readonly details?: Record<string, unknown>,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
     this.name = 'HttpError';
   }
 }

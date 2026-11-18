@@ -1162,6 +1162,42 @@
           "unit"
         ]
       },
+      "OfflineReviewMutation": {
+        "type": "object",
+        "properties": {
+          "clientMutationId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "anomalyId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1
+          },
+          "baseVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "changes": {
+            "$ref": "#/components/schemas/ReviewChanges"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC ISO 8601 with Z; payload normalized by server"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "clientMutationId",
+          "anomalyId",
+          "baseVersion",
+          "changes",
+          "createdAt"
+        ]
+      },
       "PageInfo": {
         "type": "object",
         "properties": {
@@ -1751,6 +1787,69 @@
           "reason"
         ],
         "additionalProperties": false
+      },
+      "SyncMutationResult": {
+        "type": "object",
+        "properties": {
+          "clientMutationId": {
+            "type": "string",
+            "description": "Opaque ID string; do not assume MongoDB _id format",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "duplicate",
+              "conflict",
+              "rejected"
+            ]
+          },
+          "anomaly": {
+            "$ref": "#/components/schemas/Anomaly"
+          },
+          "error": {
+            "$ref": "#/components/schemas/Error"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "clientMutationId",
+          "outcome"
+        ]
+      },
+      "SyncPushRequest": {
+        "type": "object",
+        "properties": {
+          "mutations": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/OfflineReviewMutation"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "mutations"
+        ]
+      },
+      "SyncPushResponse": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncMutationResult"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "results"
+        ]
       },
       "UserPage": {
         "type": "object",
@@ -3217,6 +3316,63 @@
           "$ref": "#/components/schemas/Error"
         },
         "500": {
+          "$ref": "#/components/schemas/Error"
+        }
+      }
+    },
+    "post_api_v1_review_mutation_batches": {
+      "method": "POST",
+      "path": "/api/v1/review-mutation-batches",
+      "authenticated": true,
+      "parameters": {
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "header": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "body": {
+        "contentType": "application/json",
+        "schema": {
+          "$ref": "#/components/schemas/SyncPushRequest"
+        }
+      },
+      "responses": {
+        "200": {
+          "$ref": "#/components/schemas/SyncPushResponse"
+        },
+        "400": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "401": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "403": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "405": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "422": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "500": {
+          "$ref": "#/components/schemas/Error"
+        },
+        "503": {
           "$ref": "#/components/schemas/Error"
         }
       }
