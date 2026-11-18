@@ -1,3 +1,4 @@
+import { runClientTask } from '../../app/error-handling';
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { Link, Navigate, useLocation } from '@tanstack/react-router';
 import { useStore } from 'zustand';
@@ -13,7 +14,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   if (publicAuthPaths.includes(location.pathname)) return children;
   if (state.status === 'checking') return <LoadingState label="Đang kiểm tra phiên đăng nhập…" />;
-  if (state.status === 'error') return <><ErrorState message={errorMessage(state.error)} retry={() => { void session.restore(data); }} /><Button onClick={session.logout}>Đăng nhập lại</Button></>;
+  if (state.status === 'error') return <><ErrorState message={errorMessage(state.error)} retry={() => { runClientTask(session.restore(data)); }} /><Button onClick={session.logout}>Đăng nhập lại</Button></>;
   if (state.status !== 'authenticated' && state.status !== 'offline') return <Navigate to="/login" search={{ redirect: location.pathname + location.searchStr }} replace />;
   if (location.pathname.startsWith('/admin/') && state.user?.role !== 'admin') return <EmptyState title="Không có quyền truy cập" description="Chức năng này chỉ dành cho Admin (403)." />;
   if (offline && (location.pathname.startsWith('/admin/') || location.pathname === '/datasets/import'))
@@ -40,5 +41,5 @@ export function LoginPage({ destination, registered, reset }: { destination?: st
   }
   if (state.status === 'authenticated') return <Navigate to={safeDestination(destination)} replace />;
   if (state.status === 'checking') return <LoadingState label="Đang kiểm tra phiên đăng nhập…" />;
-  return <AuthFrame><section className="card login-card"><h1>Đăng nhập</h1>{reset && <p role="status">Mật khẩu đã thay đổi. Vui lòng đăng nhập lại.</p>}{registered && <p role="status" className="success-message">Đăng ký thành công. Vui lòng đăng nhập.</p>}<p className="muted">Phiên được giữ trong tab này. Không lưu mật khẩu.</p>{mock && <p className="mock-help">Mock: analyst01 hoặc admin01 / demo-password</p>}<form onSubmit={(event) => { void submit(event); }}><Field label="Tên đăng nhập" autoComplete="username" required value={username} onChange={(e) => setUsername(e.target.value)} disabled={pending} /><Field label="Mật khẩu" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={pending} />{error && <p role="alert" className="text-error">{error}</p>}<Button type="submit" disabled={pending}>{pending ? 'Đang đăng nhập…' : 'Đăng nhập'}</Button></form><p className="auth-link"><Link to="/forgot-password">Quên mật khẩu?</Link> · <Link to="/verify-email">Xác minh / gửi lại email</Link></p><p className="auth-link"><Link to="/register" className="text-link">Chưa có tài khoản? Đăng ký</Link></p></section></AuthFrame>;
+  return <AuthFrame><section className="card login-card"><h1>Đăng nhập</h1>{reset && <p role="status">Mật khẩu đã thay đổi. Vui lòng đăng nhập lại.</p>}{registered && <p role="status" className="success-message">Đăng ký thành công. Vui lòng đăng nhập.</p>}<p className="muted">Phiên được giữ trong tab này. Không lưu mật khẩu.</p>{mock && <p className="mock-help">Mock: analyst01 hoặc admin01 / demo-password</p>}<form onSubmit={(event) => { runClientTask(submit(event)); }}><Field label="Tên đăng nhập" autoComplete="username" required value={username} onChange={(e) => setUsername(e.target.value)} disabled={pending} /><Field label="Mật khẩu" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={pending} />{error && <p role="alert" className="text-error">{error}</p>}<Button type="submit" disabled={pending}>{pending ? 'Đang đăng nhập…' : 'Đăng nhập'}</Button></form><p className="auth-link"><Link to="/forgot-password">Quên mật khẩu?</Link> · <Link to="/verify-email">Xác minh / gửi lại email</Link></p><p className="auth-link"><Link to="/register" className="text-link">Chưa có tài khoản? Đăng ký</Link></p></section></AuthFrame>;
 }

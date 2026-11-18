@@ -24,8 +24,8 @@ it('never reports success for missing config, SMTP rejection or errors, and hide
   expect(smtp.createTransport).not.toHaveBeenCalled();
   const sender = createEmailSender(config);
   smtp.sendMail.mockRejectedValueOnce(new Error('private SMTP credentials and reset URL'));
-  const error = await sender.reset('recipient@gmail.com', 'token').catch(error => error);
-  expect(error.message).toBe('Email delivery failed'); expect(String(error)).not.toMatch(/private|credentials|URL/);
+  const error = await sender.reset('recipient@gmail.com', 'token').catch((error: unknown) => error);
+  expect(error).toMatchObject({ message: 'Email delivery failed' }); expect(String(error)).not.toMatch(/private|credentials|URL/);
   smtp.sendMail.mockResolvedValueOnce({ accepted: [], rejected: ['recipient@gmail.com'] });
   await expect(sender.verification('recipient@gmail.com', 'token')).rejects.toThrow('Email delivery failed');
 });

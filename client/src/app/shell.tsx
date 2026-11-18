@@ -1,3 +1,4 @@
+import { runClientTask } from './error-handling';
 import { useStore } from 'zustand';
 import { useState } from 'react';
 import { AuthGate, publicAuthPaths } from '../features/auth/pages';
@@ -34,7 +35,7 @@ export function AppShell() {
     </aside>
     <div className="main-shell">
       <div className="shell-header">
-      <header className="topbar"><span className="breadcrumb">Không gian làm việc <span>/</span> <strong>PM2.5 Explorer</strong></span><div className="topbar-actions"><Badge tone="blue">{config.mode === 'mock' ? 'Demo' : local.offline ? 'Offline · dữ liệu cục bộ' : 'Online'}</Badge>{auth.user ? <><span className="account-label"><span className="avatar" aria-hidden="true">{auth.user.username.slice(0, 2).toUpperCase()}</span><span>{auth.user.username}<small>{auth.user.role}</small></span></span><button className="button button--secondary logout-button" onClick={() => { if (offline) void offline.logout(); else session.logout(); }}>Đăng xuất</button></> : <Link to="/login" search={{ redirect: undefined }} className="text-link">Đăng nhập</Link>}</div></header>
+      <header className="topbar"><span className="breadcrumb">Không gian làm việc <span>/</span> <strong>PM2.5 Explorer</strong></span><div className="topbar-actions"><Badge tone="blue">{config.mode === 'mock' ? 'Demo' : local.offline ? 'Offline · dữ liệu cục bộ' : 'Online'}</Badge>{auth.user ? <><span className="account-label"><span className="avatar" aria-hidden="true">{auth.user.username.slice(0, 2).toUpperCase()}</span><span>{auth.user.username}<small>{auth.user.role}</small></span></span><button className="button button--secondary logout-button" onClick={() => { if (offline) runClientTask(offline.logout()); else session.logout(); }}>Đăng xuất</button></> : <Link to="/login" search={{ redirect: undefined }} className="text-link">Đăng nhập</Link>}</div></header>
       {isWorkspace && <div className="workspace-header-content" ref={setWorkspaceHeaderHost} />}
       </div>
       {mock && <div className="mock-banner"><div><strong>DỮ LIỆU MÔ PHỎNG</strong><span>Chỉ để phát triển giao diện. Không phải kết quả phân tích thực.</span></div></div>}

@@ -32,7 +32,8 @@ function failure(error: unknown): StoredResponse {
 }
 
 export function createImportService(repository: ImportRepository, receipts: ReceiptRepository, files: SourceFiles,
-  limits: ImportConfig, access: DatasetReadAccess, hooks: ImportTestHooks = {}, now: () => Date = () => new Date()) {
+  limits: ImportConfig, access: DatasetReadAccess, reportFailure: (stage: string, error: unknown) => void,
+  hooks: ImportTestHooks = {}, now: () => Date = () => new Date()) {
   const localUploads = createCapacity(limits.uploadConcurrency);
   const active = new Set<AbortController>();
   let recovery: Promise<void> | undefined;
@@ -45,7 +46,10 @@ export function createImportService(repository: ImportRepository, receipts: Rece
     let pending: Promise<void> | undefined;
     const timer = setInterval(() => {
       if (pending) return;
-      pending = receipts.renew(guard).then(ok => { if (!ok) controller.abort(); }, () => controller.abort()).finally(() => { pending = undefined; });
+      pending = receipts.renew(guard).then(ok => { if (!ok) controller.abort(); }, (error: unknown) => {
+        reportFailure('lease_renewal', error);
+        controller.abort();
+      }).finally(() => { pending = undefined; });
     }, Math.max(10, Math.floor(limits.leaseMs / 3)));
     timer.unref();
     try { controller.signal.throwIfAborted(); return await work(); }
@@ -87,11 +91,15 @@ export function createImportService(repository: ImportRepository, receipts: Rece
     })();
     try { await recovery; } finally { recovery = undefined; }
   }
+  function recoverSnapshot(guard: ReceiptGuard) {
+    return receipts.snapshot(guard).catch((error: unknown) => { reportFailure('receipt_snapshot', error); return null; });
+  }
   async function snapshotOrFailure(guard: ReceiptGuard, error: unknown, started: boolean, controller: AbortController): Promise<StoredResponse> {
-    const saved = await receipts.snapshot(guard).catch(() => null);
+    const saved = await recoverSnapshot(guard);
     if (saved) return saved; // A response can be lost AFTER its transaction committed.
     if (error instanceof OwnershipLostError) throw error;
     const response = failure(error);
+    if (response.statusCode >= 500) reportFailure('operation_failed', error);
     try {
       if (!started && guard.kind === 'import') {
         // Reconcile an ambiguous start commit before finalising its receipt. A DB
@@ -107,8 +115,9 @@ export function createImportService(repository: ImportRepository, receipts: Rece
         } else await receipts.finish(guard, response);
       });
       return response;
-    } catch {
-      const committed = await receipts.snapshot(guard).catch(() => null);
+    } catch (error) {
+      reportFailure('failure_reconciliation', error);
+      const committed = await recoverSnapshot(guard);
       if (committed) return committed;
       // A failed cleanup/commit leaves processing + private partial data for lease recovery.
       return interruptedResponse;
@@ -168,20 +177,24 @@ export function createImportService(repository: ImportRepository, receipts: Rece
         });
       } catch (error) {
         if (guard) {
-          const saved = await receipts.snapshot(guard).catch(() => null);
+          const saved = await recoverSnapshot(guard);
           if (saved) return saved;
           if (persisted) {
             try { if (!await repository.get(guard.resourceId)) await files.remove(persisted); }
-            catch { return interruptedResponse; } // Do not delete an accepted source when DB outcome is unknown.
+            catch (cleanupError) {
+              reportFailure('upload_source_reconciliation', cleanupError);
+              return interruptedResponse; // A DB outage may leave the upload outcome unconfirmed.
+            }
           }
           return await snapshotOrFailure(guard, error, false, job.controller);
         }
         if (error instanceof HttpError) throw error;
         if ((error as { statusCode?: number }).statusCode === 413) throw new HttpError(413, 'FILE_TOO_LARGE', 'Multipart upload exceeds configured limits.');
         if ((error as { code?: string }).code?.startsWith('FST_')) throw new HttpError(400, 'INVALID_MULTIPART', 'Multipart body is invalid.');
+        reportFailure('upload_unavailable', error);
         throw new HttpError(503, 'SOURCE_STORAGE_UNAVAILABLE', 'Source upload could not complete. Check connectivity and persistent storage.');
       } finally {
-        if (temporary) await files.remove(temporary).catch(() => undefined);
+        if (temporary) await files.remove(temporary).catch((error: unknown) => reportFailure('temporary_source_cleanup', error));
         job.stop(); releaseLocal(); releaseGlobal();
       }
     },
@@ -223,7 +236,10 @@ export function createImportService(repository: ImportRepository, receipts: Rece
         return updated.data;
       } catch (error) {
         if (error instanceof HttpError && error.statusCode < 500) throw error;
-        if ((error as HttpError).code === 'SOURCE_CHANGED') await repository.sourceMissing(id, actor).catch(() => undefined);
+        if (error instanceof HttpError && error.code === 'SOURCE_CHANGED') {
+          await repository.sourceMissing(id, actor).catch((cause: unknown) => reportFailure('mark_missing_source', cause));
+        }
+        reportFailure('mapping_unavailable', error);
         throw new HttpError(500, 'SOURCE_UNAVAILABLE', 'Mapping validation could not complete. Check persistent source and database.');
       } finally { job.stop(); }
     },
@@ -295,10 +311,14 @@ export function createImportService(repository: ImportRepository, receipts: Rece
       } catch (error) {
         if (guard) return await snapshotOrFailure(guard, error, started, job.controller);
         if (error instanceof HttpError) throw error;
+        reportFailure('import_unavailable', error);
         throw new HttpError(503, 'IMPORT_UNAVAILABLE', 'Import could not start. Check database availability.');
       }
       finally { job.stop(); release?.(); }
     },
-    async close() { for (const controller of active) controller.abort(); await recovery?.catch(() => undefined); },
+    async close() {
+      for (const controller of active) controller.abort();
+      await recovery?.catch((error: unknown) => reportFailure('recovery_on_shutdown', error));
+    },
   };
 }

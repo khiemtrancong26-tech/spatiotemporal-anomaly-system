@@ -1,3 +1,4 @@
+import { runClientTask } from '../../app/error-handling';
 import { useStore } from 'zustand';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { explorationUtcTime } from '@pm25/shared-core';
@@ -15,6 +16,12 @@ import { followRun } from './follow-run';
 import { ANALYSIS_REPLAY_MS, canReplay, readIntent, type Intent } from './intent';
 import { AnalysisResults } from './results';
 
+function matchesProfile(profile: DatasetProfile, datasetId: string, targetScope: string) {
+  const { sensorIds, from, to, bbox } = profile.scope;
+  return profile.datasetId === datasetId && bbox === null &&
+    scopeKey({ sensorIds: sensorIds ?? undefined, from: from ?? undefined, to: to ?? undefined }) === targetScope;
+}
+
 function RunDetail({ datasetId, id }: { datasetId: string; id: string }) {
   const { data, workspace } = useServices(), zone = useStore(workspace, s => s.timeZone);
   const sensors = useAnalystSensors(datasetId);
@@ -27,11 +34,11 @@ function RunDetail({ datasetId, id }: { datasetId: string; id: string }) {
       update: result => { setRun(result); setError(''); }, error: cause => setError(cause instanceof DataSourceError ? errorMessage(cause) : 'Không thể xác nhận run thuộc dataset này.'),
     });
     follower.current = active;
-    const visibility = () => { if (!document.hidden) void active.refresh(); };
+    const visibility = () => { if (!document.hidden) runClientTask(active.refresh()); };
     document.addEventListener('visibilitychange', visibility);
     return () => { active.dispose(); document.removeEventListener('visibilitychange', visibility); };
   }, [data, datasetId, id, workspace]);
-  return <section className="ux-panel ux-run-detail"><div className="ux-panel-heading"><div><h3>Lần phân tích {shortId(id)}</h3><p>Phạm vi run đã lưu độc lập với bộ lọc đang tra cứu.</p></div><Button variant="secondary" onClick={() => { void follower.current?.refresh(); }}>Đọc lại run</Button></div>
+  return <section className="ux-panel ux-run-detail"><div className="ux-panel-heading"><div><h3>Lần phân tích {shortId(id)}</h3><p>Phạm vi run đã lưu độc lập với bộ lọc đang tra cứu.</p></div><Button variant="secondary" onClick={() => { runClientTask(follower.current?.refresh()); }}>Đọc lại run</Button></div>
     {error && <p role="alert" className="ux-warning">Chưa cập nhật được trạng thái. {error} Trạng thái đã đọc trước đó được giữ nguyên.</p>}{!run && !error && <LoadingState />}
     {run && <><div className="ux-run-summary"><div><span>PHƯƠNG PHÁP</span><strong>{methodName(run.method)}</strong></div><div><span>TRẠNG THÁI SERVER</span><p data-testid="run-status"><StatusBadge value={run.status} /></p></div><div><span>PHẠM VI ĐÃ TIẾP NHẬN</span><ScopeText scope={runScope(run)} sensors={sensors.data} zone={zone} /></div></div>
       <p>Tạo: {formatWorkspaceTime(run.createdAt, zone)} · {zoneLabel(zone)}{run.completedAt && ` · Kết thúc: ${formatWorkspaceTime(run.completedAt, zone)}`}</p>
@@ -43,7 +50,14 @@ function RunDetail({ datasetId, id }: { datasetId: string; id: string }) {
   </section>;
 }
 
-export function AnalysisPage({ datasetId, filters, runId, selectRun, active: visible = true }: { datasetId: string; filters: WorkspaceFilters; runId?: string; selectRun: (id?: string) => void; active?: boolean }) {
+export function AnalysisPage({ datasetId, filters, runId, selectRun, workspaceProfile, active: visible = true }: {
+  datasetId: string;
+  filters: WorkspaceFilters;
+  runId?: string;
+  selectRun: (id?: string) => void;
+  workspaceProfile?: { data?: DatasetProfile; error: string; loading: boolean };
+  active?: boolean;
+}) {
   const { data, config, session, workspace, datasets, offline } = useServices(), zone = useStore(workspace, s => s.timeZone);
   const local = useOfflineState();
   const prepared = useStore(workspace, s => s.analysisDraft), sensors = useAnalystSensors(datasetId);
@@ -55,13 +69,13 @@ export function AnalysisPage({ datasetId, filters, runId, selectRun, active: vis
   const [confirmed, setConfirmed] = useState(false), [method, setMethod] = useState<Method>(() => intent?.body.method as Method || 'zscore');
   const [pending, setPending] = useState(false), [error, setError] = useState('');
   const [dateFrom, setFrom] = useState<string>(), [dateTo, setTo] = useState<string>();
-  const [profile, setProfile] = useState<DatasetProfile>(), [profileError, setProfileError] = useState(''), [profilePending, profileLoading] = useState(false);
+  const [scopeProfile, setProfile] = useState<DatasetProfile>(), [scopeError, setProfileError] = useState(''), [scopePending, profileLoading] = useState(false);
   const active = useRef<AbortController | undefined>(undefined), lastPrepared = useRef(prepared?.revision);
   const filterSignature = JSON.stringify(filters), lastFilters = useRef(filterSignature);
   const [historyRevision, refreshHistory] = useState(0), [sort, setSort] = useState<'createdAt:asc' | 'createdAt:desc'>('createdAt:desc');
   const history = useMemo(() => createCursorPager(data.analysis.list), [data]);
   const state = useSyncExternalStore(history.subscribe, history.getSnapshot);
-  useEffect(() => { if (visible) void history.setQuery({ datasetId, sort, limit: 100 }); }, [history, datasetId, sort, historyRevision, visible]);
+  useEffect(() => { if (visible) runClientTask(history.setQuery({ datasetId, sort, limit: 100 })); }, [history, datasetId, sort, historyRevision, visible]);
   useEffect(() => () => { active.current?.abort(); history.dispose(); }, [history]);
   useEffect(() => {
     if (!visible) return;
@@ -73,13 +87,24 @@ export function AnalysisPage({ datasetId, filters, runId, selectRun, active: vis
   const spec = METHODS[method] ?? METHODS.zscore;
   const body: DetectionRequest = useMemo(() => ({ datasetId, family: spec.family, method, config: { ...spec.config }, scope }), [datasetId, spec, method, scope]);
   const submittedScope = intent?.body.scope ?? scope;
+  const profileScope = scopeKey(submittedScope);
+  const shared = !filters.bbox && profileScope === scopeKey(scopeFromFilters(filters)) ? workspaceProfile : undefined;
+  const candidate = shared ? shared.data : scopeProfile;
+  const profile = candidate && matchesProfile(candidate, datasetId, profileScope) ? candidate : undefined;
+  const profilePending = shared ? shared.loading : scopePending;
+  const profileError = shared ? shared.error : scopeError;
+  const useWorkspaceProfile = Boolean(shared);
   useEffect(() => {
     setProfile(undefined); setProfileError('');
-    if (!visible) return;
+    if (!visible || useWorkspaceProfile) { profileLoading(false); return; }
     const controller = new AbortController(); profileLoading(true);
-    void data.datasets.profile(datasetId, { sensorIds: submittedScope.sensorIds, from: submittedScope.from, to: submittedScope.to }, { signal: controller.signal }).then(p => { if (controller.signal.aborted) return; if (p.datasetId !== datasetId || scopeKey({sensorIds:p.scope.sensorIds ?? undefined,from:p.scope.from ?? undefined,to:p.scope.to ?? undefined}) !== scopeKey(submittedScope)) throw new Error('Profile không khớp scope Analysis.'); setProfile(p); }).catch(e => { if (!controller.signal.aborted) setProfileError(errorMessage(e)); }).finally(() => { if (!controller.signal.aborted) profileLoading(false); });
+    void data.datasets.profile(datasetId, { sensorIds: submittedScope.sensorIds, from: submittedScope.from, to: submittedScope.to }, { signal: controller.signal }).then(p => {
+      if (controller.signal.aborted) return;
+      if (!matchesProfile(p, datasetId, profileScope)) throw new Error('Profile không khớp scope Analysis.');
+      setProfile(p);
+    }).catch((e: unknown) => { if (!controller.signal.aborted) setProfileError(errorMessage(e)); }).finally(() => { if (!controller.signal.aborted) profileLoading(false); });
     return () => controller.abort();
-  }, [data, datasetId, submittedScope, visible]);
+  }, [data, datasetId, submittedScope, profileScope, visible, useWorkspaceProfile]);
   const replayWindow = config.mode === 'mock' ? 15 * 60_000 : ANALYSIS_REPLAY_MS;
   const [now, setNow] = useState(Date.now);
   useEffect(() => { if (!intent || intent.runId || !visible) return; const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [intent, visible]);
@@ -118,15 +143,15 @@ export function AnalysisPage({ datasetId, filters, runId, selectRun, active: vis
       </div>}
       {filters.bbox && !intent && <div className="ux-warning"><p>Analysis không nhận bbox. Chọn rõ các trạm muốn phân tích trước khi chạy.</p><Button variant="secondary" disabled={!scope.sensorIds?.length} onClick={() => { resolveBbox(true); setConfirmed(false); }}>Dùng các trạm đã chọn, bỏ bbox khỏi Analysis</Button>{bboxResolved && <p>Đã xác nhận scope trạm; bbox không được gửi trong body.</p>}</div>}
     </section><section className="ux-panel"><h3><span className="ux-step">2</span>Chọn phương pháp</h3><fieldset className="ux-methods"><legend className="sr-only">Phương pháp</legend>{(Object.keys(METHODS) as Method[]).map(id => <label key={id} className={`ux-method ${method === id ? 'is-selected' : ''}`}><input type="radio" name="detector-method" value={id} checked={method === id} disabled={pending || Boolean(intent)} onChange={() => { setMethod(id); setConfirmed(false); }} /><span><strong>{METHODS[id].name}</strong><p>{METHODS[id].description}</p><small>{METHODS[id].setting}</small></span></label>)}</fieldset>{method === 'isolation_forest' && <p className="ux-warning">Score không phải xác suất. Severity low là metadata tạm, không phải mức ô nhiễm hoặc mức nguy hiểm sức khỏe.</p>}</section>
-    <section className="ux-panel"><h3><span className="ux-step">3</span>Xác nhận và chạy</h3><p>Tạo một Analysis Run mới.</p><p>Queued → Running → Completed / Failed</p><p>Kết quả lưu trên Server, có thể xem lại từ lịch sử.</p><label className="ux-confirm"><input type="checkbox" checked={confirmed} disabled={pending || Boolean(intent)} onChange={e => setConfirmed(e.target.checked)} />Tôi đã kiểm tra phạm vi và phương pháp phân tích.</label><Button className="ux-wide" disabled={local.offline || pending || corrupt || Boolean(intent?.runId) || (!intent && (!confirmed || bboxBlocked || overLimit || scope.sensorIds?.length === 0)) || !replayable} onClick={() => { void send(); }}>{pending ? 'Đang gửi…' : intent ? 'Thử lại cùng key' : 'Chạy phát hiện bất thường'}</Button><p>Chỉ 202 xác nhận tiếp nhận job. Mất phản hồi không có nghĩa Server chưa nhận; không tạo key mới.</p>
+    <section className="ux-panel"><h3><span className="ux-step">3</span>Xác nhận và chạy</h3><p>Tạo một Analysis Run mới.</p><p>Queued → Running → Completed / Failed</p><p>Kết quả lưu trên Server, có thể xem lại từ lịch sử.</p><label className="ux-confirm"><input type="checkbox" checked={confirmed} disabled={pending || Boolean(intent)} onChange={e => setConfirmed(e.target.checked)} />Tôi đã kiểm tra phạm vi và phương pháp phân tích.</label><Button className="ux-wide" disabled={local.offline || pending || corrupt || Boolean(intent?.runId) || (!intent && (!confirmed || bboxBlocked || overLimit || scope.sensorIds?.length === 0)) || !replayable} onClick={() => { runClientTask(send()); }}>{pending ? 'Đang gửi…' : intent ? 'Thử lại cùng key' : 'Chạy phát hiện bất thường'}</Button><p>Chỉ 202 xác nhận tiếp nhận job. Mất phản hồi không có nghĩa Server chưa nhận; không tạo key mới.</p>
       {intent && !intent.runId && !replayable && <p role="alert">Cửa sổ replay đã hết hạn. Đối soát Backend trước khi tiếp tục.</p>}{corrupt && <p role="alert">Ngữ cảnh chờ tiếp nhận không hợp lệ. Đối soát Backend trước khi tạo thao tác mới.</p>}
       {intent?.runId && <div className="ux-actions"><Button variant="secondary" onClick={() => selectRun(intent.runId)}>Theo dõi run đã tiếp nhận</Button><Button variant="secondary" onClick={() => { if (window.confirm('Tạo ý định phân tích mới? Run cũ vẫn giữ trên Server.')) { sessionStorage.removeItem(storageKey); setIntent(undefined); setConfirmed(false); selectRun(undefined); workspace.getState().setResults(); } }}>Chuẩn bị lần chạy mới</Button></div>}
       {intent && <details><summary>Thông tin thao tác đã gửi</summary><TechnicalId label="Idempotency key" id={intent.key} /><p>Gửi lúc {formatWorkspaceTime(new Date(intent.createdAt).toISOString(), zone)} · {zoneLabel(zone)} · cửa sổ replay {config.mode === 'mock' ? '15 phút (demo)' : '24 giờ'}.</p><pre>{JSON.stringify(intent.body, null, 2)}</pre></details>}
     </section></div>{error && <p role="alert" className="ux-warning">{error}</p>}
     {runId && visible && <RunDetail key={`${datasetId}/${runId}`} datasetId={datasetId} id={runId} />}
     <section className="ux-panel"><div className="ux-panel-heading"><div><h3>Lịch sử phân tích</h3><p>Mỗi dòng là một lần chạy độc lập; xem lại không chạy thuật toán lần nữa.</p></div><Button variant="secondary" onClick={() => { history.dispose(); refreshHistory(n => n + 1); }}>Làm mới lịch sử</Button></div><label className="field ux-inline-field">Thứ tự lịch sử<select value={sort} onChange={e => setSort(e.target.value as typeof sort)}><option value="createdAt:desc">Mới nhất</option><option value="createdAt:asc">Cũ nhất</option></select></label>
-      {state.status === 'loading' && <LoadingState />}{state.status === 'error' && <ErrorState message={errorMessage(state.error)} retry={() => { void history.retry(); }} />}{state.status === 'ready' && !state.data.length && <p>Chưa có run trong trang lịch sử.</p>}
-      <div className="ux-list-scroll" tabIndex={0} role="region" aria-label="Lịch sử analysis"><table className="ux-responsive-table"><thead><tr><th>Phương pháp</th><th>Phạm vi</th><th>Tạo lúc</th><th>Trạng thái</th><th>Tác vụ</th></tr></thead><tbody>{state.data.map(run => <tr key={run.id}><td data-label="Phương pháp"><strong>{methodName(run.method)}</strong><small>Run {shortId(run.id)}</small></td><td data-label="Phạm vi"><ScopeText scope={runScope(run)} sensors={sensors.data} zone={zone} /></td><td data-label="Tạo lúc">{formatWorkspaceTime(run.createdAt, zone)} · {zoneLabel(zone)}</td><td data-label="Trạng thái"><StatusBadge value={run.status} /></td><td data-label="Tác vụ"><Button variant="secondary" aria-label={`Xem run ${run.id}`} onClick={() => { workspace.getState().setResults(); selectRun(run.id); }}>{run.status === 'completed' ? 'Xem kết quả' : 'Theo dõi'}</Button></td></tr>)}</tbody></table></div><p>Đã tải {state.data.length} runs{state.nextCursor ? ' · Còn trang' : ''}</p>{state.nextCursor && <Button variant="secondary" disabled={state.status === 'loading' || state.data.length >= 2000} onClick={() => { void history.loadMore(); }}>Tải thêm lịch sử</Button>}
+      {state.status === 'loading' && <LoadingState />}{state.status === 'error' && <ErrorState message={errorMessage(state.error)} retry={() => { runClientTask(history.retry()); }} />}{state.status === 'ready' && !state.data.length && <p>Chưa có run trong trang lịch sử.</p>}
+      <div className="ux-list-scroll" tabIndex={0} role="region" aria-label="Lịch sử analysis"><table className="ux-responsive-table"><thead><tr><th>Phương pháp</th><th>Phạm vi</th><th>Tạo lúc</th><th>Trạng thái</th><th>Tác vụ</th></tr></thead><tbody>{state.data.map(run => <tr key={run.id}><td data-label="Phương pháp"><strong>{methodName(run.method)}</strong><small>Run {shortId(run.id)}</small></td><td data-label="Phạm vi"><ScopeText scope={runScope(run)} sensors={sensors.data} zone={zone} /></td><td data-label="Tạo lúc">{formatWorkspaceTime(run.createdAt, zone)} · {zoneLabel(zone)}</td><td data-label="Trạng thái"><StatusBadge value={run.status} /></td><td data-label="Tác vụ"><Button variant="secondary" aria-label={`Xem run ${run.id}`} onClick={() => { workspace.getState().setResults(); selectRun(run.id); }}>{run.status === 'completed' ? 'Xem kết quả' : 'Theo dõi'}</Button></td></tr>)}</tbody></table></div><p>Đã tải {state.data.length} runs{state.nextCursor ? ' · Còn trang' : ''}</p>{state.nextCursor && <Button variant="secondary" disabled={state.status === 'loading' || state.data.length >= 2000} onClick={() => { runClientTask(history.loadMore()); }}>Tải thêm lịch sử</Button>}
     </section>
   </section>;
 }

@@ -1,3 +1,4 @@
+import { runClientTask } from '../../app/error-handling';
 import { WorkspaceHeader } from '../../app/workspace-header';
 import { resolveInvestigation } from './investigation';
 import type { Reading } from '../../shared/api/generated/wire';
@@ -35,7 +36,7 @@ export function WorkspacePage({ datasetId, runId, selectRun }: { datasetId: stri
       // Begin at the exact reading. Context expansion is a separate, explicit action.
       workspace.getState().applyFilters({ sensorId: row.sensorId, from: row.ts, to: row.ts });
       workspace.getState().selectReading(row.id); setVerified(row);
-    }).catch(e => { if (!controller.signal.aborted) setInvestigationError(e instanceof Error && e.name !== 'DataSourceError' ? e.message : errorMessage(e)); });
+    }).catch((e: unknown) => { if (!controller.signal.aborted) setInvestigationError(e instanceof Error && e.name !== 'DataSourceError' ? e.message : errorMessage(e)); });
     return () => controller.abort();
   }, [data, workspace, datasetId, state.datasetId, investigation, investigationRevision]);
   function expandInvestigation(allStations: boolean) {
@@ -57,7 +58,7 @@ export function WorkspacePage({ datasetId, runId, selectRun }: { datasetId: stri
   const [cached, setCached] = useState<{ count: number; pages: number; coverage: 'complete' | 'partial' | 'missing' }>();
   useEffect(() => {
     let active = true;
-    void offline?.coverage({ datasetId, ...state.filters }).then(value => { if (active) setCached(value); });
+    runClientTask(offline?.coverage({ datasetId, ...state.filters }).then(value => { if (active) setCached(value); }));
     return () => { active = false; };
   }, [offline, datasetId, state.filters, local.readingsRevision]);
   const [draft, setDraft] = useState(() => {
@@ -73,7 +74,7 @@ export function WorkspacePage({ datasetId, runId, selectRun }: { datasetId: stri
     void data.datasets.profile(datasetId, { sensorIds: state.filters.sensorId ? [state.filters.sensorId] : undefined, bbox: state.filters.bbox, from: state.filters.from, to: state.filters.to }, { signal: controller.signal }).then(p => {
       if (controller.signal.aborted) return; setProfile(p);
       if (!workspace.getState().timeZoneChosen) workspace.getState().setTimeZone(p.metadata.timeZone, false);
-    }).catch(e => { if (!controller.signal.aborted) setProfileError(errorMessage(e)); }).finally(() => { if (!controller.signal.aborted) setProfileLoading(false); });
+    }).catch((e: unknown) => { if (!controller.signal.aborted) setProfileError(errorMessage(e)); }).finally(() => { if (!controller.signal.aborted) setProfileLoading(false); });
     return () => controller.abort();
   }, [data, workspace, datasetId, state.datasetId, state.filters, profileRevision, local.offline]);
   useEffect(() => {
@@ -94,7 +95,7 @@ export function WorkspacePage({ datasetId, runId, selectRun }: { datasetId: stri
   useEffect(() => {
     if (!offline || datasets.has(datasetId)) return;
     let active = true;
-    void offline.dataset(datasetId).then(value => { if (active) setSavedDataset(value); });
+    runClientTask(offline.dataset(datasetId).then(value => { if (active) setSavedDataset(value); }));
     return () => { active = false; };
   }, [offline, datasets, datasetId]);
   const dataset = datasets.get(datasetId) ?? (savedDataset?.id === datasetId ? savedDataset : undefined);
@@ -137,6 +138,6 @@ export function WorkspacePage({ datasetId, runId, selectRun }: { datasetId: stri
       </section>}
       {state.tab === 'exploration' && <ExplorationPanel key={JSON.stringify([datasetId, state.filters])} datasetId={datasetId} filters={state.filters} profile={profile} loading={profileLoading} error={profileError} retry={() => refreshProfile(n => n + 1)} />}
       {state.tab === 'visualization' && state.datasetId === datasetId && (!investigation || verified) && <Visualization key={JSON.stringify([datasetId, state.filters])} filterSummary={appliedFilter} datasetId={datasetId} filters={state.filters} initialView={investigation && verified ? { target: investigation.target, reading: verified } : undefined} onSensor={sensorId => { setDraft({ ...draft, sensorId }); workspace.getState().applyFilters({ ...state.filters, sensorId: sensorId || undefined }); }} />}
-      <div hidden={state.tab !== 'analysis'}>{(state.tab === 'analysis' || visited.includes('analysis')) && <AnalysisPage datasetId={datasetId} filters={state.filters} runId={runId} selectRun={selectRun} active={state.tab === 'analysis'} />}</div>
+      <div hidden={state.tab !== 'analysis'}>{(state.tab === 'analysis' || visited.includes('analysis')) && <AnalysisPage datasetId={datasetId} filters={state.filters} runId={runId} selectRun={selectRun} workspaceProfile={{ data: profile, error: profileError, loading: profileLoading }} active={state.tab === 'analysis'} />}</div>
       <div hidden={state.tab !== 'anomalies'}>{(state.tab === 'anomalies' || visited.includes('anomalies')) && <AnomaliesPage datasetId={datasetId} filters={state.filters} runId={runId} initialAnomalyId={state.anomalies.find(a => a.readingId === state.selectedReadingId)?.id} active={state.tab === 'anomalies'} />}</div></div></div></div>;
 }

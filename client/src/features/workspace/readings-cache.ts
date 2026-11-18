@@ -62,7 +62,7 @@ export function createReadingsCache(loader:Load, capacity=READINGS_CACHE_LIMIT, 
           if (generation === epoch && !result.localCoverage) remember(q, result);
           return result;
         })
-        .catch(error => {
+        .catch((error: unknown) => {
           // When IndexedDB could not persist this page, the current tab can still show its RAM copy.
           if (generation === epoch && offline() && !controller.signal.aborted && error instanceof DataSourceError &&
               error.kind === 'offline' && cached?.ids.every(value => records.has(value))) {
@@ -79,7 +79,7 @@ export function createReadingsCache(loader:Load, capacity=READINGS_CACHE_LIMIT, 
       const finish=()=>{if(done)return false;done=true;options?.signal?.removeEventListener('abort',abort);active.users--;if(!active.users&&pending.get(k)===active){active.controller.abort();pending.delete(k);}return true;};
       const abort=()=>{if(finish())reject(new DOMException('Aborted','AbortError'));};
       options?.signal?.addEventListener('abort',abort,{once:true});
-      active.promise.then(value=>{if(finish())resolve(value);},error=>{if(finish())reject(error);});
+      active.promise.then(value=>{if(finish())resolve(value);},(error: unknown)=>{if(finish())reject(error);});
       if(options?.signal?.aborted)abort();
     });
   };

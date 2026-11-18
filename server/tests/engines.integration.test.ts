@@ -56,15 +56,15 @@ describe('Python transport test double, separate from real inference above', () 
     await expect(transport({ maxInputBytes: 5 })({ mode: 'ok' })).rejects.toMatchObject({ code: 'ENGINE_INPUT_LIMIT' });
     await expect(transport()({ mode: 'oversize' })).rejects.toMatchObject({ code: 'ENGINE_OUTPUT_LIMIT' });
     await expect(transport()({ mode: 'invalid' })).rejects.toMatchObject({ code: 'ENGINE_PROTOCOL_ERROR' });
-    const error = await transport()({ mode: 'failure' }).catch(error => error);
+    const error = await transport()({ mode: 'failure' }).catch((error: unknown) => error);
     expect(error).toMatchObject({ code: 'ENGINE_UNAVAILABLE' }); expect(String(error)).not.toMatch(/secret|private|payload/);
     await expect(transport({ pythonExecutable: resolve(directory, 'missing.exe') })({ mode: 'ok' })).rejects.toMatchObject({ code: 'ENGINE_UNAVAILABLE' });
   });
   it('rejects overload, waits for process close before returning a slot, and supports cancellation/timeout', async () => {
-    const run = transport({ timeoutMs: 1000 }), pending = run({ mode: 'sleep' }).catch(error => error);
+    const run = transport({ timeoutMs: 1000 }), pending = run({ mode: 'sleep' }).catch((error: unknown) => error);
     await expect(run({ mode: 'ok' })).rejects.toMatchObject({ code: 'ENGINE_BUSY' });
     expect(await pending).toMatchObject({ code: 'ENGINE_TIMEOUT' }); expect(await run({ mode: 'ok' })).toEqual({ ok: true });
-    const controller = new AbortController(); const aborted = run({ mode: 'sleep' }, controller.signal).catch(error => error); controller.abort();
+    const controller = new AbortController(); const aborted = run({ mode: 'sleep' }, controller.signal).catch((error: unknown) => error); controller.abort();
     expect(await aborted).toMatchObject({ code: 'ENGINE_ABORTED' }); expect(await run({ mode: 'ok' })).toEqual({ ok: true });
     await expect(run({ mode: 'ok' }, controller.signal)).rejects.toMatchObject({ code: 'ENGINE_ABORTED' });
   });

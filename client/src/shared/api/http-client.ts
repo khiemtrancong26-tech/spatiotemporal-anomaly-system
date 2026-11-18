@@ -35,7 +35,10 @@ export function createHttpClient(options: HttpOptions) {
 
     const headers = new Headers({ Accept: 'application/json', ...extraHeaders });
     const token = options.getAccessToken(), revision = options.getSessionRevision?.();
-    if (operation.authenticated && token) headers.set('Authorization', `Bearer ${token}`);
+    if (operation.authenticated) {
+      if (!token) throw new DataSourceError('http', 'An authenticated session is required', 401);
+      headers.set('Authorization', `Bearer ${token}`);
+    }
     let body: BodyInit | undefined;
     if (operation.body?.contentType === 'multipart/form-data') {
       const upload = input.body as { file?: unknown; name?: string } | undefined;

@@ -166,7 +166,7 @@ export default function CubeRenderer(props: CubeView & { onSelect: (id: string) 
       };
       update.current(input.current); setReady(true);
     }
-    void start().catch(cause => { cleanup(); if (!cancelled) setError(cause instanceof Error ? cause.message : 'Không khởi tạo được Cube.'); });
+    void start().catch((cause: unknown) => { cleanup(); if (!cancelled) setError(cause instanceof Error ? cause.message : 'Không khởi tạo được Cube.'); });
     return () => { cancelled = true; cleanup(); update.current = () => {}; action.current = () => {}; };
   }, []);
   const selected = view.rows.find(r => r.id === (hovered ?? view.selected));

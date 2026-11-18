@@ -60,7 +60,7 @@ export function createOfflineStorage(namespace: string) {
         db.onclose = () => { connection = undefined; };
         resolve(db);
       };
-    }).catch(error => { connection = undefined; throw error; });
+    }).catch((error: unknown) => { connection = undefined; throw error; });
     return connection;
   }
 
@@ -70,10 +70,8 @@ export function createOfflineStorage(namespace: string) {
       tx.oncomplete = () => resolve();
       tx.onabort = () => reject(tx.error ?? new Error('IndexedDB transaction aborted'));
     });
-    void committed.catch(() => {});
     try {
-      const value = await work(tx);
-      await committed;
+      const [value] = await Promise.all([Promise.resolve().then(() => work(tx)), committed]);
       return value;
     } catch (error) {
       try { tx.abort(); } catch { /* The transaction already ended. */ }

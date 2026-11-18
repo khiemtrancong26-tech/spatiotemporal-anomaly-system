@@ -34,7 +34,8 @@ export function createSourceFiles(directory: string) {
         try { await handle.sync(); } finally { await handle.close(); }
         return { fileId, bytes, checksum: hash.digest('hex') };
       } catch (error) {
-        await remove(fileId);
+        try { await remove(fileId); }
+        catch (cause) { throw new AggregateError([error, cause], 'Source upload and temporary file cleanup failed.', { cause }); }
         throw error;
       }
     },
@@ -43,7 +44,13 @@ export function createSourceFiles(directory: string) {
       await rename(path(temporaryId), path(fileId));
       return fileId;
     },
-    async exists(fileId: string) { try { await access(path(fileId)); return true; } catch { return false; } },
+    async exists(fileId: string) {
+      try { await access(path(fileId)); return true; }
+      catch (error) {
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return false;
+        throw error;
+      }
+    },
     remove,
     read: (fileId: string, signal?: AbortSignal) => createReadStream(path(fileId), { highWaterMark: 64 * 1024, ...(signal ? { signal } : {}) }),
     verified(fileId: string, checksum: string, signal?: AbortSignal) {

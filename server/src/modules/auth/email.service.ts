@@ -7,12 +7,18 @@ import type { PasswordHasher } from '../users/passwords.js';
 import type { EmailSender } from './email.js';
 const digest = (token: string) => createHash('sha256').update(token).digest('hex');
 export const emailMessage = { message: 'If the account is eligible, an email may be sent. Check your inbox or try again later.' };
-export function createEmailService(repository: ReturnType<typeof createUserRepository>, users: ReturnType<typeof createUserService>, passwords: PasswordHasher, sender: EmailSender, warn: () => void) {
+export function createEmailService(repository: ReturnType<typeof createUserRepository>, users: ReturnType<typeof createUserService>, passwords: PasswordHasher, sender: EmailSender,
+  reportFailure: (stage: 'delivery' | 'release_cooldown', error: unknown) => void) {
   const tokenState = (reset: boolean) => { const raw = randomBytes(32).toString('hex'), now = new Date(); return { raw, state: { hash: digest(raw), expiresAt: new Date(+now + (reset ? 15 * 60000 : 24 * 3600000)), cooldownUntil: new Date(+now + 60000) } }; };
   const normalize = (email: string) => { const parsed = EmailRequestSchema.safeParse({ email }); if (!parsed.success || parsed.data.email.length > 254) throw new HttpError(422, 'VALIDATION_ERROR', 'Invalid email.'); return parsed.data.email; };
   async function delivery(email: string, raw: string, reset: boolean) {
     try { await (reset ? sender.reset(email, raw) : sender.verification(email, raw)); return true; }
-    catch { warn(); try { await repository.releaseEmailCooldown(digest(raw), reset ? 'passwordReset' : 'emailVerification'); } catch { warn(); } return false; }
+    catch (error) {
+      reportFailure('delivery', error);
+      try { await repository.releaseEmailCooldown(digest(raw), reset ? 'passwordReset' : 'emailVerification'); }
+      catch (cause) { reportFailure('release_cooldown', cause); }
+      return false;
+    }
   }
   return {
     async register(input: { username: string; email: string; password: string }) {

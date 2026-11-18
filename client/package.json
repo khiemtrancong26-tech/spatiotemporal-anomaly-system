@@ -14,7 +14,7 @@
     "build:mock": "npm run generate && vite build --mode mock && tsc --noEmit",
     "preview": "vite preview",
     "typecheck": "npm run generate && tsc --noEmit",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

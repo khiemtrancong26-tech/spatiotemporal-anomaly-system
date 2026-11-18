@@ -163,7 +163,8 @@ describe('B6 actual HTTP/MongoDB Replica Set', () => {
           await f.db.collection(parent).updateOne({ _id: parent === 'datasets' ? f.datasetId : f.runId }, { $set: { status: 'failed' } }, { session });
           patch = f.patch(String(row!._id), { baseVersion: 1, changes: { note: 'must not publish' } });
           // Dispatch while a conflicting visibility transition is still uncommitted.
-          void patch.then(() => {}); await new Promise(resolve => setTimeout(resolve, 50));
+          patch.catch(() => { /* The original promise is awaited after this transaction. */ });
+          await new Promise(resolve => setTimeout(resolve, 50));
         });
       } finally { await session.endSession(); }
       expect((await patch).statusCode).toBe(404); expect((await f.db.collection('anomalies').findOne({ _id: row!._id }))?.version).toBe(1);

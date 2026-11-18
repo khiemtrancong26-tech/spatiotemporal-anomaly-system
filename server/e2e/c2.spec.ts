@@ -43,6 +43,14 @@ test.afterAll(async () => {
 
 test('C2 actual Beijing import → authoritative profile → full-scope comparison → timezone/filter → reload', async ({ page }) => {
   test.setTimeout(120000);
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('response', response => {
+    const path = new URL(response.url()).pathname;
+    if (response.status() >= 400 && (path.endsWith('/profile') || path.endsWith('/reading-aggregates'))) {
+      errors.push(`${response.status()} ${path}`);
+    }
+  });
   await page.goto(frontendUrl + '/login');
   await page.getByLabel('Tên đăng nhập', { exact: true }).fill('C2Analyst');
   await page.getByLabel('Mật khẩu', { exact: true }).fill(password);
@@ -60,8 +68,16 @@ test('C2 actual Beijing import → authoritative profile → full-scope comparis
   await configureExplorationMetadata(backend.mongo.db, id, metadata);
   await page.getByRole('link', { name: 'Mở workspace', exact: true }).click();
   await expect(page.getByLabel('Múi giờ workspace')).toHaveValue('+08:00');
-  const aggregated = page.waitForResponse(r => r.url().includes('/reading-aggregates?') && r.status() === 200);
-  await page.getByRole('button', { name: 'Data Exploration', exact: true }).click();
+  const distribution = page.locator('.reading-distribution');
+  await expect(distribution).not.toHaveAttribute('open');
+  await distribution.locator('summary').click();
+  await expect(page.getByTestId('distribution-count')).toContainText('8.782 readings');
+  await distribution.locator('summary').click();
+  const aggregated = page.waitForResponse(r => {
+    const url = new URL(r.url());
+    return url.pathname.endsWith('/reading-aggregates') && url.searchParams.getAll('sensorIds').length === 3 && r.status() === 200;
+  });
+  await page.getByRole('button', { name: 'Data Exploration', exact: true }).press('Enter');
   await expect(page.getByTestId('exploration-profile')).toContainText('8.782'); await expect(page.getByTestId('exploration-coverage')).toContainText('thiếu 146');
   const all = (await (await aggregated).json()).data; expect(all.series).toHaveLength(3); expect(all.series[0].buckets).toHaveLength(31);
   await expect(page.getByTestId('exploration-aggregates')).toContainText('3 series × 31 buckets', { timeout: 20000 });
@@ -74,7 +90,7 @@ test('C2 actual Beijing import → authoritative profile → full-scope comparis
   await page.getByLabel('Bucket tổng hợp').selectOption('day'); const days = (await (await daily).json()).data;
   expect(days.series[0].buckets).toHaveLength(32); expect(days.series[0].buckets[0].start).toBe('2015-02-28T00:00:00.000Z');
   await page.getByLabel('Múi giờ workspace').selectOption('+08:00');
-  await page.getByText('Phạm vi tra cứu', { exact: true }).click();
+  await page.locator('summary.filter-heading').press('Enter');
   await page.getByLabel('Từ · UTC+08:00', { exact: true }).fill('2015-03-16T19:00');
   await page.getByLabel('Đến · UTC+08:00', { exact: true }).fill('2015-03-16T19:00');
   await page.getByRole('button', { name: 'Áp dụng bộ lọc', exact: true }).click();
@@ -83,8 +99,10 @@ test('C2 actual Beijing import → authoritative profile → full-scope comparis
   await expect(page.getByTestId('applied-filter')).toContainText('19:00:00');
   await expect(page.getByTestId('applied-filter')).toContainText('UTC+08:00');
   await page.reload(); await expect(page.getByLabel('Múi giờ workspace')).toHaveValue('+08:00');
-  await page.getByRole('button', { name: 'Data Exploration', exact: true }).click();
-  await expect(page.getByTestId('exploration-coverage')).toContainText('thiếu 146');
-  await expect(page.getByTestId('exploration-aggregates')).toContainText('3 series × 31 buckets', { timeout: 20000 });
+  await page.getByRole('button', { name: 'Data Exploration', exact: true }).press('Enter');
+  await expect(page.getByTestId('server-profile-summary')).toContainText('Scope Server: 12 readings');
+  await expect(page.getByTestId('exploration-coverage')).toContainText('12/12 slots · thiếu 0');
+  await expect(page.getByTestId('exploration-aggregates')).toContainText('3 series × 1 buckets', { timeout: 20000 });
+  expect(errors).toEqual([]);
   await page.screenshot({ path: fileURLToPath(new URL('../../.local/c2-exploration.png', import.meta.url)) });
 });

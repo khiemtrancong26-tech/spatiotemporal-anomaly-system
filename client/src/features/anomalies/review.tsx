@@ -1,3 +1,4 @@
+import { runClientTask } from '../../app/error-handling';
 import { useEffect, useRef, useState } from 'react';
 import { useBlocker } from '@tanstack/react-router';
 import { useStore } from 'zustand';
@@ -89,18 +90,18 @@ export function AnomalyReview({ item, saved }: { item: Anomaly; saved: (a: Anoma
     </div>
     {(error || queued.message) && <p role="alert" className="ux-warning">{error || queued.message}</p>}
     {queued.state !== 'pending' && <div className="ux-actions">
-      <Button variant="secondary" disabled={pending || local.offline} onClick={() => { void handleQueue('compare'); }}>Đọc lại bản Server</Button>
-      <Button variant="secondary" disabled={pending} onClick={() => { void handleQueue('discard'); }}>Bỏ bản sửa</Button>
-      {queued.server && <Button disabled={pending || local.offline} onClick={() => { void handleQueue('reapply'); }}>Lưu bản sửa trên version mới</Button>}
+      <Button variant="secondary" disabled={pending || local.offline} onClick={() => { runClientTask(handleQueue('compare')); }}>Đọc lại bản Server</Button>
+      <Button variant="secondary" disabled={pending} onClick={() => { runClientTask(handleQueue('discard')); }}>Bỏ bản sửa</Button>
+      {queued.server && <Button disabled={pending || local.offline} onClick={() => { runClientTask(handleQueue('reapply')); }}>Lưu bản sửa trên version mới</Button>}
     </div>}
   </section>;
   return <section className="ux-panel ux-review-form"><div className="ux-panel-heading"><div><h3>Đánh giá của Analyst</h3><p>Chỉ thay đổi trạng thái review và ghi chú.</p></div><span className="badge">v{base.version}</span></div>
     <label className="field">Review status<select aria-label="Review status" disabled={pending} value={status} onChange={e => { setStatus(e.target.value as Anomaly['status']); setSuccess(false); }}><option value="open">Open · Chưa hoàn tất đánh giá</option><option value="confirmed">Confirmed · Phát hiện đáng ghi nhận</option><option value="false_positive">False positive · Không chấp nhận cảnh báo</option></select></label>
     <p>Confirmed ghi nhận đánh giá của con người, không xác nhận nguyên nhân ô nhiễm hoặc chứng minh detector đúng. False positive không khẳng định cảm biến đo sai.</p>
     <label className="field">Ghi chú<textarea aria-label="Ghi chú" disabled={pending} value={note} onChange={e => { setNote(e.target.value); setSuccess(false); }} placeholder="Ghi nhận quan sát, dữ liệu đối chiếu và những điều chưa xác minh." /></label>
-    <div className="ux-save-row"><span>Cập nhật {formatWorkspaceTime(base.updatedAt, zone)} · {zoneLabel(zone)}</span><Button aria-label="Lưu review" disabled={pending || conflict || !dirty} onClick={() => { void save(); }}>{pending ? 'Đang lưu…' : 'Lưu đánh giá'}</Button></div>
+    <div className="ux-save-row"><span>Cập nhật {formatWorkspaceTime(base.updatedAt, zone)} · {zoneLabel(zone)}</span><Button aria-label="Lưu review" disabled={pending || conflict || !dirty} onClick={() => { runClientTask(save()); }}>{pending ? 'Đang lưu…' : 'Lưu đánh giá'}</Button></div>
     {success && <p role="status" className="ux-success">Server đã xác nhận lưu review.</p>}
     {error && <p role="alert" className="ux-warning">{error} Bản sửa vẫn đang mở.{conflict && ' Đối chiếu bản Server trước khi gửi lại.'}</p>}
-    {conflict && <div className="ux-conflict"><h4>Đối soát đánh giá trên Server</h4><p>Phiên bản có thể đã thay đổi hoặc phản hồi ghi bị mất. Giữ bản sửa và kiểm tra trước khi tiếp tục.</p>{latest ? <><div className="ux-compare"><p>Server v{latest.version}: {latest.status} · {latest.note || '(ghi chú rỗng)'}</p><p>Bản của bạn: {status} · {note || '(ghi chú rỗng)'}</p></div><div className="ux-actions"><Button variant="secondary" disabled={pending} onClick={() => { setBase(latest); setStatus(latest.status); setNote(latest.note); setConflict(false); setError(''); saved(latest); }}>Bỏ bản sửa, dùng Server</Button><Button variant="secondary" disabled={pending} onClick={() => { setBase(latest); setConflict(false); setError(''); }}>Giữ bản sửa trên version mới</Button></div><p>Kiểm tra lại rồi tự bấm Lưu; không tự merge hoặc gửi PATCH.</p></> : <Button variant="secondary" disabled={pending} onClick={() => { void loadLatest(); }}>Đọc lại bản Server</Button>}</div>}
+    {conflict && <div className="ux-conflict"><h4>Đối soát đánh giá trên Server</h4><p>Phiên bản có thể đã thay đổi hoặc phản hồi ghi bị mất. Giữ bản sửa và kiểm tra trước khi tiếp tục.</p>{latest ? <><div className="ux-compare"><p>Server v{latest.version}: {latest.status} · {latest.note || '(ghi chú rỗng)'}</p><p>Bản của bạn: {status} · {note || '(ghi chú rỗng)'}</p></div><div className="ux-actions"><Button variant="secondary" disabled={pending} onClick={() => { setBase(latest); setStatus(latest.status); setNote(latest.note); setConflict(false); setError(''); saved(latest); }}>Bỏ bản sửa, dùng Server</Button><Button variant="secondary" disabled={pending} onClick={() => { setBase(latest); setConflict(false); setError(''); }}>Giữ bản sửa trên version mới</Button></div><p>Kiểm tra lại rồi tự bấm Lưu; không tự merge hoặc gửi PATCH.</p></> : <Button variant="secondary" disabled={pending} onClick={() => { runClientTask(loadLatest()); }}>Đọc lại bản Server</Button>}</div>}
   </section>;
 }

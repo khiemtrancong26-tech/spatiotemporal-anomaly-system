@@ -5,6 +5,32 @@ import type { Reading } from '../../shared/api/generated/wire';
 import { createHeatmapTransition, heatLayer } from './map-heatmap';
 import { color, cubePoints } from './geometry';
 import { Button, LoadingState } from '../../shared/ui/primitives';
+import type { StyleSpecification } from 'mapbox-gl';
+
+async function loadStandardStyle(token: string, signal: AbortSignal): Promise<StyleSpecification> {
+  const url = new URL('https://api.mapbox.com/styles/v1/mapbox/standard');
+  url.searchParams.set('access_token', token);
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw new Error('Không tải được bản đồ/token/tiles. Bảng dữ liệu và Cube vẫn dùng được.');
+  const basemap = await response.json() as StyleSpecification;
+
+  // Mapbox GL JS #13750: ground elevation sends these zero-offset lines
+  // through line-progress evaluation, although their vector tiles have no line metrics.
+  for (const layer of basemap.layers) {
+    if (layer.type !== 'line' || (layer.id !== 'gate-fence-hedge' && layer.id !== 'gate-fence-hedge-shade')) continue;
+    const layout = layer.layout;
+    if (layout?.['line-elevation-reference'] === 'ground' && (layout['line-z-offset'] ?? 0) === 0) {
+      layout['line-elevation-reference'] = 'none';
+    }
+  }
+  return {
+    version: 8,
+    imports: [{ id: 'basemap', url: 'mapbox://styles/mapbox/standard', data: basemap }],
+    sources: {},
+    layers: [],
+  };
+}
+
 type View = { zone: ExplorationTimeZone; rows: Reading[]; selected?: string; focusedSensorId?:string; marked: Set<string>; scale?: {min:number;max:number} };
 export default function Renderer({ rows, mode, selected, focusedSensorId, onSelect, marked, spatialHeatmap = false, scale, zone = '+07:00' }: Omit<View, 'zone'> & { zone?: ExplorationTimeZone; spatialHeatmap?:boolean; mode:'map'|'cube'; onSelect:(id:string)=>void }) {
   const host = useRef<HTMLDivElement>(null), reset = useRef<()=>void>(()=>{});
@@ -17,6 +43,7 @@ export default function Renderer({ rows, mode, selected, focusedSensorId, onSele
   useEffect(()=>{heatmap.current=spatialHeatmap;toggleHeatmap.current(spatialHeatmap);},[spatialHeatmap]);
   useEffect(()=>{
     let cancelled=false, cleanup=()=>{};
+    const controller = new AbortController();
     const element=host.current!;
     const range=(view:View)=>view.scale??{min:Math.min(...view.rows.map(r=>r.value)),max:Math.max(...view.rows.map(r=>r.value))};
     async function start() {
@@ -26,8 +53,10 @@ export default function Renderer({ rows, mode, selected, focusedSensorId, onSele
         const {default:mapbox}=await import('mapbox-gl');await import('mapbox-gl/dist/mapbox-gl.css');
         if(cancelled)return;
         if(!mapbox.supported())throw new Error('WebGL không khả dụng cho Mapbox. Dùng bảng dữ liệu bên dưới.');
+        const style = await loadStandardStyle(token, controller.signal);
+        if (cancelled) return;
         const center=input.current.rows[0]?.location.coordinates??[105,21];
-        const map=new mapbox.Map({container:element,accessToken:token,style:'mapbox://styles/mapbox/standard',center:[center[0],center[1]],zoom:12,pitch:45,antialias:true});
+        const map=new mapbox.Map({container:element,accessToken:token,style,center:[center[0],center[1]],zoom:12,pitch:45,antialias:true});
         map.addControl(new mapbox.NavigationControl(),'bottom-right');
         let fitted=false, previousWidth=element.clientWidth;
         cleanup=()=>map.remove();
@@ -101,8 +130,8 @@ export default function Renderer({ rows, mode, selected, focusedSensorId, onSele
         cleanup=()=>{resize.disconnect();controls.removeEventListener('change',render);controls.dispose();renderer.domElement.removeEventListener('click',pick);renderer.domElement.removeEventListener('webglcontextlost',lost);geometry.dispose();material.dispose();edges.dispose();edgeMaterial.dispose();axes.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();};
       }
     }
-    void start().catch(cause=>{cleanup();if(!cancelled)setError(cause instanceof Error?cause.message:'Không khởi tạo được WebGL; dùng bảng dữ liệu.');});
-    return()=>{cancelled=true;update.current=()=>{};toggleHeatmap.current=()=>{};reset.current=()=>{};cleanup();};
+    void start().catch((cause: unknown)=>{cleanup();if(!cancelled)setError(cause instanceof Error?cause.message:'Không khởi tạo được WebGL; dùng bảng dữ liệu.');});
+    return()=>{cancelled=true;controller.abort();update.current=()=>{};toggleHeatmap.current=()=>{};reset.current=()=>{};cleanup();};
   },[mode]);
   return <div className="renderer-surface" data-ready={ready}><div className="renderer-controls"><Button variant="secondary" onClick={()=>reset.current()}>Reset camera</Button></div>{error&&<p role="alert" className="renderer-error">{error}</p>}{!ready&&!error&&<div className="renderer-loading"><LoadingState label="Đang khởi tạo vùng trực quan…"/></div>}<div ref={host} className="visualization-canvas" aria-label={mode==='map'?'Mapbox 3D':'Space–Time Cube'}/></div>;
 }

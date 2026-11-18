@@ -13,4 +13,4 @@ async function main() {
     process.stdout.write(JSON.stringify({ datasetId: id, metadata }) + '\n');
   } finally { await client.close(); }
 }
-main().catch(error => { process.stderr.write(error instanceof Error ? error.message + '\n' : 'Metadata configuration failed\n'); process.exitCode = 1; });
+main().catch((error: unknown) => { process.stderr.write(error instanceof Error ? error.message + '\n' : 'Metadata configuration failed\n'); process.exitCode = 1; });

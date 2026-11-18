@@ -66,6 +66,13 @@ test('Desktop offline shell, partial readings and durable review through MongoDB
       return payload;
     });
     const api = `${await backend.listen({ host: '127.0.0.1', port: 0 })}/api/v1`;
+    const network = await context.newCDPSession(page);
+    const browserNetworkState = { latency: 0, downloadThroughput: -1, uploadThroughput: -1 };
+    let browserOffline = false;
+    let offlineSessionChecks = 0;
+    page.on('request', request => {
+      if (browserOffline && request.url() === `${api}/users/me`) offlineSessionChecks++;
+    });
     const db = backend.mongo.db;
     const { analyst } = await seedDemo(db, { SEED_ANALYST_USERNAME: 'OfflineAnalyst', SEED_ANALYST_PASSWORD: password,
       SEED_ADMIN_USERNAME: 'OfflineAdmin', SEED_ADMIN_PASSWORD: password });
@@ -115,7 +122,11 @@ test('Desktop offline shell, partial readings and durable review through MongoDB
     await expect(page.getByText('Offline · dữ liệu cục bộ', { exact: true })).toBeVisible();
 
     await context.setOffline(true);
+    // Also keep navigator.onLine offline across Chromium reloads.
+    await network.send('Network.overrideNetworkState', { ...browserNetworkState, offline: true });
+    browserOffline = true;
     await page.reload();
+    expect(await page.evaluate(() => navigator.onLine)).toBe(false);
     await expect(page.getByLabel('Múi giờ workspace')).toHaveValue('UTC');
     await expect(page.getByRole('heading', { name: 'Offline private dataset' })).toBeVisible();
     await expect(page.getByText(/Chưa cài được bộ nhớ ứng dụng/)).toHaveCount(0);
@@ -166,6 +177,8 @@ test('Desktop offline shell, partial readings and durable review through MongoDB
     const other = await request.patch(`${api}/anomalies/${second}`, { headers, data: { baseVersion: 1, changes: { status: 'false_positive', note: 'Bản Server' } } });
     expect(other.status()).toBe(200);
     await context.setOffline(false);
+    await network.send('Network.overrideNetworkState', { ...browserNetworkState, offline: false });
+    browserOffline = false;
     await expect(page.getByText('Xung đột (1).', { exact: true })).toBeVisible({ timeout: 35000 });
     expect(outcomes).toEqual(['applied', 'duplicate', 'conflict']);
     expect(firstMutation).toMatchObject({ anomalyId: String(first), baseVersion: 1, changes: { status: 'confirmed', note: 'Đánh giá offline đã lưu' } });
@@ -180,13 +193,17 @@ test('Desktop offline shell, partial readings and durable review through MongoDB
 
     page.once('dialog', dialog => dialog.accept());
     await clickHeader(page, 'Đăng xuất');
+    await expect(page.getByRole('heading', { name: 'Đăng nhập', exact: true })).toBeVisible();
     await page.goto(`${frontend}/login`);
     await login(page, 'OfflineAdmin');
     await expect(page.getByRole('heading', { name: 'Dữ liệu của bạn' })).toBeVisible();
     await expect(page.getByText('Xung đột (1).', { exact: true })).toHaveCount(0);
     await context.setOffline(true);
+    await network.send('Network.overrideNetworkState', { ...browserNetworkState, offline: true });
+    browserOffline = true;
     await page.goto(workspaceUrl);
     await expect(page.getByText('Chưa có dữ liệu được lưu để sử dụng offline.', { exact: true }).first()).toBeVisible();
+    expect(offlineSessionChecks).toBe(0);
     expect(outcomes).toEqual(['applied', 'duplicate', 'conflict']);
   } finally {
     if (preview && preview.exitCode === null) {

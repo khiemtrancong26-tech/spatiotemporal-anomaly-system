@@ -1,3 +1,4 @@
+import { runClientTask } from '../app/error-handling';
 import { createStore } from 'zustand/vanilla';
 import type { Session } from '../features/auth/session';
 import type { createWorkspaceStore } from '../features/workspace/state';
@@ -213,8 +214,8 @@ export function createOfflineServices(namespace: string, api: OnlineDataSource, 
       void refreshOutbox().catch(storageFailed);
       if (previous.user && previous.user.id !== next.user.id) workspace.getState().clear();
       const user = account();
-      if (user) void restoreWorkspace(user);
-      void check();
+      if (user) runClientTask(restoreWorkspace(user));
+      runClientTask(check());
     }
     if (next.revision !== previous.revision && next.status === 'anonymous') {
       const previousId = previous.user?.id ?? tabOwner();
@@ -233,8 +234,10 @@ export function createOfflineServices(namespace: string, api: OnlineDataSource, 
       if (workspace.getState().datasetId === id) return;
       const snapshot = store.getState().lastWorkspace;
       if (snapshot?.datasetId === id) {
-        const { path: _, ...state } = snapshot;
-        workspace.setState(state);
+        const { datasetId, filters, tab, timeZone, timeZoneChosen, visualMode, cubeMode, cubeCamera, cubeRunId,
+          visualTime, cubeScope, cubeWindowMs, focusedSensorId, anomalyContext } = snapshot;
+        workspace.setState({ datasetId, filters, tab, timeZone, timeZoneChosen, visualMode, cubeMode, cubeCamera, cubeRunId,
+          visualTime, cubeScope, cubeWindowMs, focusedSensorId, anomalyContext });
       } else workspace.getState().openDataset(id);
     },
     async initialize() {
@@ -254,14 +257,14 @@ export function createOfflineServices(namespace: string, api: OnlineDataSource, 
     },
     start() {
       window.addEventListener('offline', connectionLost);
-      window.addEventListener('online', () => { retryAt = 0; void check(); });
+      window.addEventListener('online', () => { retryAt = 0; runClientTask(check()); });
       window.addEventListener('storage', event => {
         const user = account();
         if (event.key === identityKey && user && rememberedUser()?.id !== user.id) session.logout();
       });
-      window.setInterval(() => { if (!document.hidden) void check(); }, 10000);
-      document.addEventListener('visibilitychange', () => { if (!document.hidden) void check(); });
-      void check();
+      window.setInterval(() => { if (!document.hidden) runClientTask(check()); }, 10000);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) runClientTask(check()); });
+      runClientTask(check());
     },
     async coverage(query: ReadingsQuery) {
       const user = account();
@@ -291,15 +294,15 @@ export function createOfflineServices(namespace: string, api: OnlineDataSource, 
           throw new DataSourceError('offline', 'Chưa lưu được phiên bản anomaly này trong IndexedDB.');
         await storage.enqueue(makeMutation(user.id, base, changes));
         await refreshOutbox();
-        void check();
+        runClientTask(check());
       } catch (error) {
         if (error instanceof DOMException && error.name === 'ConstraintError') {
           await refreshOutbox().catch(storageFailed);
-          throw new Error('Anomaly này đã có một đánh giá trong Outbox.');
+          throw new Error('Anomaly này đã có một đánh giá trong Outbox.', { cause: error });
         }
         if (error instanceof DataSourceError) throw error;
         storageFailed();
-        throw new Error('Không lưu được đánh giá trong IndexedDB. Bản sửa vẫn đang mở.');
+        throw new Error('Không lưu được đánh giá trong IndexedDB. Bản sửa vẫn đang mở.', { cause: error });
       }
     },
     async compare(item: OutboxItem) {
@@ -319,12 +322,12 @@ export function createOfflineServices(namespace: string, api: OnlineDataSource, 
       const replacement = reapply && item.server ? makeMutation(user.id, item.server, item.changes) : undefined;
       await storage.settle(item, replacement);
       await refreshOutbox();
-      if (replacement) void check();
+      if (replacement) runClientTask(check());
     },
     async logout() {
       const user = account();
       if (!user) { session.logout(); return; }
-      const items = await refreshOutbox().catch(() => undefined);
+      const items = await refreshOutbox().catch(() => { storageFailed(); return undefined; });
       if (!same(user)) return;
       if ((!items || items.length) && !window.confirm('Có thể còn đánh giá chưa đồng bộ. Đăng xuất và giữ Outbox cho tài khoản này?')) return;
       session.logout();

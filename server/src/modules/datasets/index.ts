@@ -12,6 +12,7 @@ import { createSourceFiles } from './source-files.js';
 import { createImportService } from './import.service.js';
 import { createImportRoutes } from './import.routes.js';
 import type { ImportTestHooks } from './import.types.js';
+import { errorDiagnostics } from '../../shared/error-diagnostics.js';
 
 export type { DatasetReadAccess } from './datasets.types.js';
 export const createDatasetReadAccess = (db: Db) => createDatasetReadRepository(db);
@@ -24,12 +25,14 @@ export const datasetRoutes: FastifyPluginAsync<{ cursorSecret: string; imports: 
   await app.register(createDatasetRoutes(service));
   const receipts = createReceiptRepository(app.mongo.client, app.mongo.db, imports);
   const importer = createImportService(createImportRepository(app.mongo.db, receipts, imports), receipts,
-    createSourceFiles(imports.storageDir), imports, createDatasetReadRepository(app.mongo.db), options.importTestHooks);
+    createSourceFiles(imports.storageDir), imports, createDatasetReadRepository(app.mongo.db),
+    (stage, error) => app.log.error({ event: 'import_failure', stage, ...errorDiagnostics(error) }, 'Import operation failed'),
+    options.importTestHooks);
   await app.register(createImportRoutes(importer, imports.timeoutMs));
   let sweep: Promise<void> | undefined;
   const recover = () => {
     if (sweep) return;
-    sweep = importer.recover().catch(() => app.log.warn({ event: 'import_recovery_pending' }, 'Import recovery will retry'))
+    sweep = importer.recover().catch((error: unknown) => app.log.warn({ event: 'import_recovery_pending', ...errorDiagnostics(error) }, 'Import recovery will retry'))
       .finally(() => { sweep = undefined; });
   };
   let timer: ReturnType<typeof setInterval>;
