@@ -1,6 +1,7 @@
 import fp from 'fastify-plugin';
 import type { HTTPMethods } from 'fastify';
 import { HttpError } from '../shared/http/errors.js';
+import { errorDiagnostics } from '../shared/error-diagnostics.js';
 
 declare module 'fastify' {
   interface FastifyContextConfig {
@@ -12,6 +13,9 @@ declare module 'fastify' {
 export const httpPlugin = fp(async (app) => {
   app.setErrorHandler((error: Error & { statusCode?: number; code?: string; validation?: unknown; validationContext?: string }, request, reply) => {
     if (error instanceof HttpError) {
+      if (error.statusCode >= 500) {
+        request.log.error({ event: 'request_failed', statusCode: error.statusCode, route: request.routeOptions.url, ...errorDiagnostics(error) }, 'Request failed');
+      }
       if (error.statusCode === 401) reply.header('WWW-Authenticate', 'Bearer realm="pm25-api"');
       return reply.code(error.statusCode).send({
         error: { code: error.code, message: error.message, ...(error.details ? { details: error.details } : {}) },
@@ -36,7 +40,7 @@ export const httpPlugin = fp(async (app) => {
       return reply.code(status).send({ error: { code, message } });
     }
     // Driver/parser messages can contain credentials, raw payloads or connection strings.
-    request.log.error({ event: 'request_failed' }, 'Request failed');
+    request.log.error({ event: 'request_failed', statusCode: 500, route: request.routeOptions.url, ...errorDiagnostics(error) }, 'Request failed');
     return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred.' } });
   });
   app.setNotFoundHandler((request, reply) => {

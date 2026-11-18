@@ -10,6 +10,7 @@ import { createAnalysisWorker } from './analysis.worker.js';
 import type { AnalysisEngine, AnalysisTestHooks } from './analysis.types.js';
 import type { Db } from 'mongodb';
 import { createAnalysisReadRepository } from './analysis.repository.js';
+import { errorDiagnostics } from '../../shared/error-diagnostics.js';
 
 export type { AnalysisReadAccess } from './analysis.types.js';
 export const createAnalysisReadAccess = (db: Db) => createAnalysisReadRepository(db);
@@ -21,7 +22,8 @@ export const analysisRoutes: FastifyPluginAsync<{ config: AnalysisConfig; cursor
   const service = createAnalysisService(repository, createDatasetReadAccess(app.mongo.db), createCursorCodec(options.cursorSecret), options.config, engine, options.testHooks);
   await app.register(createAnalysisRoutes(service));
   const worker = createAnalysisWorker(repository, engine, options.config,
-    () => app.log.warn({ event: 'analysis_recovery_pending' }, 'Analysis worker will retry MongoDB recovery'), options.testHooks);
+    (stage, error) => app.log.error({ event: 'analysis_worker_failed', stage, ...errorDiagnostics(error) }, 'Analysis worker failed'),
+    options.testHooks);
   app.addHook('onReady', async () => { if (options.workerEnabled !== false) worker.start(); });
   app.addHook('onClose', async () => { await worker.close(); });
 };

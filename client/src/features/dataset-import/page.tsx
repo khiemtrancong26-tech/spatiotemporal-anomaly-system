@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { reportClientError, runClientTask } from '../../app/error-handling';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useBlocker } from '@tanstack/react-router';
 import { useServices } from '../../app/services';
 import { Button, Field, LoadingState, PageTitle } from '../../shared/ui/primitives';
@@ -18,7 +19,8 @@ export function ImportPage() {
   const { data, config, datasets, session } = useServices();
   const storageKey = `pm25.import.${config.mode}`;
   const [context, setContext] = useState<Context>(() => {
-    try { const value = JSON.parse(sessionStorage.getItem(storageKey) ?? '{}'); return { id: typeof value.id === 'string' ? value.id : undefined, uploadKey: typeof value.uploadKey === 'string' ? value.uploadKey : undefined, importKey: typeof value.importKey === 'string' ? value.importKey : undefined }; } catch { return {}; }
+    try { const value = JSON.parse(sessionStorage.getItem(storageKey) ?? '{}'); return { id: typeof value.id === 'string' ? value.id : undefined, uploadKey: typeof value.uploadKey === 'string' ? value.uploadKey : undefined, importKey: typeof value.importKey === 'string' ? value.importKey : undefined }; }
+    catch (error) { reportClientError('import-context-restore', error); return {}; }
   });
   const [file, setFile] = useState<File>();
   const [name, setName] = useState('');
@@ -30,6 +32,7 @@ export function ImportPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const active = useRef<AbortController | null>(null);
+  const restoredId = useRef(context.id);
   const upload = useRef<{ file: File; name: string; key: string } | null>(null);
   const finished = dataset?.status === 'imported';
   const completed = finished || report?.status === 'imported';
@@ -52,27 +55,25 @@ export function ImportPage() {
     try { await action(controller.signal); } catch (cause) { if (!controller.signal.aborted) setError(message(cause)); }
     finally { if (!controller.signal.aborted) { active.current = null; setPending(false); } }
   }
-  async function validation(id: string, signal: AbortSignal) {
+  const validation = useCallback(async (id: string, signal: AbortSignal) => {
     const result = await data.datasets.validation(id, { signal });
     if (signal.aborted) return;
     setReport(result); setDataset(undefined); setConfirmed(false); setSourceConfirmed(false);
     if (result.status === 'imported') sessionStorage.removeItem(storageKey);
     setMapping(Object.fromEntries(fields.map((field) => [field, result.sourceColumns.includes(result.mappingSuggestions[field]) ? result.mappingSuggestions[field] : ''])) as Draft);
-  }
+  }, [data, storageKey]);
   useEffect(() => {
     const controller = new AbortController();
-    if (context.id) void validation(context.id, controller.signal).catch((cause) => { if (!controller.signal.aborted) setError(message(cause)); });
+    if (restoredId.current) validation(restoredId.current, controller.signal).catch((cause: unknown) => { if (!controller.signal.aborted) setError(message(cause)); });
     return () => { controller.abort(); active.current?.abort(); active.current = null; };
-    // Restore once per mount; state transitions explicitly load their own report.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [validation]);
   const status = dataset?.status ?? report?.status;
   const canMap = report && ['uploaded', 'awaiting_mapping', 'failed'].includes(status ?? '') && !context.importKey;
   return <><PageTitle eyebrow="IMPORT DATASET" title="Nhập dataset" description="Upload → Validation → Mapping → Import và kết quả" /><ol className="import-progress" aria-label="Các bước nhập dữ liệu">{['Upload nguồn', 'Validation', 'Mapping', 'Import & kết quả'].map((label, i) => <li key={label}><span>{String(i + 1).padStart(2, '0')}</span>{label}</li>)}</ol><section className="card import-wizard">
     <h2>1. Upload CSV / JSON</h2><p className="metadata-notice">Chỉ hỗ trợ dữ liệu PM2.5 có đơn vị ug/m3 và timestamp kèm Z hoặc offset rõ ràng, tối đa 3 chữ số phần lẻ giây. Chuẩn hóa dữ liệu khác trước khi nhập; không tự gán múi giờ.</p>
     <Field label="File nguồn" type="file" accept=".csv,.json" disabled={pending || Boolean(context.uploadKey || context.id)} onChange={(event) => setFile(event.target.files?.[0])} />
     <Field label="Tên dataset (tùy chọn)" value={name} disabled={pending || Boolean(context.uploadKey || context.id)} onChange={(event) => setName(event.target.value)} />
-    <Button disabled={pending || Boolean(context.id) || (!file && !upload.current) || Boolean(context.uploadKey && !upload.current)} onClick={() => { void run(async (signal) => {
+    <Button disabled={pending || Boolean(context.id) || (!file && !upload.current) || Boolean(context.uploadKey && !upload.current)} onClick={() => { runClientTask(run(async (signal) => {
       if (!upload.current) {
         if (!file || !/\.(csv|json)$/i.test(file.name)) throw new Error('Chọn file CSV hoặc JSON.');
         upload.current = { file, name, key: crypto.randomUUID() };
@@ -88,10 +89,10 @@ export function ImportPage() {
       if (signal.aborted) return;
       save({ id: result.id, uploadKey: intent.key }); setDataset(result);
       await validation(result.id, signal);
-    }); }}>{context.id ? 'Đã upload' : context.uploadKey ? 'Thử lại upload cùng thao tác' : 'Upload'}</Button>
+    })); }}>{context.id ? 'Đã upload' : context.uploadKey ? 'Thử lại upload cùng thao tác' : 'Upload'}</Button>
     {context.uploadKey && !context.id && !upload.current && <p role="alert">Upload trước chưa có ID xác nhận. Không tự upload lại sau reload; kiểm tra với Backend trước khi tạo dataset mới.</p>}
-    {context.id && <><h2>2. Validation</h2><p>Dataset ID: {context.id} · Trạng thái: {status ?? 'Chưa đọc được'}</p><Button variant="secondary" disabled={pending} onClick={() => { void run((signal) => validation(context.id!, signal)); }}>Đọc lại trạng thái / validation</Button></>}
-    {report && <><p className="metadata-notice">Trước khi lưu mapping, số liệu chỉ phản ánh cấu trúc dòng. Sau khi lưu mapping, Backend kiểm tra giá trị, thời gian, đơn vị và tọa độ; import sẽ kiểm tra lại.</p><p>Tổng {report.totalRows} dòng · Hợp lệ {report.validRows} · Không hợp lệ {report.invalidRows}</p><p>Cột nguồn: {report.sourceColumns.join(', ')}</p><details className="validation-details"><summary>Chi tiết báo cáo ({report.issues.length} mục)</summary><div className="table-scroll" tabIndex={0} role="region" aria-label="Báo cáo validation"><table><thead><tr><th>Dòng</th><th>Trường</th><th>Lý do</th><th>Dòng được giữ</th></tr></thead><tbody>{report.issues.map((issue, index) => <tr key={index}><td>{issue.rowNumber}</td><td>{issue.field ?? '—'}</td><td>{issue.reason}</td><td>{issue.keptRowNumber ?? '—'}</td></tr>)}</tbody></table></div></details><small>Hiển thị {report.issues.length} lỗi do Server trả về; không suy ra đây là toàn bộ lỗi nguồn.</small><h2>3. Xác nhận mapping</h2><p>Ghép các trường bên dưới với cột tương ứng trong file. Không có cột phù hợp thì cần chuẩn hóa file trước; chọn một cột bất kỳ sẽ không tạo ra dữ liệu còn thiếu.</p>{['year','month','day','hour'].every(column=>report.sourceColumns.includes(column)) && !report.mappingSuggestions.timestamp && <p className="warning-message">File đang tách năm/tháng/ngày/giờ thành nhiều cột. Dropdown này không tự ghép thời gian; cần chuẩn hóa thành một cột timestamp có múi giờ trước khi nhập.</p>}<div className="mapping-grid">{fields.map((field) => <label className="field" key={field}><span>{fieldInfo[field][0]} <small>({field})</small></span><select aria-label={field} value={mapping[field]} disabled={pending || !canMap} onChange={(event) => { setMapping({ ...mapping, [field]: event.target.value }); setConfirmed(false); }}><option value="">Chọn cột nguồn</option>{report.sourceColumns.map((column) => <option key={column} value={column}>{column}</option>)}</select><small>{fieldInfo[field][1]}</small></label>)}</div><p>Đơn vị đích: µg/m³ (ug/m3)</p><label><input type="checkbox" checked={sourceConfirmed} disabled={pending || !canMap} onChange={(e) => { setSourceConfirmed(e.target.checked); setConfirmed(false); }} /> Tôi đã kiểm tra nguồn dùng ug/m3 và timestamp có Z/offset. Backend vẫn phải kiểm tra dữ liệu.</label><Button disabled={pending || !canMap || !sourceConfirmed} onClick={() => { void run(async (signal) => {
+    {context.id && <><h2>2. Validation</h2><p>Dataset ID: {context.id} · Trạng thái: {status ?? 'Chưa đọc được'}</p><Button variant="secondary" disabled={pending} onClick={() => { runClientTask(run((signal) => validation(context.id!, signal))); }}>Đọc lại trạng thái / validation</Button></>}
+    {report && <><p className="metadata-notice">Trước khi lưu mapping, số liệu chỉ phản ánh cấu trúc dòng. Sau khi lưu mapping, Backend kiểm tra giá trị, thời gian, đơn vị và tọa độ; import sẽ kiểm tra lại.</p><p>Tổng {report.totalRows} dòng · Hợp lệ {report.validRows} · Không hợp lệ {report.invalidRows}</p><p>Cột nguồn: {report.sourceColumns.join(', ')}</p><details className="validation-details"><summary>Chi tiết báo cáo ({report.issues.length} mục)</summary><div className="table-scroll" tabIndex={0} role="region" aria-label="Báo cáo validation"><table><thead><tr><th>Dòng</th><th>Trường</th><th>Lý do</th><th>Dòng được giữ</th></tr></thead><tbody>{report.issues.map((issue, index) => <tr key={index}><td>{issue.rowNumber}</td><td>{issue.field ?? '—'}</td><td>{issue.reason}</td><td>{issue.keptRowNumber ?? '—'}</td></tr>)}</tbody></table></div></details><small>Hiển thị {report.issues.length} lỗi do Server trả về; không suy ra đây là toàn bộ lỗi nguồn.</small><h2>3. Xác nhận mapping</h2><p>Ghép các trường bên dưới với cột tương ứng trong file. Không có cột phù hợp thì cần chuẩn hóa file trước; chọn một cột bất kỳ sẽ không tạo ra dữ liệu còn thiếu.</p>{['year','month','day','hour'].every(column=>report.sourceColumns.includes(column)) && !report.mappingSuggestions.timestamp && <p className="warning-message">File đang tách năm/tháng/ngày/giờ thành nhiều cột. Dropdown này không tự ghép thời gian; cần chuẩn hóa thành một cột timestamp có múi giờ trước khi nhập.</p>}<div className="mapping-grid">{fields.map((field) => <label className="field" key={field}><span>{fieldInfo[field][0]} <small>({field})</small></span><select aria-label={field} value={mapping[field]} disabled={pending || !canMap} onChange={(event) => { setMapping({ ...mapping, [field]: event.target.value }); setConfirmed(false); }}><option value="">Chọn cột nguồn</option>{report.sourceColumns.map((column) => <option key={column} value={column}>{column}</option>)}</select><small>{fieldInfo[field][1]}</small></label>)}</div><p>Đơn vị đích: µg/m³ (ug/m3)</p><label><input type="checkbox" checked={sourceConfirmed} disabled={pending || !canMap} onChange={(e) => { setSourceConfirmed(e.target.checked); setConfirmed(false); }} /> Tôi đã kiểm tra nguồn dùng ug/m3 và timestamp có Z/offset. Backend vẫn phải kiểm tra dữ liệu.</label><Button disabled={pending || !canMap || !sourceConfirmed} onClick={() => { runClientTask(run(async (signal) => {
       if (fields.some((field) => !report.sourceColumns.includes(mapping[field]))) throw new Error('Chọn đủ năm cột nguồn bắt buộc.');
       const body: MappingRequest = { fieldMap: { ...mapping }, unit: 'ug/m3' };
       setConfirmed(false);
@@ -100,29 +101,35 @@ export function ImportPage() {
         const checked = await data.datasets.validation(context.id!, { signal });
         if (!signal.aborted) { setDataset(result); setReport(checked); setConfirmed(true); }
       } catch (cause) {
-        const checked = await data.datasets.validation(context.id!, { signal }).catch(() => undefined);
-        if (checked && !signal.aborted) { setReport(checked); setDataset(undefined); }
+        if (signal.aborted) return;
+        try {
+          const checked = await data.datasets.validation(context.id!, { signal });
+          if (!signal.aborted) { setReport(checked); setDataset(undefined); }
+        } catch (readError) {
+          if (signal.aborted) return;
+          throw new AggregateError([cause, readError], `${message(cause)} Chưa đọc lại được trạng thái validation.`, { cause: readError });
+        }
         throw cause;
       }
-    }); }}>Lưu mapping</Button></>}
-    {context.id && <><h2>4. Import và kết quả</h2>{context.importKey && !completed && <p>Đã có thao tác import: giữ nguyên mapping và key khi thử lại. Đọc lại trạng thái trước khi quyết định; không tạo import mới.</p>}<Button disabled={pending || finished || (!confirmed && !context.importKey) || status === 'failed' || status === 'imported' || !report} onClick={() => { void run(async (signal) => {
+    })); }}>Lưu mapping</Button></>}
+    {context.id && <><h2>4. Import và kết quả</h2>{context.importKey && !completed && <p>Đã có thao tác import: giữ nguyên mapping và key khi thử lại. Đọc lại trạng thái trước khi quyết định; không tạo import mới.</p>}<Button disabled={pending || finished || (!confirmed && !context.importKey) || status === 'failed' || status === 'imported' || !report} onClick={() => { runClientTask(run(async (signal) => {
       const next = { ...context, importKey: context.importKey ?? crypto.randomUUID() }; save(next);
       const result = await data.datasets.import(next.id!, { signal, idempotencyKey: next.importKey });
       if (signal.aborted) return;
       setDataset(result);
       if (result.status === 'imported') { datasets.set(result.id, result); sessionStorage.removeItem(storageKey); }
-    }); }}>{completed ? 'Đã import' : context.importKey ? 'Thử lại import cùng key' : 'Import'}</Button></>}
+    })); }}>{completed ? 'Đã import' : context.importKey ? 'Thử lại import cùng key' : 'Import'}</Button></>}
     {report?.status === 'imported' && !finished && <p>Server báo dataset đã imported. Có thể chọn dataset từ danh sách; không gửi lại import để lấy metadata.</p>}
     {dataset?.importSummary && <div><p>Đã nhập: {dataset.importSummary.importedRows} · Trùng hoàn toàn: {dataset.importSummary.duplicateRows} · Xung đột: {dataset.importSummary.conflictingRows} · Không hợp lệ: {dataset.importSummary.invalidRows}</p>{dataset.importSummary.issues.map((issue, index) => <p key={index}>Dòng {issue.rowNumber}: {issue.reason}; giữ dòng {issue.keptRowNumber ?? '—'}</p>)}</div>}
-    {status === 'failed' && <><p role="alert">Dataset thất bại và chưa được công bố. Backend chỉ trả trạng thái failed sau khi dữ liệu nhập dở đã được dọn. Xác nhận lại mapping trước lần nhập mới; nếu nguồn không hợp lệ hoặc bị mất, cần upload nguồn đã sửa.</p>{context.importKey && <Button variant="secondary" disabled={pending} onClick={() => { void run(async (signal) => {
+    {status === 'failed' && <><p role="alert">Dataset thất bại và chưa được công bố. Backend chỉ trả trạng thái failed sau khi dữ liệu nhập dở đã được dọn. Xác nhận lại mapping trước lần nhập mới; nếu nguồn không hợp lệ hoặc bị mất, cần upload nguồn đã sửa.</p>{context.importKey && <Button variant="secondary" disabled={pending} onClick={() => { runClientTask(run(async (signal) => {
       const checked = await data.datasets.validation(context.id!, { signal });
       if (checked.status !== 'failed') throw new Error('Trạng thái đã thay đổi. Đọc lại validation trước khi tạo lần nhập mới.');
       if (!signal.aborted) { save({ id: context.id, uploadKey: context.uploadKey }); setReport(checked); setDataset(undefined); setConfirmed(false); setSourceConfirmed(false); }
-    }); }}>Chuẩn bị lần nhập mới sau cleanup</Button>}<Button variant="secondary" disabled={pending} onClick={() => { void run(async (signal) => {
+    })); }}>Chuẩn bị lần nhập mới sau cleanup</Button>}<Button variant="secondary" disabled={pending} onClick={() => { runClientTask(run(async (signal) => {
       const checked = await data.datasets.validation(context.id!, { signal });
       if (checked.status !== 'failed') throw new Error('Trạng thái đã thay đổi. Đọc lại validation trước khi bắt đầu upload mới.');
       if (!signal.aborted) { save({}); upload.current = null; setFile(undefined); setName(''); setReport(undefined); setDataset(undefined); setConfirmed(false); setSourceConfirmed(false); }
-    }); }}>Bắt đầu upload mới</Button></>}
+    })); }}>Bắt đầu upload mới</Button></>}
     {finished && <Link className="button button--primary" to="/workspace/$datasetId" params={{ datasetId: dataset!.id }}>Mở workspace</Link>}
     {(finished || report?.status === 'imported') && <Link className="text-link" to="/datasets">Về Datasets</Link>}
     {pending && <LoadingState label="Đang chờ Backend xác nhận…" />}{error && <p role="alert" className="text-error">{error}</p>}

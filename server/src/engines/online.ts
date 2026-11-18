@@ -23,10 +23,13 @@ function statistics(input: StatisticalDetectorInput, signal: AbortSignal) {
       workerData: input, env: { ...environment, TSX_DISABLE_CACHE: '1' }, execArgv: source ? ['--import', 'tsx'] : [],
     });
     let message: unknown, failure: Error | undefined;
-    const abort = () => { failure = new EngineError('ENGINE_ABORTED', 'Engine aborted.'); void worker.terminate(); };
+    const abort = () => {
+      failure = new EngineError('ENGINE_ABORTED', 'Engine aborted.');
+      worker.terminate().catch((cause: unknown) => reject(new EngineError('ENGINE_UNAVAILABLE', 'Statistical worker could not be stopped.', { cause })));
+    };
     signal.addEventListener('abort', abort, { once: true });
     worker.once('message', result => { message = result; });
-    worker.once('error', () => { failure = new EngineError('ENGINE_UNAVAILABLE', 'Statistical worker unavailable.'); });
+    worker.once('error', cause => { failure = new EngineError('ENGINE_UNAVAILABLE', 'Statistical worker unavailable.', { cause }); });
     worker.once('exit', code => {
       signal.removeEventListener('abort', abort);
       if (failure) { reject(failure); return; }
@@ -50,7 +53,7 @@ export function createOnlineEngine(config: AnalysisConfig): AnalysisEngine {
     let release = nativeCapacity.acquire();
     while (!release) {
       try { await delay(25, undefined, { signal }); }
-      catch { throw new EngineError(outer?.aborted ? 'ENGINE_ABORTED' : 'ENGINE_TIMEOUT', 'Native capacity wait stopped.'); }
+      catch (cause) { throw new EngineError(outer?.aborted ? 'ENGINE_ABORTED' : 'ENGINE_TIMEOUT', 'Native capacity wait stopped.', { cause }); }
       release = nativeCapacity.acquire();
     }
     try { return await adapter(args[0], args[1], args[2], signal); } finally { release(); }
@@ -69,9 +72,9 @@ export function createOnlineEngine(config: AnalysisConfig): AnalysisEngine {
             createHash('sha256').update(await readFile(config.artifactPath)).digest('hex') !== manifest.sha256 || !policyMatches()) throw new Error();
         const reading: Reading = { id: 'readiness', datasetId: 'readiness', sensorId: 'readiness', ts: '2026-01-01T00:00:00.000Z', value: 50, unit: 'ug/m3', location: { type: 'Point', coordinates: [0, 0] } };
         probe ??= invoke([reading], [{ readingId: reading.id, values: [50, 0, 0] }],
-          { id: policyId, score: point => -point.decisionFunction }).catch(error => { probe = undefined; throw error; });
+          { id: policyId, score: point => -point.decisionFunction }).catch((error: unknown) => { probe = undefined; throw error; });
         await probe;
-      } catch { throw new EngineError('MODEL_UNAVAILABLE', 'The configured PM2.5 model is not ready.'); }
+      } catch (cause) { throw new EngineError('MODEL_UNAVAILABLE', 'The configured PM2.5 model is not ready.', { cause }); }
     },
     async run(guard, readings, signal, context) {
       if (!readings.length) throw new EngineError('INSUFFICIENT_DATA', 'No readings in the accepted scope.');
@@ -88,7 +91,7 @@ export function createOnlineEngine(config: AnalysisConfig): AnalysisEngine {
       if (!context) throw new EngineError('ENGINE_INPUT_INVALID', 'Explicit PM2.5 context is required.');
       let built;
       try { built = buildPm25Features(guard.run.datasetId, readings, context.readings, context.sensors); }
-      catch { throw new EngineError('ENGINE_INPUT_INVALID', 'Invalid PM2.5 feature inputs.'); }
+      catch (cause) { throw new EngineError('ENGINE_INPUT_INVALID', 'Invalid PM2.5 feature inputs.', { cause }); }
       if (!built.rows.length) throw new EngineError('INSUFFICIENT_CONTEXT', 'No target has complete features.');
       const ids = new Set(built.scorable.map(r => r.id)), selected = readings.filter(r => ids.has(r.id));
       const result = await invoke(selected, built.rows, { id: policyId, score: point => -point.decisionFunction }, signal);

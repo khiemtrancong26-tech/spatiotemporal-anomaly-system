@@ -49,7 +49,8 @@ export function createAnalysisService(repository: AnalysisRepository, datasets: 
       if (parent.status !== 'imported') throw new HttpError(422, 'DATASET_NOT_READY', 'Dataset is not imported.');
       if (input.scope?.sensorIds && !await repository.sensorsInDataset(parent.id, input.scope.sensorIds)) throw new HttpError(422, 'SENSOR_NOT_IN_DATASET', 'Every sensor must belong to the dataset.');
       if (input.family === 'ml') {
-        try { await engine.ready(); } catch { throw new HttpError(503, 'MODEL_UNAVAILABLE', 'The PM2.5 model is not ready. No run was accepted.'); }
+        try { await engine.ready(); }
+        catch (cause) { throw new HttpError(503, 'MODEL_UNAVAILABLE', 'The PM2.5 model is not ready. No run was accepted.', undefined, { cause }); }
       }
       const response = await store(() => repository.accept(intent, { ...input, datasetId: parent.id }, engine.metadata(input.family), actor));
       await hooks.afterAccepted?.((response.body as { data: import('@pm25/shared-core/contracts').AnalysisRun }).data);

@@ -8,9 +8,15 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   { languageOptions: { globals: { ...globals.browser, ...globals.node } } },
-  { files: ['**/*.{ts,tsx}'], plugins: { 'react-hooks': hooks }, rules: {
+  { linterOptions: { reportUnusedDisableDirectives: 'error', reportUnusedInlineConfigs: 'error' } },
+  { files: ['**/*.{ts,tsx}'], languageOptions: { parserOptions: { project: './tsconfig.json', tsconfigRootDir: import.meta.dirname } },
+    plugins: { 'react-hooks': hooks }, rules: {
     'react-hooks/rules-of-hooks': 'error',
     'react-hooks/exhaustive-deps': 'error',
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-floating-promises': ['error', { ignoreVoid: false }],
+    '@typescript-eslint/no-misused-promises': 'error',
+    '@typescript-eslint/only-throw-error': 'error',
+    '@typescript-eslint/use-unknown-in-catch-callback-variable': 'error',
   } },
 );

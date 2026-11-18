@@ -8,10 +8,12 @@ import { useStore } from 'zustand';
 import type { OnlineDataSource } from '../shared/data-source/types';
 import type { MockControls } from '../mocks/transport';
 import type { AppConfig } from './config';
+import type { OfflineServices, OfflineState } from '../offline/services';
 
 export interface PreviewState { role: 'analyst' | 'admin' }
 export interface Services {
   readingsCache?: ReadingsCache;
+  offline?: OfflineServices;
   session?: Session;
   workspace?: ReturnType<typeof createWorkspaceStore>;
   datasets?: Map<string, Dataset>;
@@ -35,4 +37,12 @@ export function useServices() {
 export function usePreviewRole() {
   const { preview } = useServices();
   return useStore(preview, (state) => state.role);
+}
+const noOffline = createStore<OfflineState>(() => ({ offline: false, needsLogin: false, storageError: false, syncing: false,
+  readingsRevision: 0, outbox: [], synced: {} }));
+export function useOfflineState() {
+  const { offline, session } = useServices();
+  const state = useStore(offline?.store ?? noOffline);
+  const localSession = useStore(session.store, value => value.status === 'offline');
+  return { ...state, offline: state.offline || localSession };
 }

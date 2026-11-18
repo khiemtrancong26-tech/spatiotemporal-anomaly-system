@@ -31,7 +31,7 @@ export function ExplorationPanel({ datasetId, filters, profile, loading, error, 
     const controller = new AbortController(); setPending(true);
     void data.aggregates.get({ datasetId, bbox: filters.bbox, sensorIds, from, to, bucket, timeZone: zone }, { signal: controller.signal }).then(response => {
       if (!controller.signal.aborted) setResult(response);
-    }).catch(e => { if (!controller.signal.aborted) setFailure(errorMessage(e)); }).finally(() => { if (!controller.signal.aborted) setPending(false); });
+    }).catch((e: unknown) => { if (!controller.signal.aborted) setFailure(errorMessage(e)); }).finally(() => { if (!controller.signal.aborted) setPending(false); });
     return () => controller.abort();
   }, [data, datasetId, filters.bbox, profile, from, to, bucket, zone, sensorIds, revision]);
   const name = (id: string) => sensorName(id, sensors.data), count = result?.series[0]?.buckets.length ?? 0;

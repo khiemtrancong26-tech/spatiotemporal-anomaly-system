@@ -18,16 +18,16 @@ it('logout then login B clears all private state/cache and rejects late readings
   workspace.getState().openDataset('A-dataset'); workspace.getState().applyFilters({ sensorId: 'A-sensor' }); workspace.getState().prepareAnalysis({}, 'A-private'); datasets.set('A-dataset', { id: 'A-dataset' } as Dataset);
   render(<ServicesProvider services={{ session, workspace, datasets, readingsCache: cache, data: api, preview: createPreviewStore(), config: { mode: 'online', apiBaseUrl: 'http://test/api/v1' } }}><span>test</span></ServicesProvider>);
   await cache.load({ datasetId: 'A-dataset' });
-  const stale = cache.load({ datasetId: 'A-dataset', sensorId: 'A-sensor' }).catch(e => e);
+  const stale = cache.load({ datasetId: 'A-dataset', sensorId: 'A-sensor' }).catch((e: unknown) => e);
   await act(async () => { await Promise.resolve(); session.logout(); await session.login(api, 'B', 'test-password'); });
   expect(datasets.size).toBe(0); expect(workspace.getState()).toMatchObject({ datasetId: undefined, filters: {}, selectedReadingId: undefined, anomalies: [], analysisDraft: undefined, resultRun: undefined });
-  resolve({ data: [], page: { limit: 100, nextCursor: null } }); expect((await stale).name).toBe('AbortError'); expect(cache.stats()).toEqual({ readings: 0, pages: 0, coverage: 0, pending: 0 });
+  resolve({ data: [], page: { limit: 100, nextCursor: null } }); expect(await stale).toMatchObject({ name: 'AbortError' }); expect(cache.stats()).toEqual({ readings: 0, pages: 0, coverage: 0, pending: 0 });
   expect(cache.complete({ datasetId: 'A-dataset' })).toBeUndefined();
 });
 it('drops an old authenticated response after body decoding when the account/session changed', async () => {
   let token = 'A', revision = 1, finish!: (data: unknown) => void;
   const response = { ok: true, status: 200, json: () => new Promise(r => { finish = r; }) } as Response;
   const api = createOnlineDataSource({ baseUrl: 'http://test.local/api/v1', getAccessToken: () => token, getSessionRevision: () => revision, fetch: vi.fn().mockResolvedValue(response) });
-  const pending = api.datasets.list({}).catch(e => e); await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+  const pending = api.datasets.list({}).catch((e: unknown) => e); await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
   token = 'B'; revision++; finish({ data: [], page: { limit: 100, nextCursor: null } }); expect(await pending).toMatchObject({ kind: 'aborted' });
 });

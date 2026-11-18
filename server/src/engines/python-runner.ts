@@ -3,7 +3,7 @@ import { isAbsolute } from 'node:path';
 import { createCapacity } from '../shared/import-capacity.js';
 
 export class EngineError extends Error {
-  constructor(readonly code: string, message: string) { super(message); this.name = 'EngineError'; }
+  constructor(readonly code: string, message: string, options?: ErrorOptions) { super(message, options); this.name = 'EngineError'; }
 }
 export interface PythonRunnerOptions {
   pythonExecutable: string; scriptPath: string; args: string[];
@@ -31,7 +31,7 @@ export function createPythonRunner(options: PythonRunnerOptions) {
       const timer = setTimeout(() => stop(new EngineError('ENGINE_TIMEOUT', 'Engine exceeded the configured deadline.')), options.timeoutMs); timer.unref();
       const abort = () => stop(new EngineError('ENGINE_ABORTED', 'Engine wait was aborted.'));
       signal?.addEventListener('abort', abort, { once: true });
-      child.on('error', () => { failure ??= new EngineError('ENGINE_UNAVAILABLE', 'Python process could not start.'); });
+      child.on('error', cause => { failure ??= new EngineError('ENGINE_UNAVAILABLE', 'Python process could not start.', { cause }); });
       child.stdin.on('error', () => { /* Process close/error determines the sanitized result. */ });
       child.stderr.on('data', () => { /* Drain without returning/logging paths, payloads or native tracebacks. */ });
       child.stdout.on('data', (chunk: Buffer) => {
@@ -44,7 +44,7 @@ export function createPythonRunner(options: PythonRunnerOptions) {
         if (failure) { reject(failure); return; }
         let result: unknown;
         try { result = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))); }
-        catch { reject(new EngineError('ENGINE_PROTOCOL_ERROR', 'Python output is not valid JSON.')); return; }
+        catch (cause) { reject(new EngineError('ENGINE_PROTOCOL_ERROR', 'Python output is not valid JSON.', { cause })); return; }
         if (code !== 0) {
           const error = result && typeof result === 'object' && 'error' in result ? result.error : undefined;
           const known = ['MODEL_RUNTIME_MISMATCH', 'MODEL_INTEGRITY_ERROR', 'FEATURE_SCHEMA_MISMATCH', 'INVALID_FEATURES', 'MODEL_TYPE_MISMATCH', 'INVALID_MODEL_OUTPUT', 'MODEL_UNAVAILABLE'];

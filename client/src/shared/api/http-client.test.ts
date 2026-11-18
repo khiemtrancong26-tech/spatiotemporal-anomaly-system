@@ -43,6 +43,15 @@ it('rejects partial anomaly responses instead of reporting a successful save', a
   await expect(createOnlineDataSource(options(fetch)).anomalies.review('a', { baseVersion: 1, changes: { note: 'review' } })).rejects.toMatchObject({ kind: 'invalid-response' });
 });
 
+it('does not send protected requests after the session has been cleared', async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(response({ status: 'ok', timestamp: '2026-11-13T00:00:00Z' }));
+  const api = createOnlineDataSource({ ...options(fetch), getAccessToken: () => undefined });
+  await expect(api.datasets.list({})).rejects.toMatchObject({ kind: 'http', status: 401 });
+  expect(fetch).not.toHaveBeenCalled();
+  await expect(api.health()).resolves.toMatchObject({ status: 'ok' });
+  expect(fetch).toHaveBeenCalledOnce();
+});
+
 it('distinguishes malformed JSON, network failure and cancellation; never retries or falls back', async () => {
   const fetch = vi.fn<typeof globalThis.fetch>()
     .mockResolvedValueOnce(new Response('<html>Error</html>', { status: 500 }))

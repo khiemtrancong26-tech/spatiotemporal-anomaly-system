@@ -1,5 +1,5 @@
-import type { Reading, ReadingPage } from '../../shared/api/generated/wire';
-import type { OnlineDataSource, ReadingsQuery } from '../../shared/data-source/types';
+import type { Reading } from '../../shared/api/generated/wire';
+import type { OnlineDataSource, ReadingPage, ReadingsQuery } from '../../shared/data-source/types';
 import { DataSourceError } from '../../shared/api/errors';
 export const CUBE_DETAIL_LIMIT = 2000;
 export const READINGS_PAGE_SIZE = 100;
@@ -13,7 +13,7 @@ const hi = (q:Scope) => q.to ? Date.parse(q.to) : Infinity;
 const fits = (r:Reading,q:Scope) => r.datasetId===q.datasetId && (!q.sensorId||q.sensorId===r.sensorId) && Date.parse(r.ts)>=lo(q)&&Date.parse(r.ts)<=hi(q)&&(!q.bbox||(r.location.coordinates[0]>=q.bbox[0]&&r.location.coordinates[0]<=q.bbox[2]&&r.location.coordinates[1]>=q.bbox[1]&&r.location.coordinates[1]<=q.bbox[3]));
 const compatible = (b:Scope,q:Scope) => b.datasetId===q.datasetId&&(!b.sensorId||b.sensorId===q.sensorId)&&(!b.bbox||Boolean(q.bbox&&b.bbox[0]<=q.bbox[0]&&b.bbox[1]<=q.bbox[1]&&b.bbox[2]>=q.bbox[2]&&b.bbox[3]>=q.bbox[3]));
 /** Session RAM only. Completeness is provenance from contiguous HTTP pages, never inferred from points. */
-export function createReadingsCache(loader:Load, capacity=READINGS_CACHE_LIMIT) {
+export function createReadingsCache(loader:Load, capacity=READINGS_CACHE_LIMIT, offline=()=>false) {
   if(!Number.isInteger(capacity)||capacity<1)throw new TypeError('Invalid readings cache capacity.');
   const records=new Map<string,Reading>(), pages=new Map<string,{ids:string[];page:ReadingPage['page']}>();
   const coverage:Coverage[]=[], chains=new Map<string,{scope:Scope;ids:string[];next?:string;discard:boolean}>();
@@ -51,11 +51,25 @@ export function createReadingsCache(loader:Load, capacity=READINGS_CACHE_LIMIT) 
   const load:Load=async(q,options)=>{
     options?.signal?.throwIfAborted();
     const k=`${key(q)}/${q.cursor??''}`,cached=pages.get(k);
-    if(cached&&cached.ids.every(v=>records.has(v))){pages.delete(k);pages.set(k,cached);return {data:cached.ids.map(v=>touch(v)!),page:{...cached.page}};}
+    if(!offline()&&cached&&cached.ids.every(v=>records.has(v))){pages.delete(k);pages.set(k,cached);return {data:cached.ids.map(v=>touch(v)!),page:{...cached.page}};}
     let job=pending.get(k);
     if(!job||job.controller.signal.aborted){
       const controller=new AbortController(),generation=epoch;
-      const promise=Promise.resolve().then(()=>loader(q,{signal:controller.signal})).then(result=>{controller.signal.throwIfAborted();if(generation===epoch)remember(q,result);return result;});
+      const promise = Promise.resolve()
+        .then(() => loader(q, { signal: controller.signal }))
+        .then(result => {
+          controller.signal.throwIfAborted();
+          if (generation === epoch && !result.localCoverage) remember(q, result);
+          return result;
+        })
+        .catch((error: unknown) => {
+          // When IndexedDB could not persist this page, the current tab can still show its RAM copy.
+          if (generation === epoch && offline() && !controller.signal.aborted && error instanceof DataSourceError &&
+              error.kind === 'offline' && cached?.ids.every(value => records.has(value))) {
+            return { data: cached.ids.map(value => touch(value)!), page: { ...cached.page, nextCursor: null }, localCoverage: 'partial' as const };
+          }
+          throw error;
+        });
       job={controller,promise,users:0};pending.set(k,job);const created=job;
       void promise.then(()=>{if(pending.get(k)===created)pending.delete(k);},()=>{if(pending.get(k)===created)pending.delete(k);});
     }
@@ -65,11 +79,12 @@ export function createReadingsCache(loader:Load, capacity=READINGS_CACHE_LIMIT) 
       const finish=()=>{if(done)return false;done=true;options?.signal?.removeEventListener('abort',abort);active.users--;if(!active.users&&pending.get(k)===active){active.controller.abort();pending.delete(k);}return true;};
       const abort=()=>{if(finish())reject(new DOMException('Aborted','AbortError'));};
       options?.signal?.addEventListener('abort',abort,{once:true});
-      active.promise.then(value=>{if(finish())resolve(value);},error=>{if(finish())reject(error);});
+      active.promise.then(value=>{if(finish())resolve(value);},(error: unknown)=>{if(finish())reject(error);});
       if(options?.signal?.aborted)abort();
     });
   };
   function complete(q:ReadingsQuery):Reading[]|undefined {
+    if(offline())return undefined;
     const candidates=coverage.filter(c=>compatible(c.scope,q)&&c.ids.every(k=>records.has(k))&&hi(c.scope)>=lo(q)&&lo(c.scope)<=hi(q)).sort((a,b)=>lo(a.scope)-lo(b.scope));
     let end=lo(q),started=false;const used:Coverage[]=[];
     for(const c of candidates){if(lo(c.scope)>(started?end+1:end))break;started=true;end=Math.max(end,hi(c.scope));used.push(c);if(end>=hi(q))break;}

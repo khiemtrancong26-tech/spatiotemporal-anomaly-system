@@ -22,6 +22,12 @@ async function parse(source: string | Buffer, format: 'csv' | 'json', size = 102
   return { columns: [...columns], rows };
 }
 describe('B3 streaming parser, normalization and source storage', () => {
+  it.each(['csv', 'json'] as const)('preserves an unexpected %s input stream failure', async (format) => {
+    const failure = new Error('Source read failed');
+    const input = new Readable({ read() { this.destroy(failure); } });
+    const rows = readSourceRows(input, format, 1024, new Set());
+    await expect(rows.next()).rejects.toBe(failure);
+  });
   it('parses UTF-8 JSON across every byte boundary, escaped strings and array punctuation inside text', async () => {
     const values = [{ name: 'Trạm Đà Nẵng [a], b\\"c', v: 0 }, { v: 1e3 }, null, { nested: {} }, 7];
     const result = await parse(JSON.stringify(values), 'json');
@@ -102,9 +108,9 @@ describe('B3 streaming parser, normalization and source storage', () => {
     let release!: () => void, ran = false;
     const first = run(() => new Promise<void>(resolve => { release = resolve; }));
     await Promise.resolve();
-    const queued = run(async () => { ran = true; }, controller.signal).catch(error => error);
+    const queued = run(async () => { ran = true; }, controller.signal).catch((error: unknown) => error);
     controller.abort(new Error('deadline'));
-    expect((await queued).message).toBe('deadline'); expect(ran).toBe(false);
+    expect(await queued).toMatchObject({ message: 'deadline' }); expect(ran).toBe(false);
     release(); await first;
     expect(await run(async () => 'available')).toBe('available');
   });

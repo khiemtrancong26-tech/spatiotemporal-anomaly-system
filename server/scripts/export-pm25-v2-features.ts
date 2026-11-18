@@ -62,4 +62,4 @@ async function main() {
   await writeFile(join(directory, 'features.json'), JSON.stringify(metadata, null, 2) + '\n', { flag: 'wx' });
   process.stdout.write(JSON.stringify({ train: a.summary, holdout: b.summary, golden: g.summary }) + '\n');
 }
-main().catch(error => { process.stderr.write(String(error) + '\n'); process.exitCode = 1; });
+main().catch((error: unknown) => { process.stderr.write(String(error) + '\n'); process.exitCode = 1; });

@@ -9,7 +9,8 @@ import type { ReviewRequest } from '../src/modules/anomalies/anomalies.types.js'
 const id = new ObjectId().toHexString(), datasetId = new ObjectId().toHexString(), runId = new ObjectId().toHexString();
 const codec = createCursorCodec('b6-unit-test-only-secret-at-least-32bytes');
 function fixture() {
-  const repository: AnomalyRepository = { list: vi.fn(async () => []), get: vi.fn(async () => null), review: vi.fn(async () => ({ kind: 'not-found' as const })) };
+  const repository: AnomalyRepository = { list: vi.fn(async () => []), get: vi.fn(async () => null),
+    review: vi.fn(async () => ({ kind: 'not-found' as const })), syncReview: vi.fn(async () => ({ kind: 'not-found' as const })) };
   const datasets = { getState: vi.fn(async () => ({ id: datasetId, status: 'imported' as const })) };
   const runs = { getState: vi.fn(async () => ({ id: runId, datasetId, status: 'completed' as const })) };
   return { repository, datasets, runs, service: createAnomalyService(repository, datasets, runs, codec) };

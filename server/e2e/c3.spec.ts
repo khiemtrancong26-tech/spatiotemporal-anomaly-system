@@ -41,6 +41,12 @@ test.afterAll(async () => {
 
 test('Desktop single-model API/DB/native inference → strict parser → scoring coverage → reload', async ({ page, request }) => {
   test.setTimeout(120000); await page.setViewportSize({ width: 1440, height: 900 });
+  const profileFailures: number[] = [];
+  page.on('response', response => {
+    if (new URL(response.url()).pathname.endsWith('/profile') && response.status() >= 400) {
+      profileFailures.push(response.status());
+    }
+  });
   const login = await request.post(backendUrl + '/api/v1/auth/tokens', { data: { username: 'C3Analyst', password } }); expect(login.status()).toBe(200);
   const headers = { authorization: 'Bearer ' + (await login.json()).accessToken };
   const upload = await request.post(backendUrl + '/api/v1/datasets', { headers: { ...headers, 'idempotency-key': crypto.randomUUID() }, multipart: { file: { name: 'beijing.csv', mimeType: 'text/csv', buffer: await readFile(new URL('../tests/fixtures/beijing-12-stations-demo-2015-03.csv', import.meta.url)) } } }); expect(upload.status()).toBe(201);
@@ -49,7 +55,7 @@ test('Desktop single-model API/DB/native inference → strict parser → scoring
   const imported = await request.post(backendUrl + '/api/v1/datasets/' + id + '/imports', { headers: { ...headers, 'idempotency-key': crypto.randomUUID() } }); expect(imported.status()).toBe(200);
   await page.goto(frontendUrl + '/login'); await page.getByLabel('Tên đăng nhập', { exact: true }).fill('C3Analyst'); await page.getByLabel('Mật khẩu', { exact: true }).fill(password); await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
   await expect(page).toHaveURL(frontendUrl + '/datasets'); await page.goto(frontendUrl + '/workspace/' + id);
-  await page.getByRole('button', { name: 'Analysis', exact: true }).click();
+  await page.getByRole('button', { name: 'Analysis', exact: true }).press('Enter');
   await page.locator('input[name="detector-method"][value="isolation_forest"]').check();
   await expect(page.getByLabel('Phiên bản Isolation Forest', { exact: true })).toHaveCount(0);
   await page.getByLabel('Tôi đã kiểm tra phạm vi và phương pháp phân tích.', { exact: true }).check();
@@ -59,7 +65,8 @@ test('Desktop single-model API/DB/native inference → strict parser → scoring
   const run = (await response.json()).data; expect(run.scoringSummary).toBeUndefined();
   await expect(page.getByTestId('run-status')).toHaveText('completed', { timeout: 30000 });
   await expect(page.getByTestId('scoring-summary')).toContainText('8722/8782'); await expect(page.getByTestId('scoring-summary')).toContainText('chưa chấm 60');
-  await page.reload(); await page.getByRole('button', { name: 'Analysis', exact: true }).click();
+  await page.reload(); await page.getByRole('button', { name: 'Analysis', exact: true }).press('Enter');
   await expect(page.getByTestId('scoring-summary')).toContainText('8722/8782');
+  expect(profileFailures).toEqual([]);
   const stored = await backend.mongo.db.collection('analysisRuns').findOne({ modelVersion: 'pm25-iforest-uci501-v2' }); expect(stored?.scoringSummary).toMatchObject({ targetCount: 8782, scoredCount: 8722, unscorableCount: 60 });
 });

@@ -1,14 +1,23 @@
-import { parse } from 'csv-parse';
+import { CsvError, parse } from 'csv-parse';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { HttpError } from '../../shared/http/errors.js';
 import type { SourceFormat, SourceRow } from './import.types.js';
 
-function invalid(message: string) { return new HttpError(422, 'INVALID_SOURCE', message); }
+function invalid(message: string, cause?: unknown) { return new HttpError(422, 'INVALID_SOURCE', message, undefined, { cause }); }
+
+function decodeUtf8(decoder: TextDecoder, chunk?: Uint8Array) {
+  try { return chunk === undefined ? decoder.decode() : decoder.decode(chunk, { stream: true }); }
+  catch (cause) {
+    if (cause instanceof TypeError) throw invalid('Source must be valid UTF-8.', cause);
+    throw cause;
+  }
+}
+
 async function* utf8(input: Readable): AsyncGenerator<string> {
   const decoder = new TextDecoder('utf-8', { fatal: true });
-  for await (const chunk of input) yield decoder.decode(chunk as Uint8Array, { stream: true });
-  const tail = decoder.decode();
+  for await (const chunk of input) yield decodeUtf8(decoder, chunk as Uint8Array);
+  const tail = decodeUtf8(decoder);
   if (tail) yield tail;
 }
 
@@ -28,7 +37,11 @@ async function* jsonArray(input: AsyncIterable<string>, maximum: number): AsyncG
     const text = parts.join('');
     parts = []; bytes = 0;
     if (!/[^ \t\r\n]/.test(text)) throw invalid('Invalid JSON array element.');
-    try { return JSON.parse(text) as unknown; } catch { throw invalid('Invalid JSON source syntax.'); }
+    try { return JSON.parse(text) as unknown; }
+    catch (cause) {
+      if (cause instanceof SyntaxError) throw invalid('Invalid JSON source syntax.', cause);
+      throw cause;
+    }
   };
   for await (const chunk of input) {
     let start = 0;
@@ -95,13 +108,17 @@ export async function* readSourceRows(
     }
     const decoder = new TextDecoder('utf-8', { fatal: true });
     const decoding = new Transform({ transform(chunk: Buffer, _encoding, done) {
-      try { done(null, decoder.decode(chunk, { stream: true })); } catch { done(invalid('CSV source must be valid UTF-8.')); }
+      try { done(null, decodeUtf8(decoder, chunk)); }
+      catch (cause) { done(cause instanceof Error ? cause : new Error('CSV decoding failed.', { cause })); }
     }, flush(done) {
-      try { done(null, decoder.decode()); } catch { done(invalid('CSV source must be valid UTF-8.')); }
+      try { done(null, decodeUtf8(decoder)); }
+      catch (cause) { done(cause instanceof Error ? cause : new Error('CSV decoding failed.', { cause })); }
     } });
     const csv = parse({ bom: true, raw: true, info: true, skip_empty_lines: true, relax_column_count: true, max_record_size: maxRecordBytes });
-    let failure: unknown;
-    const complete = pipeline(input, decoding, csv).catch(error => { failure = error; });
+    let failure: Error | undefined;
+    const complete = pipeline(input, decoding, csv).catch((error: unknown) => {
+      failure = error instanceof Error ? error : new Error('CSV stream failed.', { cause: error });
+    });
     let header: string[] | undefined;
     let quotedCrLf = 0;
     try {
@@ -124,8 +141,7 @@ export async function* readSourceRows(
       if (!header) throw invalid('CSV source has no header.');
     } finally { input.destroy(); decoding.destroy(); csv.destroy(); await complete; }
   } catch (error) {
-    if (error instanceof HttpError || (error as Error).name === 'AbortError') throw error;
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw error;
-    throw invalid('Source syntax, encoding or record size is invalid.');
+    if (error instanceof CsvError) throw invalid('Source syntax or record size is invalid.', error);
+    throw error;
   } finally { input.destroy(); }
 }

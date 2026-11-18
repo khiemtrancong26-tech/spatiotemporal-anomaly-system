@@ -1,4 +1,4 @@
-/** Online data source contract. Offline semantics require a separate review. */
+/** Shared data source contract. Local reads report proven cache coverage where applicable. */
 import type * as Wire from '../api/generated/wire';
 
 export type Bbox = readonly [minLon: number, minLat: number, maxLon: number, maxLat: number];
@@ -9,11 +9,13 @@ export type SensorsQuery = Omit<Wire.SensorsQuery, 'bbox'> & { bbox?: Bbox };
 export type ReadingsQuery = Omit<Wire.ReadingsQuery, 'bbox'> & { bbox?: Bbox };
 export type DatasetProfileQuery = Omit<Wire.DatasetProfileQuery, 'bbox'> & { bbox?: Bbox };
 export type ReadingAggregatesQuery = Omit<Wire.ReadingAggregatesQuery, 'bbox'> & { bbox?: Bbox };
+export type ReadingPage = Wire.ReadingPage & { localCoverage?: 'complete' | 'partial' };
 
 /** Error shape to be implemented/normalized in M1. Promise rejection types are not enforced by TS. */
 export type DataSourceError =
   | { kind: 'http'; status: number; error: Wire.Error['error'] }
   | { kind: 'network'; message: string }
+  | { kind: 'offline'; message: string }
   | { kind: 'aborted'; message: string }
   | { kind: 'invalid-response'; status?: number; message: string };
 
@@ -40,8 +42,9 @@ export interface OnlineDataSource {
     list(query: SensorsQuery, options?: RequestOptions): Promise<Wire.SensorPage>;
   };
   readings: {
-    list(query: ReadingsQuery, options?: RequestOptions): Promise<Wire.ReadingPage>;
+    list(query: ReadingsQuery, options?: RequestOptions): Promise<ReadingPage>;
   };
+  pushReviews?(input: Wire.SyncPushRequest, options?: RequestOptions): Promise<Wire.SyncPushResponse>;
   aggregates: { get(query: ReadingAggregatesQuery, options?: RequestOptions): Promise<Wire.ReadingAggregation> };
   analysis: {
     get(id: string, options?: RequestOptions): Promise<Wire.AnalysisRun>;

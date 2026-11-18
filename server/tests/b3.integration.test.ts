@@ -256,11 +256,13 @@ describe('B3 actual HTTP, files and MongoDB replica-set transactions', () => {
     const source = resolve(f.directory, `${id}.source`); await writeFile(source, '[{}]');
     await f.app.close();
     await f.db.collection('idempotencyReceipts').updateOne({ _id: new ObjectId(claimed.guard.id) }, { $set: { leaseUntil: new Date(0) } });
-    const restarted = buildApp({ config: f.config, logger: false }); apps.push(restarted);
+    const restarted = buildApp({ config: { ...f.config, imports: { ...f.config.imports, leaseMs: 200 } }, logger: false }); apps.push(restarted);
     const response = await restarted.inject({ url: `/api/v1/datasets/${id}/validation`, headers: f.headers });
-    expect(response.statusCode).toBe(404); await expect(access(source)).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(response.statusCode).toBe(404);
+    await expect.poll(async () => (await f.db.collection('idempotencyReceipts').findOne({ _id: new ObjectId(claimed.guard.id) }))?.status,
+      { timeout: 5_000 }).toBe('failed');
+    await expect(access(source)).rejects.toMatchObject({ code: 'ENOENT' });
     expect(await f.db.collection('datasets').countDocuments({})).toBe(0);
-    expect((await f.db.collection('idempotencyReceipts').findOne({ _id: new ObjectId(claimed.guard.id) }))?.status).toBe('failed');
   });
   it('recovers after killing the Backend process between committed batches', async () => {
     const f = await fixture(), id = await f.ready([row(), row({ ts: '2026-01-02T00:00:00Z' }), row({ ts: '2026-01-03T00:00:00Z' })]);

@@ -11,7 +11,7 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node --env-file-if-exists=../.env dist/main.js",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "test": "vitest run --exclude tests/*.integration.test.ts",
     "test:integration": "vitest run .integration.test.ts",
     "test:coverage": "vitest run --coverage",

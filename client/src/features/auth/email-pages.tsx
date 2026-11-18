@@ -1,3 +1,4 @@
+import { runClientTask } from '../../app/error-handling';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useServices } from '../../app/services';
@@ -28,9 +29,9 @@ export function EmailPage({ kind }: { kind: 'verify' | 'forgot' | 'reset' }) {
   }
   return <AuthFrame><section className="card login-card"><h1>{kind === 'verify' ? 'Xác minh email' : kind === 'forgot' ? 'Quên mật khẩu' : 'Đặt lại mật khẩu'}</h1>
     {message && <p role="status">{message}</p>}{error && <p role="alert">{error}</p>}
-    {!done && kind !== 'forgot' && <form onSubmit={e => void submit(e)}>{!token ? <p>Thiếu token. Mở liên kết mới trong email.</p> : kind === 'reset' ? <><Field label="Mật khẩu mới" type="password" autoComplete="new-password" minLength={8} required value={password} onChange={e => setPassword(e.target.value)} /><Field label="Xác nhận mật khẩu" type="password" autoComplete="new-password" minLength={8} required value={confirm} onChange={e => setConfirm(e.target.value)} /></> : <p>Nhấn xác nhận để xác minh email. Chỉ mở liên kết không tiêu thụ token.</p>}
+    {!done && kind !== 'forgot' && <form onSubmit={e => runClientTask(submit(e))}>{!token ? <p>Thiếu token. Mở liên kết mới trong email.</p> : kind === 'reset' ? <><Field label="Mật khẩu mới" type="password" autoComplete="new-password" minLength={8} required value={password} onChange={e => setPassword(e.target.value)} /><Field label="Xác nhận mật khẩu" type="password" autoComplete="new-password" minLength={8} required value={confirm} onChange={e => setConfirm(e.target.value)} /></> : <p>Nhấn xác nhận để xác minh email. Chỉ mở liên kết không tiêu thụ token.</p>}
       <Button disabled={pending || !token} type="submit">{kind === 'verify' ? 'Xác nhận email' : 'Lưu mật khẩu mới'}</Button></form>}
-    {!done && kind !== 'reset' && <form onSubmit={e => void submit(e, kind === 'verify')}><Field label="Email" type="email" required value={email} onChange={e => setEmail(e.target.value)} disabled={pending} /><Button type="submit" disabled={pending}>{kind === 'verify' ? 'Gửi lại xác minh' : 'Yêu cầu đặt lại mật khẩu'}</Button></form>}
+    {!done && kind !== 'reset' && <form onSubmit={e => runClientTask(submit(e, kind === 'verify'))}><Field label="Email" type="email" required value={email} onChange={e => setEmail(e.target.value)} disabled={pending} /><Button type="submit" disabled={pending}>{kind === 'verify' ? 'Gửi lại xác minh' : 'Yêu cầu đặt lại mật khẩu'}</Button></form>}
     <p><Link to="/login">Đăng nhập</Link> · <Link to="/forgot-password">Yêu cầu liên kết đặt lại mới</Link></p>
   </section></AuthFrame>;
 }

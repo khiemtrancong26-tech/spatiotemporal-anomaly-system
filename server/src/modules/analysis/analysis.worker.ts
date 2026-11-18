@@ -9,9 +9,10 @@ const errorCodes = new Set(['INSUFFICIENT_DATA', 'SCOPE_LIMIT_EXCEEDED', 'ENGINE
   'ENGINE_UNAVAILABLE', 'ENGINE_TIMEOUT', 'ENGINE_INPUT_LIMIT', 'ENGINE_OUTPUT_LIMIT', 'ENGINE_PROTOCOL_ERROR',
   'MODEL_RUNTIME_MISMATCH', 'MODEL_INTEGRITY_ERROR', 'FEATURE_SCHEMA_MISMATCH', 'INVALID_FEATURES', 'MODEL_TYPE_MISMATCH',
   'INVALID_MODEL_OUTPUT', 'MODEL_UNAVAILABLE', 'MODEL_VERSION_UNAVAILABLE', 'POLICY_VERSION_UNAVAILABLE', 'ENGINE_VERSION_UNAVAILABLE', 'INSUFFICIENT_CONTEXT', 'CONTEXT_LIMIT_EXCEEDED']);
+const scopeFailureCodes = new Set(['INSUFFICIENT_DATA', 'SCOPE_LIMIT_EXCEEDED', 'INSUFFICIENT_CONTEXT', 'CONTEXT_LIMIT_EXCEEDED']);
 
 export function createAnalysisWorker(repository: AnalysisRepository, engine: AnalysisEngine, config: AnalysisConfig,
-  warn: () => void, hooks: AnalysisTestHooks = {}) {
+  reportFailure: (stage: string, error: unknown) => void, hooks: AnalysisTestHooks = {}) {
   let closed = false, pumping: Promise<void> | undefined, timer: ReturnType<typeof setInterval> | undefined;
   const active = new Map<Promise<void>, AbortController>();
   async function execute(guard: RunGuard, controller: AbortController) {
@@ -20,7 +21,11 @@ export function createAnalysisWorker(repository: AnalysisRepository, engine: Ana
     const heartbeat = setInterval(() => {
       if (renewing || controller.signal.aborted) return;
       renewing = repository.renew(guard).then(owned => { if (!owned) { lost = true; controller.abort(); } })
-        .catch(() => { lost = true; controller.abort(); }).finally(() => { renewing = undefined; });
+        .catch((error: unknown) => {
+          reportFailure('lease_renewal', error);
+          lost = true;
+          controller.abort();
+        }).finally(() => { renewing = undefined; });
     }, config.heartbeatMs); heartbeat.unref();
     try {
       if (guard.attempt > config.maxAttempts) {
@@ -52,8 +57,9 @@ export function createAnalysisWorker(repository: AnalysisRepository, engine: Ana
     } catch (error) {
       if (closed || lost || error instanceof RunOwnershipLost) return;
       const code = timedOut ? 'ENGINE_TIMEOUT' : error instanceof EngineError && errorCodes.has(error.code) ? error.code : 'ANALYSIS_FAILED';
+      if (!scopeFailureCodes.has(code)) reportFailure('execute', error);
       try { await repository.terminal(guard, { code, message: 'Analysis did not complete. Partial results are not published.' }); }
-      catch (failure) { if (!(failure instanceof RunOwnershipLost)) warn(); /* Lease recovery handles uncertain writes. */ }
+      catch (failure) { if (!(failure instanceof RunOwnershipLost)) reportFailure('terminal_write', failure); }
     } finally {
       clearTimeout(deadline); clearInterval(heartbeat); await renewing;
     }
@@ -62,13 +68,13 @@ export function createAnalysisWorker(repository: AnalysisRepository, engine: Ana
     while (!closed && active.size < config.concurrency) {
       const guard = await repository.claim(); if (!guard || closed) return;
       const controller = new AbortController();
-      const work = execute(guard, controller).catch(warn).finally(() => { active.delete(work); });
+      const work = execute(guard, controller).catch((error: unknown) => reportFailure('worker_task', error)).finally(() => { active.delete(work); });
       active.set(work, controller);
     }
   }
   function tick() {
     if (closed || pumping) return;
-    pumping = pump().catch(warn).finally(() => { pumping = undefined; });
+    pumping = pump().catch((error: unknown) => reportFailure('claim', error)).finally(() => { pumping = undefined; });
   }
   return {
     start() { timer = setInterval(tick, config.pollMs); timer.unref(); tick(); },
