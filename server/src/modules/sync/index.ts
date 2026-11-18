@@ -1,4 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
+import type { ReviewConfig } from '../../config.js';
+import type { DatasetWriteScheduler } from '../datasets/dataset-write.js';
 import { anomalySchema, createAnomalyReviewAccess, reviewRequestSchema, type ReviewRequest } from '../anomalies/index.js';
 import { errorSchema, HttpError } from '../../shared/http/errors.js';
 
@@ -19,8 +21,8 @@ const response = {
   } } },
 } as const;
 
-export const syncRoutes: FastifyPluginAsync = async app => {
-  const review = createAnomalyReviewAccess(app.mongo.client, app.mongo.db);
+export const syncRoutes: FastifyPluginAsync<{ review: ReviewConfig; schedule: DatasetWriteScheduler }> = async (app, options) => {
+  const review = createAnomalyReviewAccess(app.mongo.client, app.mongo.db, options.review, options.schedule);
   app.post<{ Body: { mutations: Mutation[] } }>('/review-mutation-batches', {
     onRequest: app.authorize(['analyst', 'admin']),
     schema: { body, response: { 200: response, 400: errorSchema, 401: errorSchema, 403: errorSchema, 422: errorSchema, 500: errorSchema, 503: errorSchema } },

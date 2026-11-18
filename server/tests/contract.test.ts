@@ -63,6 +63,7 @@ describe('foundation contract drift checks', () => {
     }
     expect(names).not.toContain('ix_anomalies_sync_updated');
     expect(names).not.toContain('uq_mutations_client_id');
-    expect(names).toHaveLength(15);
+    expect(names).toContain('ix_anomalies_dataset_run_ts_id');
+    expect(names).toHaveLength(16);
   });
 });

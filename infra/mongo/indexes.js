@@ -17,6 +17,7 @@ const indexes = [
   ['analysisRuns', { status: 1, leaseUntil: 1, createdAt: 1 }, { name: 'ix_runs_claim' }],
   ['anomalies', { analysisRunId: 1, readingId: 1 }, { unique: true, name: 'uq_anomalies_run_reading' }],
   ['anomalies', { datasetId: 1, ts: 1, _id: 1 }, { name: 'ix_anomalies_dataset_ts_id' }],
+  ['anomalies', { datasetId: 1, analysisRunId: 1, ts: 1, _id: 1 }, { name: 'ix_anomalies_dataset_run_ts_id' }],
   ['anomalies', { updatedAt: 1, _id: 1 }, { name: 'ix_anomalies_sync_updated' }],
   ['anomalies', { datasetId: 1, status: 1, ts: 1 }, { name: 'ix_anomalies_dataset_status_ts' }],
   ['processedMutations', { clientMutationId: 1 }, { unique: true, name: 'uq_mutations_client_id' }],

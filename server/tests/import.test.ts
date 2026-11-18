@@ -84,10 +84,14 @@ describe('B3 streaming parser, normalization and source storage', () => {
       await cleanup(root);
     }
   });
-  it('uses the approved initial limits and rejects an unapproved concurrency increase', () => {
+  it('preserves default protection and validates explicit concurrency and waiting limits', () => {
     expect(loadTestConfig().imports).toMatchObject({ maxFileBytes: 104857600, maxRecordBytes: 1048576, batchSize: 1000, maxIssues: 1000,
       maxSensors: 10000, uploadConcurrency: 2, importConcurrency: 1, timeoutMs: 120000, replayMs: 86400000 });
-    expect(() => loadTestConfig({ IMPORT_CONCURRENCY: '2' })).toThrow();
+    expect(loadTestConfig({ IMPORT_UPLOAD_CONCURRENCY: '4', IMPORT_CONCURRENCY: '2',
+      IMPORT_SCAN_CONCURRENCY: '3', IMPORT_MAX_WAITING: '4' }).imports)
+      .toMatchObject({ uploadConcurrency: 4, importConcurrency: 2, scanConcurrency: 3, importMaxWaiting: 4 });
+    expect(() => loadTestConfig({ IMPORT_CONCURRENCY: '33' })).toThrow('Invalid IMPORT_CONCURRENCY');
+    expect(() => loadTestConfig({ IMPORT_MAX_WAITING: '-1' })).toThrow('Invalid IMPORT_MAX_WAITING');
   });
   it('spools the full approved 100 MiB cap with backpressure, then rejects the next byte', async () => {
     const root = await mkdtemp(resolve(tmpdir(), 'pm25-b3-unit-'));

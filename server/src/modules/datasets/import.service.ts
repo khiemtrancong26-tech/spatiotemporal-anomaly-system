@@ -6,7 +6,6 @@ import type { ImportConfig } from '../../config.js';
 import { HttpError } from '../../shared/http/errors.js';
 import { requireIdempotencyKey, type StoredResponse } from '../../shared/idempotency.js';
 import { createCapacity } from '../../shared/import-capacity.js';
-import { createTaskLimiter } from '../../shared/concurrency.js';
 import { interruptedResponse, OwnershipLostError, type ReceiptGuard, type ReceiptRepository } from '../../shared/persistence/idempotency.js';
 import type { ImportRepository } from './import.repository.js';
 import type { ImportDatasetState, ImportTestHooks, NormalizedRow, SensorInput, SourceDescriptor, SourceFormat } from './import.types.js';
@@ -18,8 +17,6 @@ import { scanSource } from './source-scan.js';
 
 export type UploadPart = { type: 'file'; fieldname: string; filename: string; mimetype: string; stream: Readable; truncated: () => boolean }
   | { type: 'field'; fieldname: string; value: unknown };
-const uploads = createCapacity(2), imports = createCapacity(1);
-const scanWork = createTaskLimiter(2);
 function hash(value: unknown) { return createHash('sha256').update(JSON.stringify(value)).digest('hex'); }
 function sameMapping(a: MappingRequest | undefined, b: MappingRequest) {
   return a?.unit === b.unit && JSON.stringify(Object.entries(a.fieldMap).sort()) === JSON.stringify(Object.entries(b.fieldMap).sort());
@@ -34,13 +31,26 @@ function failure(error: unknown): StoredResponse {
 export function createImportService(repository: ImportRepository, receipts: ReceiptRepository, files: SourceFiles,
   limits: ImportConfig, access: DatasetReadAccess, reportFailure: (stage: string, error: unknown) => void,
   hooks: ImportTestHooks = {}, now: () => Date = () => new Date()) {
-  const localUploads = createCapacity(limits.uploadConcurrency);
+  const uploads = createCapacity(limits.uploadConcurrency);
+  const imports = createCapacity(limits.importConcurrency, limits.importMaxWaiting);
+  // Reserve queue room for uploads and imports that already hold admission.
+  const scans = createCapacity(limits.scanConcurrency, limits.scanMaxWaiting + limits.uploadConcurrency + limits.importConcurrency);
+  const mappings = createCapacity(limits.scanConcurrency + limits.scanMaxWaiting);
   const active = new Set<AbortController>();
   let recovery: Promise<void> | undefined;
   function lifetime() {
     const controller = new AbortController(); active.add(controller);
     const timer = setTimeout(() => controller.abort(), limits.timeoutMs); timer.unref();
     return { signal: controller.signal, controller, stop() { clearTimeout(timer); active.delete(controller); } };
+  }
+  async function scan(source: SourceDescriptor, signal: AbortSignal, mapping?: MappingRequest, disconnected?: AbortSignal) {
+    const release = await scans.acquireOrWait(disconnected ? AbortSignal.any([signal, disconnected]) : signal);
+    if (!release) throw new HttpError(500, 'SOURCE_UNAVAILABLE', 'Source validation capacity is busy.');
+    try {
+      disconnected?.throwIfAborted();
+      signal.throwIfAborted();
+      return await scanSource(files, source, limits, signal, mapping);
+    } finally { release(); }
   }
   async function owned<T>(guard: ReceiptGuard, controller: AbortController, work: () => Promise<T>): Promise<T> {
     let pending: Promise<void> | undefined;
@@ -83,7 +93,7 @@ export function createImportService(repository: ImportRepository, receipts: Rece
     // One bounded recovery sweep per app; ownership is still claimed atomically in MongoDB.
     if (recovery) { await recovery; return; }
     recovery = (async () => {
-      for (let count = 0; count < 10; count++) {
+      for (let count = 0; count < limits.recoveryBatchSize; count++) {
         const guard = await receipts.takeExpired(filter);
         if (!guard) break;
         await recoverOne(guard);
@@ -127,10 +137,8 @@ export function createImportService(repository: ImportRepository, receipts: Rece
     recover,
     async upload(userId: string, keyValue: unknown, parts: AsyncIterable<UploadPart>): Promise<StoredResponse> {
       const key = requireIdempotencyKey(keyValue);
-      const releaseGlobal = uploads.acquire();
-      if (!releaseGlobal) throw new HttpError(503, 'UPLOAD_CAPACITY', 'Upload capacity is busy. Try again later with the same key.');
-      const releaseLocal = localUploads.acquire();
-      if (!releaseLocal) { releaseGlobal(); throw new HttpError(503, 'UPLOAD_CAPACITY', 'Upload capacity is busy.'); }
+      const release = uploads.acquire();
+      if (!release) throw new HttpError(503, 'UPLOAD_CAPACITY', 'Upload capacity is busy. Try again later with the same key.');
       const job = lifetime();
       let temporary: string | undefined, persisted: string | undefined, guard: ReceiptGuard | undefined;
       try {
@@ -167,13 +175,13 @@ export function createImportService(repository: ImportRepository, receipts: Rece
           persisted = await files.persist(temporary!, ownership.resourceId); temporary = undefined;
           const source: SourceDescriptor = { fileId: persisted, format, checksum: file.checksum, bytes: file.bytes };
           await hooks.afterSourcePersist?.();
-          const scan = await scanWork(() => scanSource(files, source, limits, job.signal), job.signal);
-          if (!scan.report.totalRows || !scan.report.sourceColumns.length) throw new HttpError(422, 'EMPTY_SOURCE', 'Source must contain records with mappable columns.');
-          if (scan.fatal) throw new HttpError(422, scan.fatal.code, scan.fatal.message, { issueLimit: limits.maxIssues });
+          const result = await scan(source, job.signal);
+          if (!result.report.totalRows || !result.report.sourceColumns.length) throw new HttpError(422, 'EMPTY_SOURCE', 'Source must contain records with mappable columns.');
+          if (result.fatal) throw new HttpError(422, result.fatal.code, result.fatal.message, { issueLimit: limits.maxIssues });
           job.signal.throwIfAborted();
           const data: Dataset = { id: ownership.resourceId, name: name?.trim() || file.filename, sourceFilename: file.filename,
             status: 'awaiting_mapping', createdBy: userId, createdAt: now().toISOString() };
-          return repository.createUpload(ownership, data, source, scan.report);
+          return repository.createUpload(ownership, data, source, result.report);
         });
       } catch (error) {
         if (guard) {
@@ -195,7 +203,7 @@ export function createImportService(repository: ImportRepository, receipts: Rece
         throw new HttpError(503, 'SOURCE_STORAGE_UNAVAILABLE', 'Source upload could not complete. Check connectivity and persistent storage.');
       } finally {
         if (temporary) await files.remove(temporary).catch((error: unknown) => reportFailure('temporary_source_cleanup', error));
-        job.stop(); releaseLocal(); releaseGlobal();
+        job.stop(); release();
       }
     },
     async validation(id: string, actor: DatasetActor): Promise<ValidationReport> {
@@ -208,8 +216,9 @@ export function createImportService(repository: ImportRepository, receipts: Rece
       }
       return { ...dataset.report!, datasetId: id, status: dataset.data.status };
     },
-    async mapping(id: string, mapping: MappingRequest, actor: DatasetActor): Promise<Dataset> {
+    async mapping(id: string, mapping: MappingRequest, actor: DatasetActor, disconnected?: AbortSignal): Promise<Dataset> {
       const job = lifetime();
+      let release: (() => void) | null = null;
       try {
         await authorize(id, actor);
         await repository.prepare(); await recover({ resourceId: id });
@@ -224,15 +233,17 @@ export function createImportService(repository: ImportRepository, receipts: Rece
           if (dataset.mappingError) throw new HttpError(422, dataset.mappingError.code, dataset.mappingError.message);
           if (dataset.mappingConfirmed) return dataset.data;
         }
-        const scan = await scanWork(() => scanSource(files, dataset.source!, limits, job.signal, mapping), job.signal);
+        release = mappings.acquire();
+        if (!release) throw new HttpError(500, 'SOURCE_UNAVAILABLE', 'Mapping validation capacity is busy.');
+        const result = await scan(dataset.source, job.signal, mapping, disconnected);
         job.signal.throwIfAborted();
-        const updated = await repository.saveMapping(dataset, mapping, scan, actor);
+        const updated = await repository.saveMapping(dataset, mapping, result, actor);
         if (!updated) {
           const latest = await load(id, actor);
           if (latest.mappingConfirmed && sameMapping(latest.mapping, mapping)) return latest.data;
           throw new HttpError(409, 'DATASET_STATE_CONFLICT', 'Dataset state or mapping changed. Reload validation before continuing.');
         }
-        if (scan.fatal) throw new HttpError(422, scan.fatal.code, scan.fatal.message, { issueLimit: limits.maxIssues });
+        if (result.fatal) throw new HttpError(422, result.fatal.code, result.fatal.message, { issueLimit: limits.maxIssues });
         return updated.data;
       } catch (error) {
         if (error instanceof HttpError && error.statusCode < 500) throw error;
@@ -241,9 +252,9 @@ export function createImportService(repository: ImportRepository, receipts: Rece
         }
         reportFailure('mapping_unavailable', error);
         throw new HttpError(500, 'SOURCE_UNAVAILABLE', 'Mapping validation could not complete. Check persistent source and database.');
-      } finally { job.stop(); }
+      } finally { job.stop(); release?.(); }
     },
-    async import(actor: DatasetActor, id: string, keyValue: unknown): Promise<StoredResponse> {
+    async import(actor: DatasetActor, id: string, keyValue: unknown, disconnected?: AbortSignal): Promise<StoredResponse> {
       const userId = actor.id;
       await authorize(id, actor);
       const key = requireIdempotencyKey(keyValue);
@@ -253,7 +264,7 @@ export function createImportService(repository: ImportRepository, receipts: Rece
       try {
         await repository.prepare(); await recover({ userId, key }); await recover({ resourceId: id });
         job.signal.throwIfAborted();
-        const dataset = await load(id, actor);
+        let dataset = await load(id, actor);
         const intent = { userId, key, kind: 'import' as const, operation: `POST /api/v1/datasets/${id}/imports`,
           resourceId: dataset.data.id, requestHash: hash({ operation: 'import', path: `/api/v1/datasets/${id}/imports` }) };
         const existing = await receipts.inspect(intent);
@@ -262,8 +273,15 @@ export function createImportService(repository: ImportRepository, receipts: Rece
         if (dataset.data.status !== 'imported') {
           if (!dataset.mappingConfirmed || !dataset.mapping || !dataset.source) throw new HttpError(422, 'MAPPING_REQUIRED', 'Confirm a valid mapping before import or retry.');
           release = imports.acquire() ?? undefined;
-          if (!release) throw new HttpError(503, 'IMPORT_CAPACITY', 'Import capacity is busy. Retry later with the same key.');
+          if (!release) {
+            const wait = AbortSignal.any([job.signal, AbortSignal.timeout(limits.importWaitMs), ...(disconnected ? [disconnected] : [])]);
+            release = await imports.acquireOrWait(wait) ?? undefined;
+            if (!release || wait.aborted) throw new HttpError(503, 'IMPORT_CAPACITY', 'Import capacity is busy. Retry later with the same key.');
+            dataset = await load(id, actor);
+            disconnected?.throwIfAborted();
+          }
         }
+        job.signal.throwIfAborted();
         const claimed = await receipts.claim(intent);
         if ('replay' in claimed) return claimed.replay;
         guard = claimed.guard;
@@ -275,10 +293,10 @@ export function createImportService(repository: ImportRepository, receipts: Rece
           if (dataset.data.status === 'importing') throw new HttpError(409, 'DATASET_STATE_CONFLICT', 'Dataset is importing or recovering.');
           if (!dataset.mappingConfirmed || !dataset.mapping || !dataset.source) throw new HttpError(422, 'MAPPING_REQUIRED', 'Confirm a valid mapping before import or retry.');
           await repository.start(ownership, dataset, actor); started = true;
-          const scan = await scanWork(() => scanSource(files, dataset.source!, limits, job.signal, dataset.mapping), job.signal);
-          if (scan.fatal) throw new HttpError(422, scan.fatal.code, scan.fatal.message);
-          const summary: ImportSummary = { totalRows: scan.report.totalRows, importedRows: 0, duplicateRows: 0, conflictingRows: 0,
-            invalidRows: scan.report.invalidRows, issues: [...scan.report.issues] };
+          const result = await scan(dataset.source, job.signal, dataset.mapping);
+          if (result.fatal) throw new HttpError(422, result.fatal.code, result.fatal.message);
+          const summary: ImportSummary = { totalRows: result.report.totalRows, importedRows: 0, duplicateRows: 0, conflictingRows: 0,
+            invalidRows: result.report.invalidRows, issues: [...result.report.issues] };
           const stations = new Map<string, SensorInput>();
           let batch: NormalizedRow[] = [], batchBytes = 0, batches = 0;
           async function flush() {
@@ -299,12 +317,12 @@ export function createImportService(repository: ImportRepository, receipts: Rece
             if (!stations.has(point.externalId)) stations.set(point.externalId, { id: repository.newId(), externalId: point.externalId,
               name: point.name, longitude: point.longitude, latitude: point.latitude, ...(point.region ? { region: point.region } : {}) });
             const bytes = Buffer.byteLength(JSON.stringify(point));
-            if (batch.length >= limits.batchSize || batchBytes + bytes > 8 * 1024 * 1024) await flush();
+            if (batch.length >= limits.batchSize || batchBytes + bytes > limits.batchBytes) await flush();
             batch.push(point); batchBytes += bytes;
           }
           await flush(); job.signal.throwIfAborted();
           summary.issues.sort((a, b) => a.rowNumber - b.rowNumber);
-          const response = await repository.publish(ownership, summary, scan.report);
+          const response = await repository.publish(ownership, summary, result.report);
           await hooks.afterPublish?.();
           return response;
         });

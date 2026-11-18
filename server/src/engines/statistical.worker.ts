@@ -4,7 +4,7 @@ import { onlineStatisticalPolicy } from './statistical.policy.js';
 
 try {
   const result = runStatisticalAdapter(workerData, onlineStatisticalPolicy(workerData.method));
-  parentPort!.postMessage(result);
+  parentPort!.postMessage({ status: result.output.status, candidates: result.candidates, engineVersion: result.engineVersion });
 } catch {
   parentPort!.postMessage({ error: 'ENGINE_OUTPUT_INVALID' });
 }

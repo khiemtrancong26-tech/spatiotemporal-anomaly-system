@@ -88,6 +88,8 @@ describe('B6 actual HTTP/MongoDB Replica Set', () => {
     await f.db.collection('datasets').updateOne({ _id: f.datasetId }, { $set: { status: 'failed' } });
     expect((await f.list()).json().error.code).toBe('DATASET_NOT_READY');
     expect((await stalePreflight.list({ datasetId: String(f.datasetId) }, { id: String(f.userId), role: 'analyst' })).data).toEqual([]);
+    expect((await stalePreflight.list({ datasetId: String(f.datasetId), analysisRunId: String(f.runId) },
+      { id: String(f.userId), role: 'analyst' })).data).toEqual([]);
     expect((await f.get(`anomalies/${row!._id}`)).statusCode).toBe(404);
     expect((await f.patch(String(row!._id), { baseVersion: 1, changes: { note: 'hidden' } })).statusCode).toBe(404);
     await f.db.collection('datasets').deleteOne({ _id: f.datasetId });
@@ -95,10 +97,10 @@ describe('B6 actual HTTP/MongoDB Replica Set', () => {
   });
   it('keeps equal-ts keyset order, whitelists DTOs and binds every filter/sort while allowing limit changes', async () => {
     const f = await fixture(), rows = await f.seed(11);
-    for (const sort of ['ts:asc', 'ts:desc']) {
+    for (const sort of ['ts:asc', 'ts:desc']) for (const runFilter of [{}, { analysisRunId: String(f.runId) }]) {
       const ids: string[] = []; let cursor: string | null = null;
       do {
-        const response = await f.list({ sort, limit: cursor ? 3 : 2, ...(cursor ? { cursor } : {}) }); expect(response.statusCode, response.body).toBe(200);
+        const response = await f.list({ ...runFilter, sort, limit: cursor ? 3 : 2, ...(cursor ? { cursor } : {}) }); expect(response.statusCode, response.body).toBe(200);
         expect(response.body).not.toMatch(/_private|"_id"|"value"|reviewFence|_published/);
         const body = response.json(); for (const value of body.data) AnomalySchema.parse(value);
         ids.push(...body.data.map((a: { id: string }) => a.id)); cursor = body.page.nextCursor;

@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { isAbsolute } from 'node:path';
 import { createCapacity } from '../shared/import-capacity.js';
+import { defaultPythonThreads } from '../config.js';
 
 export class EngineError extends Error {
   constructor(readonly code: string, message: string, options?: ErrorOptions) { super(message, options); this.name = 'EngineError'; }
@@ -8,11 +9,13 @@ export class EngineError extends Error {
 export interface PythonRunnerOptions {
   pythonExecutable: string; scriptPath: string; args: string[];
   timeoutMs: number; maxInputBytes: number; maxOutputBytes: number; maxConcurrent: number;
+  threads?: number;
 }
 export function createPythonRunner(options: PythonRunnerOptions) {
+  const threads = options.threads ?? defaultPythonThreads;
   if (!isAbsolute(options.pythonExecutable) || !isAbsolute(options.scriptPath) ||
     [options.pythonExecutable, options.scriptPath, ...options.args].some(value => typeof value !== 'string' || value.includes('\0')) ||
-    ![options.timeoutMs, options.maxInputBytes, options.maxOutputBytes, options.maxConcurrent].every(value => Number.isSafeInteger(value) && value > 0)) throw new TypeError('Explicit Python runner paths/limits are required');
+    ![options.timeoutMs, options.maxInputBytes, options.maxOutputBytes, options.maxConcurrent, threads].every(value => Number.isSafeInteger(value) && value > 0)) throw new TypeError('Explicit Python runner paths/limits are required');
   const capacity = createCapacity(options.maxConcurrent);
   return async (payload: unknown, signal?: AbortSignal): Promise<unknown> => {
     const encoded = JSON.stringify(payload);
@@ -26,7 +29,7 @@ export function createPythonRunner(options: PythonRunnerOptions) {
       const environment = Object.fromEntries(['PATH', 'Path', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP', 'HOME', 'USERPROFILE'].flatMap(key => process.env[key] ? [[key, process.env[key]!]] : []));
       const child = spawn(options.pythonExecutable, [options.scriptPath, ...options.args], { shell: false, windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe'], env: { ...environment, PYTHONNOUSERSITE: '1', PYTHONDONTWRITEBYTECODE: '1',
-          OMP_NUM_THREADS: '1', OPENBLAS_NUM_THREADS: '1', MKL_NUM_THREADS: '1', PYTHONIOENCODING: 'utf-8' } });
+          OMP_NUM_THREADS: String(threads), OPENBLAS_NUM_THREADS: String(threads), MKL_NUM_THREADS: String(threads), PYTHONIOENCODING: 'utf-8' } });
       const stop = (error: EngineError) => { failure ??= error; child.kill(); };
       const timer = setTimeout(() => stop(new EngineError('ENGINE_TIMEOUT', 'Engine exceeded the configured deadline.')), options.timeoutMs); timer.unref();
       const abort = () => stop(new EngineError('ENGINE_ABORTED', 'Engine wait was aborted.'));

@@ -8,6 +8,14 @@ import type { MappingRequest } from './datasets.types.js';
 const noQuery = { type: 'object', additionalProperties: false, properties: {} } as const;
 const errors = (statuses: number[]) => Object.fromEntries(statuses.map(status => [status, errorSchema]));
 const send = (reply: FastifyReply, response: StoredResponse) => reply.code(response.statusCode).send(response.body);
+async function untilDisconnect<T>(reply: FastifyReply, work: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  reply.raw.once('close', abort);
+  if (reply.raw.destroyed) abort();
+  try { return await work(controller.signal); }
+  finally { reply.raw.removeListener('close', abort); }
+}
 async function* uploadParts(request: FastifyRequest): AsyncGenerator<UploadPart> {
   for await (const part of request.parts()) {
     if (part.type === 'file') yield { type: 'file', fieldname: part.fieldname, filename: part.filename,
@@ -45,14 +53,16 @@ export function createImportRoutes(service: ReturnType<typeof createImportServic
       onRequest: authorize, config: { bodyValidationStatus: 422 },
       schema: { params: datasetIdSchema, querystring: noQuery, body: mappingRequestSchema,
         response: { 200: singleDatasetSchema, ...errors([400, 401, 403, 404, 409, 422, 500]) } },
-    }, async request => ({ data: await service.mapping(request.params.id, request.body, request.principal!) }));
+    }, async (request, reply) => ({ data: await untilDisconnect(reply,
+      signal => service.mapping(request.params.id, request.body, request.principal!, signal)) }));
     app.post<{ Params: { id: string } }>('/datasets/:id/imports', {
       onRequest: authorize,
       schema: { params: datasetIdSchema, querystring: noQuery,
         response: { 200: singleDatasetSchema, ...errors([400, 401, 403, 404, 409, 422, 500, 503]) } },
     }, async (request, reply) => {
       if (request.body !== undefined) throw new HttpError(400, 'UNEXPECTED_BODY', 'Import does not accept a request body.');
-      const response = await service.import(request.principal!, request.params.id, request.headers['idempotency-key']);
+      const response = await untilDisconnect(reply,
+        signal => service.import(request.principal!, request.params.id, request.headers['idempotency-key'], signal));
       return send(reply, response);
     });
   };

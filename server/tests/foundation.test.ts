@@ -18,6 +18,11 @@ describe('runtime configuration', () => {
     expect(() => loadConfig({ MONGODB_URI: 'secret-password' })).toThrow(/^Invalid MONGODB_URI$/);
     expect(() => loadConfig({ MONGODB_DATABASE: '' })).toThrow('Invalid MONGODB_DATABASE');
     expect(() => loadConfig({ MONGODB_TIMEOUT_MS: '0' })).toThrow('Invalid MONGODB_TIMEOUT_MS');
+    expect(loadConfig({ MONGODB_TIMEOUT_MS: '4000', MONGODB_WAIT_QUEUE_TIMEOUT_MS: '1000',
+      MONGODB_MAX_POOL_SIZE: '48', MONGODB_MIN_POOL_SIZE: '3' }).mongodb)
+      .toMatchObject({ serverSelectionTimeoutMS: 4000, connectTimeoutMS: 4000, socketTimeoutMS: 4000,
+        waitQueueTimeoutMS: 1000, maxPoolSize: 48, minPoolSize: 3 });
+    expect(() => loadConfig({ MONGODB_MAX_POOL_SIZE: '3', MONGODB_MIN_POOL_SIZE: '4' })).toThrow('minimum pool size');
     expect(() => loadConfig({ HOST: ' ' })).toThrow('Invalid HOST');
     expect(() => loadConfig({ LOG_LEVEL: 'invalid' })).toThrow('Invalid LOG_LEVEL');
     expect(loadConfig({ CORS_ORIGINS: 'http://127.0.0.1:5173, https://demo.example' }).corsOrigins).toHaveLength(2);

@@ -21,6 +21,7 @@ export const onlineIndexes: Record<string, IndexDescription[]> = {
   anomalies: [
     { key: { analysisRunId: 1, readingId: 1 }, unique: true, name: 'uq_anomalies_run_reading' },
     { key: { datasetId: 1, ts: 1, _id: 1 }, name: 'ix_anomalies_dataset_ts_id' },
+    { key: { datasetId: 1, analysisRunId: 1, ts: 1, _id: 1 }, name: 'ix_anomalies_dataset_run_ts_id' },
     { key: { datasetId: 1, status: 1, ts: 1 }, name: 'ix_anomalies_dataset_status_ts' },
   ],
   idempotencyReceipts: [

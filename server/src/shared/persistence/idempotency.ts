@@ -59,7 +59,7 @@ export function createReceiptRepository(client: MongoClient, db: Db, limits: Imp
           { $set: { leaseUntil: new Date(time.getTime() + limits.leaseMs) } }, { session });
         if (!lock.matchedCount) throw new OwnershipLostError();
         return work(session);
-      }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, maxCommitTimeMS: limits.timeoutMs });
+      }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, maxCommitTimeMS: limits.timeoutMs, timeoutMS: limits.timeoutMs });
     } finally { await session.endSession(); }
   }
   return {

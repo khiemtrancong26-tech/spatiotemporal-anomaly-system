@@ -1,5 +1,6 @@
 import { createDatasetReadRepository } from '../datasets/datasets.repository.js';
 import { datasetAccessFilter, type DatasetActor } from '../datasets/dataset-access.js';
+import type { DatasetWriteScheduler } from '../datasets/dataset-write.js';
 import { HttpError } from '../../shared/http/errors.js';
 import { randomUUID } from 'node:crypto';
 import { MongoServerError, ObjectId, type ClientSession, type Db, type MongoClient } from 'mongodb';
@@ -41,7 +42,7 @@ export function toAnalysisDto(document: RunDocument): AnalysisRun {
     ...(document.error ? { error: { code: document.error.code, message: document.error.message } } : {}) };
 }
 
-export function createAnalysisRepository(client: MongoClient, db: Db, config: AnalysisConfig) {
+export function createAnalysisRepository(client: MongoClient, db: Db, config: AnalysisConfig, schedule?: DatasetWriteScheduler) {
   const runs = db.collection<RunDocument>('analysisRuns'), receipts = db.collection<ReceiptDocument>('idempotencyReceipts');
   const anomalies = db.collection('anomalies'), queue = db.collection<QueueState>('analysisQueueState');
   let prepared: Promise<void> | undefined;
@@ -64,7 +65,7 @@ export function createAnalysisRepository(client: MongoClient, db: Db, config: An
   async function transaction<T>(work: (session: ClientSession) => Promise<T>): Promise<T> {
     const session = client.startSession();
     try { return await session.withTransaction(work, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' },
-      maxCommitTimeMS: 10_000, timeoutMS: 15_000 }); }
+      ...config.transaction }); }
     finally { await session.endSession(); }
   }
   async function replay(intent: IdempotencyIntent): Promise<StoredResponse | null> {
@@ -90,7 +91,7 @@ export function createAnalysisRepository(client: MongoClient, db: Db, config: An
   }
   return {
     prepare, replay,
-    context: createAnalysisContextReader(db, config.timeoutMs),
+    context: createAnalysisContextReader(db, config),
     async accept(intent: IdempotencyIntent, input: DetectionRequest, metadata: RunMetadata, actor: DatasetActor): Promise<StoredResponse> {
       await prepare();
       const old = await replay(intent); if (old) return old;
@@ -100,7 +101,7 @@ export function createAnalysisRepository(client: MongoClient, db: Db, config: An
         policyId: metadata.policyId ?? ANALYSIS_POLICY_ID, attempt: 0, leaseUntil: new Date(0), writeFence: 0 };
       const response: StoredResponse = { statusCode: 202, body: { data: toAnalysisDto(document) } };
       try {
-        await transaction(async session => {
+        const accept = () => transaction(async session => {
           // Insert first so same-key races resolve as replay, even when the queue becomes full.
           await receipts.insertOne({ _id: new ObjectId(), ...intent, userId: toObjectId(intent.userId), kind: 'analysis',
             resourceId: document._id.toHexString(), status: 'completed', createdAt: now,
@@ -111,6 +112,8 @@ export function createAnalysisRepository(client: MongoClient, db: Db, config: An
           if (!slot.matchedCount) throw new AnalysisStoreError('ANALYSIS_QUEUE_FULL', 'Analysis capacity is full. No run was accepted.');
           await runs.insertOne(document, { session });
         });
+        if (schedule) await schedule(input.datasetId, accept);
+        else await accept();
       } catch (error) {
         if (error instanceof MongoServerError && error.code === 11000) {
           const existing = await replay(intent); if (existing) return existing;

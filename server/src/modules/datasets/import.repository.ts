@@ -89,7 +89,15 @@ export function createImportRepository(db: Db, receipts: ReceiptRepository, limi
             type: 'pm25', unit: 'ug/m3', importAttemptId: guard.owner,
           } }, upsert: true,
         } })), { ordered: true, session });
-        const keys = rows.map(row => ({ sensorId: new ObjectId(stationIds.get(row.externalId)!), ts: new Date(row.ts) }));
+        const timestampsBySensor = new Map<string, Set<string>>();
+        for (const row of rows) {
+          let timestamps = timestampsBySensor.get(row.externalId);
+          if (!timestamps) { timestamps = new Set(); timestampsBySensor.set(row.externalId, timestamps); }
+          timestamps.add(row.ts);
+        }
+        const keys = Array.from(timestampsBySensor, ([sensor, timestamps]) => ({
+          sensorId: new ObjectId(stationIds.get(sensor)!), ts: { $in: Array.from(timestamps, timestamp => new Date(timestamp)) },
+        }));
         const existing = rows.length ? await db.collection('readings').find({ datasetId, $or: keys },
           { session, projection: { sensorId: 1, ts: 1, value: 1, sourceRowNumber: 1 } }).toArray() : [];
         const seen = new Map(existing.map(row => [`${row.sensorId.toHexString()}|${row.ts.toISOString()}`, { value: row.value as number, row: row.sourceRowNumber as number }]));

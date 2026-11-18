@@ -182,6 +182,39 @@ describe('B3 actual HTTP, files and MongoDB replica-set transactions', () => {
     } finally { resume(); }
     expect((await pending).statusCode).toBe(200); expect((await f.run(second, secondKey)).statusCode).toBe(200);
   });
+  it('admits three uploads and two imports concurrently, and leaves an expired waiter key reusable', async () => {
+    function gate() {
+      let open!: () => void;
+      const promise = new Promise<void>(resolve => { open = resolve; });
+      return { open, promise };
+    }
+    const releaseUploads = gate(), releaseImports = gate();
+    let uploads = 0, imports = 0;
+    const f = await fixture({ IMPORT_UPLOAD_CONCURRENCY: '3', IMPORT_CONCURRENCY: '2',
+      IMPORT_MAX_WAITING: '1', IMPORT_WAIT_MS: '100' }, {
+      async afterSourcePersist() { if (++uploads <= 3) await releaseUploads.promise; },
+      async afterBatch() { if (++imports <= 2) await releaseImports.promise; },
+    });
+    const pendingUploads = [f.upload(), f.upload(), f.upload()].map(request => request.then(response => response));
+    try {
+      await expect.poll(() => uploads, { timeout: 4000 }).toBe(3);
+      expect((await f.upload()).json().error.code).toBe('UPLOAD_CAPACITY');
+    } finally { releaseUploads.open(); }
+    const responses = await Promise.all(pendingUploads);
+    expect(responses.map(response => response.statusCode)).toEqual([201, 201, 201]);
+    const ids = responses.map(response => response.json<{ data: { id: string } }>().data.id);
+    for (const id of ids) expect((await f.map(id)).statusCode).toBe(200);
+    const pendingImports = ids.slice(0, 2).map(id => f.run(id).then(response => response));
+    const third = ids[2]!, key = randomUUID();
+    try {
+      await expect.poll(() => imports, { timeout: 4000 }).toBe(2);
+      expect((await f.run(third, key)).json().error.code).toBe('IMPORT_CAPACITY');
+      expect(await f.db.collection('idempotencyReceipts').countDocuments({ key })).toBe(0);
+      expect((await f.get('datasets')).json().data).toEqual([]);
+    } finally { releaseImports.open(); }
+    expect((await Promise.all(pendingImports)).map(response => response.statusCode)).toEqual([200, 200]);
+    expect((await f.run(third, key)).statusCode).toBe(200);
+  });
   it('fences stale owners and recovers expired partial work with a new app before intentional retry', async () => {
     const f = await fixture(), id = await f.ready();
     const receipts = createReceiptRepository(f.app.mongo.client, f.app.mongo.db, f.config.imports);

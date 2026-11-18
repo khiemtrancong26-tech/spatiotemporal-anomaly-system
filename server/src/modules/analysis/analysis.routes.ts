@@ -6,7 +6,7 @@ import { detectionRequestSchema, analysisResponseSchema, analysisPageSchema, his
 import type { createAnalysisService } from './analysis.service.js';
 import type { DetectionRequest, HistoryQuery } from './analysis.types.js';
 
-export function createAnalysisRoutes(service: ReturnType<typeof createAnalysisService>): FastifyPluginAsync {
+export function createAnalysisRoutes(service: ReturnType<typeof createAnalysisService>, wakeWorker: () => void): FastifyPluginAsync {
   return async app => {
     const errors = { 400: errorSchema, 401: errorSchema, 403: errorSchema, 405: errorSchema, 500: errorSchema };
     app.post<{ Body: DetectionRequest }>('/analysis-runs', {
@@ -15,6 +15,7 @@ export function createAnalysisRoutes(service: ReturnType<typeof createAnalysisSe
       schema: { body: detectionRequestSchema, response: { 202: analysisResponseSchema, ...errors, 404: errorSchema, 409: errorSchema, 422: errorSchema, 503: errorSchema } },
     }, async (request, reply) => {
       const result = await service.create(request.principal!, request.headers['idempotency-key'], request.body);
+      wakeWorker();
       return reply.code(result.statusCode).send(result.body);
     });
     app.get<{ Params: { id: string } }>('/analysis-runs/:id', {

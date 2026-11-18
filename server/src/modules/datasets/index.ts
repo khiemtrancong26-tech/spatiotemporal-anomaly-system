@@ -25,7 +25,7 @@ export const datasetRoutes: FastifyPluginAsync<{ cursorSecret: string; imports: 
   await app.register(createDatasetRoutes(service));
   const receipts = createReceiptRepository(app.mongo.client, app.mongo.db, imports);
   const importer = createImportService(createImportRepository(app.mongo.db, receipts, imports), receipts,
-    createSourceFiles(imports.storageDir), imports, createDatasetReadRepository(app.mongo.db),
+    createSourceFiles(imports.storageDir, imports.readBufferBytes), imports, createDatasetReadRepository(app.mongo.db),
     (stage, error) => app.log.error({ event: 'import_failure', stage, ...errorDiagnostics(error) }, 'Import operation failed'),
     options.importTestHooks);
   await app.register(createImportRoutes(importer, imports.timeoutMs));

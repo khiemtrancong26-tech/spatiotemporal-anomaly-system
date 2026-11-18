@@ -5,8 +5,9 @@ import { resolve, sep } from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { HttpError } from '../../shared/http/errors.js';
+import { defaultImportReadBufferBytes } from '../../config.js';
 
-export function createSourceFiles(directory: string) {
+export function createSourceFiles(directory: string, readBufferBytes = defaultImportReadBufferBytes) {
   const root = resolve(directory);
   function path(fileId: string) {
     if (!/^(?:[0-9a-f]{24}\.source|[0-9a-f-]{36}\.tmp)$/.test(fileId)) throw new Error('Invalid source reference');
@@ -52,9 +53,9 @@ export function createSourceFiles(directory: string) {
       }
     },
     remove,
-    read: (fileId: string, signal?: AbortSignal) => createReadStream(path(fileId), { highWaterMark: 64 * 1024, ...(signal ? { signal } : {}) }),
+    read: (fileId: string, signal?: AbortSignal) => createReadStream(path(fileId), { highWaterMark: readBufferBytes, ...(signal ? { signal } : {}) }),
     verified(fileId: string, checksum: string, signal?: AbortSignal) {
-      const input = createReadStream(path(fileId), { highWaterMark: 64 * 1024, ...(signal ? { signal } : {}) });
+      const input = createReadStream(path(fileId), { highWaterMark: readBufferBytes, ...(signal ? { signal } : {}) });
       return Readable.from((async function* () {
         const hash = createHash('sha256');
         try {

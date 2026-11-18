@@ -105,7 +105,7 @@ try {
       totalKeysExamined: geo.executionStats.totalKeysExamined, totalDocsExamined: geo.executionStats.totalDocsExamined, executionTimeMillis: geo.executionStats.executionTimeMillis,
     } });
   }
-  const report = { strategy: 'Exact coordinate rectangle + conservative sphere prefilter; unchanged 13 production indexes, no production hints', measuredAt: new Date().toISOString(), node: process.version, mongodb: (await db.command({ buildInfo: 1 })).version,
+  const report = { strategy: 'Exact coordinate rectangle + conservative sphere prefilter; online indexes, no production hints', measuredAt: new Date().toISOString(), node: process.version, mongodb: (await db.command({ buildInfo: 1 })).version,
     topology: 'temporary single-node replica set', platform: `${platform()} ${release()}`, cpu: cpus()[0]?.model, logicalCpus: cpus().length, physicalRamBytes: totalmem(),
     scope: 'Synthetic seed, not a B3 import or detector evaluation. One localhost HTTP client, 1 warmup + 10 sequential requests/case, no TLS. Memory samples include Backend and fetch harness in the same Node process, exclude mongod, and are not an isolated Server peak or a bounded-memory proof. No 100-VU/10-minute stress or SLA claim.',
     results };

@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { Worker } from 'node:worker_threads';
-import { setTimeout as delay } from 'node:timers/promises';
 import type { Reading, StatisticalDetectorInput } from '@pm25/shared-core/contracts';
 import { STATISTICS_ENGINE_VERSION } from '@pm25/shared-core/statistics';
 import type { AnalysisConfig } from '../config.js';
@@ -13,8 +12,11 @@ import manifest from '../../ml/pm25-v2-manifest.json' with { type: 'json' };
 import { buildPm25Features, PM25_V2_POLICY } from '@pm25/shared-core';
 import { createCapacity } from '../shared/import-capacity.js';
 
+type StatisticalResult = Awaited<ReturnType<typeof import('./statistical.js')['runStatisticalAdapter']>>;
+type WorkerResult = Pick<StatisticalResult, 'candidates' | 'engineVersion'> & { status: StatisticalResult['output']['status'] };
+
 function statistics(input: StatisticalDetectorInput, signal: AbortSignal) {
-  return new Promise<Awaited<ReturnType<typeof import('./statistical.js')['runStatisticalAdapter']>>>((resolve, reject) => {
+  return new Promise<WorkerResult>((resolve, reject) => {
     if (signal.aborted) { reject(new EngineError('ENGINE_ABORTED', 'Engine aborted.')); return; }
     const source = import.meta.url.endsWith('.ts');
     const environment = Object.fromEntries(['PATH', 'Path', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP', 'USERPROFILE']
@@ -33,10 +35,10 @@ function statistics(input: StatisticalDetectorInput, signal: AbortSignal) {
     worker.once('exit', code => {
       signal.removeEventListener('abort', abort);
       if (failure) { reject(failure); return; }
-      if (code !== 0 || !message || typeof message !== 'object' || !('output' in message) || !('candidates' in message)) {
+      if (code !== 0 || !message || typeof message !== 'object' || !('status' in message) || !('candidates' in message)) {
         reject(new EngineError('ENGINE_OUTPUT_INVALID', 'Statistical worker returned invalid output.')); return;
       }
-      resolve(message as Awaited<ReturnType<typeof import('./statistical.js')['runStatisticalAdapter']>>);
+      resolve(message as WorkerResult);
     });
   });
 }
@@ -45,17 +47,14 @@ export function createOnlineEngine(config: AnalysisConfig): AnalysisEngine {
   const policyId = PM25_V2_POLICY.id;
   const adapter = createIsolationForestAdapter({ ...config, modelId: manifest.id, artifactSha256: manifest.sha256,
     sklearnVersion: manifest.sklearnVersion, features: manifest.features,
-    maxInputBytes: 16 * 1024 * 1024, maxOutputBytes: 16 * 1024 * 1024, maxConcurrent: config.concurrency });
-  const nativeCapacity = createCapacity(config.concurrency);
+    maxInputBytes: config.pythonMaxInputBytes, maxOutputBytes: config.pythonMaxOutputBytes,
+    maxConcurrent: config.concurrency, threads: config.pythonThreads });
+  const nativeCapacity = createCapacity(config.concurrency, config.pythonMaxWaiting);
   async function invoke(...args: Parameters<typeof adapter>) {
     // Keep readiness and inference within the existing native capacity and timeout.
     const deadline = AbortSignal.timeout(config.timeoutMs), outer = args[3], signal = outer ? AbortSignal.any([outer, deadline]) : deadline;
-    let release = nativeCapacity.acquire();
-    while (!release) {
-      try { await delay(25, undefined, { signal }); }
-      catch (cause) { throw new EngineError(outer?.aborted ? 'ENGINE_ABORTED' : 'ENGINE_TIMEOUT', 'Native capacity wait stopped.', { cause }); }
-      release = nativeCapacity.acquire();
-    }
+    const release = await nativeCapacity.acquireOrWait(signal);
+    if (!release) throw new EngineError(outer?.aborted ? 'ENGINE_ABORTED' : signal.aborted ? 'ENGINE_TIMEOUT' : 'ENGINE_BUSY', 'Native capacity wait stopped.');
     try { return await adapter(args[0], args[1], args[2], signal); } finally { release(); }
   }
   const policyMatches = () => manifest.policyId === policyId &&
@@ -83,7 +82,7 @@ export function createOnlineEngine(config: AnalysisConfig): AnalysisEngine {
         if (guard.run.engineVersion !== STATISTICS_ENGINE_VERSION) throw new EngineError('ENGINE_VERSION_UNAVAILABLE', 'Run engine version is unavailable.');
         const result = await statistics({ method: guard.run.method as StatisticalDetectorInput['method'],
           config: guard.run.config, readings }, signal);
-        if (result.output.status !== 'completed') throw new EngineError(result.output.status === 'insufficient_data' ? 'INSUFFICIENT_DATA' : 'ENGINE_INPUT_INVALID', 'Statistical scope could not be evaluated under the approved policy.');
+        if (result.status !== 'completed') throw new EngineError(result.status === 'insufficient_data' ? 'INSUFFICIENT_DATA' : 'ENGINE_INPUT_INVALID', 'Statistical scope could not be evaluated under the approved policy.');
         return { candidates: result.candidates, engineVersion: result.engineVersion };
       }
       if (guard.run.modelVersion !== manifest.id || guard.modelHash !== manifest.sha256) throw new EngineError('MODEL_VERSION_UNAVAILABLE', 'Run model identity does not match the configured model.');

@@ -11,10 +11,7 @@ declare module 'fastify' {
 export const mongoPlugin = fp<{ config: ServerConfig }>(async (app, { config }) => {
   const client = new MongoClient(config.mongodbUri, {
     appName: 'pm25-server',
-    serverSelectionTimeoutMS: config.mongodbTimeoutMs,
-    connectTimeoutMS: config.mongodbTimeoutMs,
-    waitQueueTimeoutMS: config.mongodbTimeoutMs,
-    socketTimeoutMS: config.mongodbTimeoutMs,
+    ...config.mongodb,
   });
   const db = config.mongodbDatabase ? client.db(config.mongodbDatabase) : client.db();
   app.decorate('mongo', { client, db, timeoutMs: config.mongodbTimeoutMs });

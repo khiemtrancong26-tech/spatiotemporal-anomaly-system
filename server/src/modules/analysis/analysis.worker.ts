@@ -14,6 +14,7 @@ const scopeFailureCodes = new Set(['INSUFFICIENT_DATA', 'SCOPE_LIMIT_EXCEEDED', 
 export function createAnalysisWorker(repository: AnalysisRepository, engine: AnalysisEngine, config: AnalysisConfig,
   reportFailure: (stage: string, error: unknown) => void, hooks: AnalysisTestHooks = {}) {
   let closed = false, pumping: Promise<void> | undefined, timer: ReturnType<typeof setInterval> | undefined;
+  let wakePending = false;
   const active = new Map<Promise<void>, AbortController>();
   async function execute(guard: RunGuard, controller: AbortController) {
     let lost = false, timedOut = false, renewing: Promise<void> | undefined;
@@ -68,16 +69,24 @@ export function createAnalysisWorker(repository: AnalysisRepository, engine: Ana
     while (!closed && active.size < config.concurrency) {
       const guard = await repository.claim(); if (!guard || closed) return;
       const controller = new AbortController();
-      const work = execute(guard, controller).catch((error: unknown) => reportFailure('worker_task', error)).finally(() => { active.delete(work); });
+      const work = execute(guard, controller).catch((error: unknown) => reportFailure('worker_task', error)).finally(() => {
+        active.delete(work);
+        tick();
+      });
       active.set(work, controller);
     }
   }
   function tick() {
-    if (closed || pumping) return;
-    pumping = pump().catch((error: unknown) => reportFailure('claim', error)).finally(() => { pumping = undefined; });
+    if (closed || !timer || active.size >= config.concurrency) return;
+    if (pumping) { wakePending = true; return; }
+    pumping = pump().catch((error: unknown) => reportFailure('claim', error)).finally(() => {
+      pumping = undefined;
+      if (wakePending) { wakePending = false; tick(); }
+    });
   }
   return {
     start() { timer = setInterval(tick, config.pollMs); timer.unref(); tick(); },
+    wake: tick,
     async close() {
       closed = true; clearInterval(timer);
       for (const controller of active.values()) controller.abort();

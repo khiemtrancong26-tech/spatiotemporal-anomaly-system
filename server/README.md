@@ -164,6 +164,8 @@ Seed dùng cùng User service/hash/unique rule với Register. Chạy lại khô
 
 ## Kiểm thử
 
+Kịch bản k6 cho đọc, upload/import, analysis và review chạy trên MongoDB replica set tạm. Xem cấu hình, cách chạy lại và kết quả đối chiếu ở [báo cáo kiểm toán hiệu năng](../docs/backend/performance-audit.md).
+
 ```powershell
 # Unit/HTTP/contract, không cần DB bên ngoài.
 npm test --workspace @pm25/server

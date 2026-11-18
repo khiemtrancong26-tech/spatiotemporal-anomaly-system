@@ -20,6 +20,7 @@ import type { AnalysisEngine, AnalysisTestHooks } from './modules/analysis/analy
 import { anomalyRoutes } from './modules/anomalies/index.js';
 import { syncRoutes } from './modules/sync/index.js';
 import { explorationRoutes } from './modules/exploration/index.js';
+import { createDatasetWriteScheduler } from './modules/datasets/dataset-write.js';
 
 interface AppOptions {
   config?: ServerConfig;
@@ -34,6 +35,7 @@ interface AppOptions {
 
 export function buildApp(options: AppOptions = {}) {
   const config = options.config ?? loadConfig();
+  const schedule = createDatasetWriteScheduler(config.review);
   const app = Fastify({
     exposeHeadRoutes: false,
     // OpenAPI lifecycle branches inherit type:object from the parent schema.
@@ -75,9 +77,9 @@ export function buildApp(options: AppOptions = {}) {
     ...(options.importTestHooks ? { importTestHooks: options.importTestHooks } : {}) });
   app.register(queryRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret });
   app.register(explorationRoutes, { prefix: '/api/v1', config: config.exploration });
-  app.register(anomalyRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret });
-  app.register(syncRoutes, { prefix: '/api/v1' });
-  app.register(analysisRoutes, { prefix: '/api/v1', config: config.analysis, cursorSecret: config.cursorSecret,
+  app.register(anomalyRoutes, { prefix: '/api/v1', cursorSecret: config.cursorSecret, review: config.review, schedule });
+  app.register(syncRoutes, { prefix: '/api/v1', review: config.review, schedule });
+  app.register(analysisRoutes, { prefix: '/api/v1', config: config.analysis, cursorSecret: config.cursorSecret, schedule,
     ...(options.analysisTestHooks ? { testHooks: options.analysisTestHooks } : {}),
     ...(options.analysisTestEngine ? { testEngine: options.analysisTestEngine } : {}),
     ...(options.analysisWorkerEnabled !== undefined ? { workerEnabled: options.analysisWorkerEnabled } : {}),
