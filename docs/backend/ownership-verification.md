@@ -56,9 +56,9 @@ Lệnh chính:
 ```powershell
 $env:MONGOMS_SYSTEM_BINARY='C:/Program Files/MongoDB/Server/9.0/bin/mongod.exe'
 $env:MONGOMS_SYSTEM_BINARY_VERSION_CHECK='false'
-npm exec --workspace @pm25/server -- vitest run tests/ownership.integration.test.ts tests/datasets.test.ts tests/query.test.ts tests/anomalies.test.ts tests/c2.test.ts tests/contract.test.ts tests/b4.integration.test.ts
-npm exec --workspace @pm25/server -- vitest run tests/b3.integration.test.ts tests/b5.integration.test.ts tests/b6.integration.test.ts tests/c2.integration.test.ts -t 'fences stale owners and recovers expired|does not let an abandoned pre-start|accepts immutable queued snapshots|serializes same-key acceptance|keeps stable signed history|distinguishes unknown, empty|handles repeated opaque IDs|hides queued/running/failed'
-npm exec --workspace @pm25/client -- vitest run src/features/auth/ownership-session.test.tsx src/features/auth/session.test.ts src/shared/api/http-client.test.ts
+npm exec --workspace @pm25/server -- vitest run tests/integration/dataset-ownership.integration.test.ts tests/unit/datasets.test.ts tests/unit/query.test.ts tests/unit/anomalies.test.ts tests/unit/exploration.test.ts tests/unit/api-and-index-contract.test.ts tests/integration/sensor-reading-query.integration.test.ts
+npm exec --workspace @pm25/server -- vitest run tests/integration/dataset-import.integration.test.ts tests/integration/analysis-runs.integration.test.ts tests/integration/anomaly-visibility-and-review.integration.test.ts tests/integration/dataset-exploration.integration.test.ts -t 'fences stale owners and recovers expired|does not let an abandoned pre-start|accepts immutable queued snapshots|serializes same-key acceptance|keeps stable signed history|distinguishes unknown, empty|handles repeated opaque IDs|hides queued/running/failed'
+npm exec --workspace @pm25/client -- vitest run tests/integration/auth/account-switch-and-cache.integration.test.tsx tests/unit/auth/session.test.ts tests/integration/api/http-client-and-validation.integration.test.ts
 npm run test:e2e:ownership
 # typecheck/lint/build từng workspace @pm25/server và @pm25/client đã PASS
 ```
@@ -71,7 +71,7 @@ npm run test:e2e:ownership
 - Analysis: `analysis.types.ts`, `analysis.repository.ts`, `analysis.service.ts`, `analysis.routes.ts`; Anomalies: `anomalies.types.ts`, `anomalies.repository.ts`, `anomalies.service.ts`, `anomalies.routes.ts`.
 - `server/src/plugins/auth.ts`: private/no-store response header.
 - Client: `main.tsx`, `app/services.tsx`, `features/auth/session.ts`, `shared/api/http-client.ts`, `shared/data-source/types.ts`.
-- Test mới: `server/tests/ownership.integration.test.ts`, `client/src/features/auth/ownership-session.test.tsx`, `server/e2e/ownership.spec.ts`; actor/fixture expectations trong datasets/query/anomalies/C2/B3/B6 tests được cập nhật.
+- Test mới: `server/tests/integration/dataset-ownership.integration.test.ts`, `client/tests/integration/auth/account-switch-and-cache.integration.test.tsx`, `server/e2e/dataset-ownership.spec.ts`; actor/fixture expectations trong datasets/query/anomalies/C2/B3/B6 tests được cập nhật.
 - Scripts: root/server package.json và server/playwright.config.ts thêm ownership E2E, giữ nguyên B7 pending edits.
 - Docs: SRS/SDD/decisions(D021)/shared-data-contract/API README/OpenAPI description và báo cáo này. Không đổi public schemas/DTO; generated contracts được chạy lại, không có shape delta.
 

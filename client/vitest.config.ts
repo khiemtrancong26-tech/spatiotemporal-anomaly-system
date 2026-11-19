@@ -5,8 +5,8 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}'],
+    setupFiles: ['./tests/setup.ts'],
+    include: ['tests/unit/**/*.test.{ts,tsx}', 'tests/integration/**/*.integration.test.{ts,tsx}'],
     coverage: { provider: 'v8', include: ['src/shared/**/*.{ts,tsx}', 'src/mocks/**/*.ts'], exclude: ['**/generated/**', '**/*.test.*'] },
   },
 });

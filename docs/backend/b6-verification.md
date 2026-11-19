@@ -56,7 +56,7 @@ Mọi review khóa parents cùng thứ tự; việc đổi visibility tranh ch�
 
 ## 5. CSV chuẩn và trạng thái G01
 
-Chủ dự án cung cấp `.local/demo-datasets/beijing-12-stations-demo-2015-03.csv`. Đã đọc trực tiếp, copy nguyên bytes sang [golden CSV](../../server/tests/fixtures/beijing-12-stations-demo-2015-03.csv), giữ [manifest](../../server/tests/fixtures/beijing-12-stations-demo-2015-03.manifest.json) và [test độc lập](../../server/tests/beijing-fixture.test.ts). `.gitattributes` giữ bytes fixture qua checkout Windows/Linux, không sửa bản nguồn `.local`.
+Chủ dự án cung cấp `.local/demo-datasets/beijing-12-stations-demo-2015-03.csv`. Đã đọc trực tiếp, copy nguyên bytes sang [golden CSV](../../server/tests/fixtures/beijing-12-stations-demo-2015-03.csv), giữ [manifest](../../server/tests/fixtures/beijing-12-stations-demo-2015-03.manifest.json) và [test độc lập](../../server/tests/unit/beijing-fixture.test.ts). `.gitattributes` giữ bytes fixture qua checkout Windows/Linux, không sửa bản nguồn `.local`.
 
 | Kiểm chứng độc lập | Kết quả |
 |---|---|

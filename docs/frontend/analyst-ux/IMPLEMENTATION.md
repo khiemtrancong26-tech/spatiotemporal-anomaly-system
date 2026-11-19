@@ -49,7 +49,7 @@ $env:PM25_E2E_ONLINE_PORT='4273'
 npx playwright test --workers=2
 ```
 
-Backend E2E từ `server`: `npx playwright test --config playwright.config.ts b5.spec.ts b6.spec.ts c2.spec.ts`. Có thể đặt `MONGOMS_SYSTEM_BINARY` đến mongod local để tránh tải binary; phiên kiểm tra này dùng MongoDB 9.0.4 với Replica Set tạm. Nếu dùng binary khác version mặc định của harness, đặt `MONGOMS_SYSTEM_BINARY_VERSION_CHECK=false` và ghi lại version thực tế. `PM25_UX_BASELINE_ROOT` là tùy chọn để chụp baseline từ một bản export HEAD riêng.
+Backend E2E từ `server`: `npx playwright test --config playwright.config.ts statistical-analysis.spec.ts anomaly-review.spec.ts dataset-exploration.spec.ts --grep-invert "Analyst journey:"`. Có thể đặt `MONGOMS_SYSTEM_BINARY` đến mongod local để tránh tải binary; phiên kiểm tra này dùng MongoDB 9.0.4 với Replica Set tạm. Nếu dùng binary khác version mặc định của harness, đặt `MONGOMS_SYSTEM_BINARY_VERSION_CHECK=false` và ghi lại version thực tế. `PM25_UX_BASELINE_ROOT` là tùy chọn để chụp baseline từ một bản export HEAD riêng.
 
 Không chạy generate/build song song với browser E2E dùng Vite dev: thay đổi generated files có thể gây HMR/reload giữa wizard và làm mất xác nhận mapping. Chạy tuần tự. Cuối cùng build thông thường trong shell không có override Mapbox token.
 

@@ -36,7 +36,7 @@ Ngày 15/11/2026. Theo phản hồi trực tiếp của chủ dự án khi demo 
 
 ## File chính
 
-`client/src/features/workspace/{page.tsx,visualization.tsx,renderer.tsx,snapshot.ts,snapshot.test.ts,renderer.test.tsx}`, `client/src/app/{shell.tsx,styles.css}`, `client/src/features/dataset-import/page.tsx`, `client/e2e/{foundation.spec.ts,online.spec.ts}`, `client/playwright.config.ts`. Tài liệu client README, frontend plan/M4 report/UI redesign được cập nhật chính sách hiện tại.
+`client/src/features/workspace/{page.tsx,visualization.tsx,renderer.tsx,snapshot.ts}`, `client/src/app/{shell.tsx,styles.css}`, `client/src/features/dataset-import/page.tsx`, `client/tests/unit/workspace/reading-snapshot.test.ts`, `client/tests/integration/workspace/mapbox-renderer.integration.test.tsx`, `client/e2e/{mock-application-workflows.spec.ts,online-api-workflows.spec.ts}`, `client/playwright.config.ts`. Tài liệu client README, frontend plan/M4 report/UI redesign được cập nhật chính sách hiện tại.
 
 ## Giới hạn
 

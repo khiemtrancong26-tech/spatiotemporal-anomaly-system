@@ -40,4 +40,4 @@ ML chỉ có **một Isolation Forest 3 features** `[value, temporal_delta, spat
 
 `npm run dev:mock` chỉ xem giao diện với dữ liệu mô phỏng. Mock ML chưa triển khai, trả503 rõ ràng; không tạo kết quả inference giả. `npm run check` kiểm type/lint/unit/build; `npm run test:server:integration` chạy MongoDB functional regression; `npm run test:e2e:c3` chạy Desktop E2E với model thật.
 
-B7/Admin, C4 và B8/deployment/performance vẫn ngoài phạm vi task này. PWA/Offline/Sync là roadmap, không được suy thành đã nghiệm thu. Xem [client README](client/README.md), [kế hoạch Backend](docs/backend-online-plan.md), [decisions](docs/decisions.md).
+**Hiệu năng backend.** Bài k6 local cho tập API đọc đã chọn đạt mục tiêu SRS ở **100 VU trong 10 phút**, với **517 req/s**, **p95 tổng 330 ms** và **0 lỗi đọc**. Báo cáo cũng ghi kết quả tải hỗn hợp 30 giây cho upload/import, Analysis và review. [Báo cáo k6](docs/backend/performance-audit.md) · [Kế hoạch Backend](docs/backend-online-plan.md#b8--tích-hợp-online-hiệu-năng-và-bàn-giao).

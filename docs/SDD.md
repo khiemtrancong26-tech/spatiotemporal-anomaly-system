@@ -13,7 +13,7 @@ Token SHA256 nằm trong users, verification24h/reset15 phút, single-use qua co
 
 **Đề tài:** Xây dựng hệ thống phân tích và phát hiện bất thường trong dữ liệu không gian – thời gian bằng trực quan 3D  
 **Phạm vi tài liệu:** **Bước 1–3** — System Architecture, Module Boundary, Logical Data Model, Shared Data Contract, API Contract và MongoDB Physical Design  
-**Cơ sở yêu cầu:** `docs/SRS.md` v0.5 (12/11/2026) và `KE_HOACH_DO_AN_THONG_NHAT_NHOM_5_NGUOI.md` (11/11/2026).  
+**Cơ sở yêu cầu:** [SRS v0.6](SRS.md) và `KE_HOACH_DO_AN_THONG_NHAT_NHOM_5_NGUOI.md` (11/11/2026).\
 **Trạng thái:** Thiết kế khởi động để phân công và bắt đầu code độc lập. **Đã chốt định hướng Backend/Frontend và phân luồng Mapbox; API/DB v0.3 vẫn là bản draft cần review, chưa phải SDD cuối cùng.**
 
 > **Quy tắc đọc:** Phần này chốt trách nhiệm và hướng phụ thuộc giữa các module. Không tự suy diễn thành API/DTO, index MongoDB hay chi tiết class đã được chốt. Hợp đồng dữ liệu ở Bước 2 là bản khởi đầu; REST API/HTTP và MongoDB vật lý có bản thiết kế ở Bước 3 bên dưới, hiện chưa khóa các quyết định mở.
@@ -219,7 +219,7 @@ project-root/                           # Monorepo đã dựng
 - **Duy** dùng DTO cho IndexedDB, auto-cache và Outbox; `baseVersion`/`clientMutationId` chống xung đột/trùng; cache chỉ cam kết phạm vi thực sự lưu.
 - **Cường** dùng fixture này trong smoke/integration tests; test dữ liệu lỗi và trùng nhập.
 
-**Các điểm chưa khóa:** timezone của dữ liệu nguồn thiếu offset; ML cụ thể/feature; ngưỡng severity; giới hạn upload; công nghệ thực thi nền Analysis, concurrency và recovery (hướng async đã chốt); **chu kỳ đo, nhịp batch và thời lượng dataset phụ thuộc dữ liệu thực**; quy tắc trạm cùng externalId khác tọa độ; trạng thái vòng đời Dataset/AnalysisRun là enum dự thảo. Chi tiết và thời điểm cần chốt ở mục G `shared-data-contract.md`.
+**Các điểm review ở bản thiết kế Bước 2.** Timezone của dữ liệu nguồn thiếu offset, ML/feature, ngưỡng severity, giới hạn upload, chu kỳ đo, nhịp batch, thời lượng dataset, quy tắc trạm cùng externalId khác tọa độ và enum vòng đời Dataset/AnalysisRun được theo dõi ở mục G `shared-data-contract.md`. Thiết kế đã triển khai của hàng đợi Analysis, concurrency và recovery được ghi tại D015 và mục 11.3.
 
 **Kết quả Bước 2:** đủ để UI/Offline/Engine viết code với kiểu dữ liệu thống nhất và fixture; **chưa thay thế OpenAPI**, chưa quy định payload từng endpoint, status HTTP hay index MongoDB tối ưu.
 
@@ -258,7 +258,7 @@ project-root/                           # Monorepo đã dựng
 2. Khiêm ↔ Duy: Export page boundaries, cache coverage, sync conflict/receipt/checkpoint.
 3. Khiêm ↔ Khải: Analysis output, severity, ML feature contract, schema enum.
 4. Khiêm ↔ Cường: MongoDB replica-set/transactions, HTTPS routing, DB index script, CI integration tests.
-5. **Phân biệt phần đã chốt và phần còn mở:** D008 đã chốt Analysis async và Run lifecycle; D009 đã chốt thuật toán Isolation Forest, presets thống kê và polling FE; D010 đã chốt MongoDB Official Driver. OPEN-02/05/07, model artifact/features/method-config ML và severity (phần còn lại OPEN-03/04), execution/recovery/retention/concurrency (phần còn lại OPEN-06), Dataset lifecycle/recovery và NEW-01/03/04 vẫn cần quyết định theo Backend Plan. Cập nhật các tài liệu liên quan khi quyết định được duyệt.
+5. Đối chiếu D008/D015 cho vòng đời và recovery Analysis, D010 cho MongoDB Official Driver, D012 cho vòng đời và recovery Import, D020 cho Isolation Forest. Xem mục 11.3 về giới hạn đồng thời và profile đã kiểm thử. OPEN-02/05/07, severity và NEW-01/03/04 tiếp tục theo Backend Plan.
 
 ### 11.2. Phụ lục B0 — Chuẩn bị Backend B1–B5 (14/11/2026)
 
@@ -273,6 +273,12 @@ project-root/                           # Monorepo đã dựng
 **Analysis B5 và recovery.** D008 yêu cầu tiếp nhận bền vững **trước** `202 {data: AnalysisRun}`, job nền có giới hạn concurrency và chỉ công bố anomalies khi run `completed` sau khi ghi đầy đủ. Redis + BullMQ là **phương án đang xem xét**, không phải thành phần đã chốt hoặc yêu cầu B1. Phải kiểm thử ít nhất: (1) MongoDB đã ghi queued run nhưng Server chết trước khi enqueue/dispatch → reconciliation/recovery không để run kẹt; (2) Worker chết giữa chừng, job bị delivery lại → idempotent processing, unique `(analysisRunId,readingId)` và run/attempt guard để không trùng/công bố partial. HTTP idempotency replay cùng key vẫn giữ nguyên snapshot tiếp nhận và run ID; worker có thể thực thi lại, **không hứa exactly-once execution**. Claim/lease, idempotency receipt, queue technology, admission limits, model/version và fault handling phải được thiết kế/chốt trước implementation phần phụ thuộc. Phép đo vận hành và kiểm thử sự cố phải đạt trước nghiệm thu B5.
 
 **Phạm vi chưa mở rộng:** Không đưa Kafka/Spark, Redis hoặc queue mới thành phụ thuộc mặc định khi chưa có benchmark. Các phần còn mở đã phân loại tại mục 11.1 và các phụ thuộc offline/sync tiếp tục có owner/mốc theo Backend Plan; phụ lục không tự thay thế SRS, OpenAPI hay thiết kế DB vật lý.
+
+### 11.3. Vận hành backend đã kiểm thử bằng k6 — 18/11/2026
+
+- **Upload/import đồng bộ.** Mặc định trên mỗi instance có 2 slot upload, 2 slot scan dùng chung và 1 slot import. FIFO import có giới hạn và thời gian chờ cấu hình được. Mặc định `IMPORT_MAX_WAITING=0`.
+- **Analysis bất đồng bộ.** MongoDB Replica Set lưu run, receipt và số slot đang dùng trong transaction trước khi trả `202`. Worker dùng claim/lease và fencing đã được kiểm thử ở B5. Hàng đợi mặc định giữ tối đa 100 run chờ hoặc đang chạy. Mỗi instance có 1 slot thực thi mặc định, đọc từ cấu hình lúc khởi động. Worker thử nhận việc khi có run mới hoặc slot trống, đồng thời vẫn poll MongoDB. [Kiểm thử B5](backend/b5-verification.md) · [Cấu hình mặc định](../server/src/config.ts).
+- **Profile đo trên laptop.** Phép đo hỗn hợp 30 giây dùng 6 slot upload, 3 slot scan, 3 slot import, 3 slot Analysis và pool MongoDB 48 kết nối. Quan sát tối đa 3 run đồng thời với 5.760 readings mục tiêu/run. Bài đọc 100 VU trong 10 phút trên HTTP localhost đạt 517 req/s, p95 tổng 330 ms và 0 lỗi đọc. [Số liệu và cách chạy lại](backend/performance-audit.md) · [Tiêu chí SRS](SRS.md).
 
 ---
 

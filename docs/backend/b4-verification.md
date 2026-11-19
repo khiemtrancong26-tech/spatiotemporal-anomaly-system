@@ -72,7 +72,7 @@ Response 100 readings trong các case đã đo khoảng 22,5–22,6 KB. Memory s
 
 Đã bổ sung bộ [multistation-timeseries.csv](../../server/tests/fixtures/multistation-timeseries.csv): **5 trạm, 239 readings trong 48 giờ**, có đủ trạm cùng thời điểm, biến động, điểm tăng đột ngột, số đo 0, thiếu mẫu và lệch giờ. Đây là dữ liệu mô phỏng kiểm thử, không phải quan trắc thật. Xem [ma trận nhu cầu/kết quả mong đợi và tests B4–B5](../../server/tests/fixtures/README.md). Bộ biên dưới đây vẫn giữ nguyên để hồi quy, không đại diện toàn bộ nhu cầu phân tích chuỗi thời gian.
 
-File [b4-boundaries.csv](../../server/tests/fixtures/b4-boundaries.csv) là dữ liệu mô phỏng nhỏ để upload qua wizard B3. Mapping năm cột cùng tên, unit ug/m3; nếu dùng REST có thể map thêm name/region/unit. Wizard hiện chỉ map năm cột nên tên trạm mặc định là externalId; không thêm UI/field ngoài contract để có tên khác.
+File [query-boundaries.csv](../../server/tests/fixtures/query-boundaries.csv) là dữ liệu mô phỏng nhỏ để upload qua wizard B3. Mapping năm cột cùng tên, unit ug/m3; nếu dùng REST có thể map thêm name/region/unit. Wizard hiện chỉ map năm cột nên tên trạm mặc định là externalId; không thêm UI/field ngoài contract để có tên khác.
 
 | Truy vấn | Kết quả mong đợi từ fixture |
 |---|---|
@@ -116,7 +116,7 @@ Kết quả cuối: **root check PASS** (client 76 tests, server 52 unit/HTTP/co
 
 Suite browser thật B2–B4 đạt **4/4 cases**; B4 được chạy lại đạt sau tối ưu địa lý. Client 18 E2E mock/intercept của lượt B3 là bằng chứng hồi quy lịch sử riêng, không được cộng vào số E2E Backend thật hoặc tuyên bố rerun trong B4.
 
-Source chính: [unit](../../server/tests/query.test.ts), [DB integration](../../server/tests/b4.integration.test.ts), [browser B4](../../server/e2e/b4.spec.ts), [contract drift](../../server/tests/contract.test.ts). Regression B3 test được cập nhật: sensors/readings hiện có handler và thiếu datasetId trả 400; các API hoãn vẫn 404. Test hook async của Fastify được kiểm chứng qua HTTP thật; E2E locator label được chỉnh theo accessible text thực tế, không thay response để pass.
+Source chính: [unit](../../server/tests/unit/query.test.ts), [DB integration](../../server/tests/integration/sensor-reading-query.integration.test.ts), [browser B4](../../server/e2e/workspace-query.spec.ts), [contract drift](../../server/tests/unit/api-and-index-contract.test.ts). Regression B3 test được cập nhật: sensors/readings hiện có handler và thiếu datasetId trả 400; các API hoãn vẫn 404. Test hook async của Fastify được kiểm chứng qua HTTP thật; E2E locator label được chỉnh theo accessible text thực tế, không thay response để pass.
 
 ## Phân công và giới hạn bàn giao
 

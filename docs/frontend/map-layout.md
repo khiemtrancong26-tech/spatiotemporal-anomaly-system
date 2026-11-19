@@ -19,4 +19,4 @@ Theo bố cục đã được người dùng chốt. Chỉ presentation và UI �
 - Mapbox thật + 12 trạm fixture riêng qua HTTP interception: style/tiles/heatmap tải thành công, 0 page errors; xác minh 3 overlay nằm trong bounds canvas. 1440×1000, 1024×900 không tràn ngang toàn trang. Đây là dữ liệu kiểm thử, không ghi vào ứng dụng/database.
 - Cổng kiểm thử riêng 5273/4273 và 5276; không dùng/dừng server của người dùng. Không commit/push.
 
-Files của lượt layout: `client/src/features/workspace/visualization.tsx`, `client/src/app/styles.css`, `client/e2e/{foundation.spec.ts,online.spec.ts}`, client README và báo cáo/ảnh này. Không đổi Backend/API/database. Không đo lại FPS/GPU với dữ liệu lớn; các giới hạn dữ liệu/trang trước đây giữ nguyên.
+Files của lượt layout: `client/src/features/workspace/visualization.tsx`, `client/src/app/styles.css`, `client/e2e/{mock-application-workflows.spec.ts,online-api-workflows.spec.ts}`, client README và báo cáo/ảnh này. Không đổi Backend/API/database. Không đo lại FPS/GPU với dữ liệu lớn; các giới hạn dữ liệu/trang trước đây giữ nguyên.

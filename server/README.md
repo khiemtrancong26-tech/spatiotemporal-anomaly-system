@@ -1,5 +1,9 @@
 # Server — Backend P0 online
 
+> Đây là backend Fastify. Nó nhận yêu cầu từ frontend, nhập CSV vào MongoDB, phục vụ truy vấn dữ liệu và điều phối các tác vụ phân tích bất thường.
+
+[Mã backend](src/README.md) · [Unit và integration test](tests/README.md) · [E2E](e2e/README.md) · [Công cụ](scripts/README.md) · [Isolation Forest](ml/README.md)
+
 **B2-Email Extension:** Register có email bắt buộc, xác minh email trước Login cho tài khoản tự đăng ký mới; Forgot/Reset Password có thu hồi JWT cũ. Legacy/admin/seed giữ hành vi. [Thiết lập Gmail SMTP, kiểm chứng và demo](../docs/backend/b2-email-verification.md). Mock email trả unavailable, không giả lập gửi thư.
 
 **Hiện hành D020 — 17/11/2026:** B1–B6/C2/C3 có API thật; ML chỉ một Isolation Forest 3 features. `config:{}` chạy trực tiếp model hiện có, không selector/flag/version dispatch. Xem [setup model](ml/README.md) và [functional proof/demo](../docs/backend/c3-single-model-verification.md). Các đoạn B5/D014 phía dưới là lịch sử; model một feature và model demo cũ đã xóa.
@@ -97,7 +101,7 @@ Khoảng thời gian đóng [from,to], from=to hợp lệ; UTC Z tối đa 3 ch�
 
 Mỗi request limit 100/max200, lấy tối đa limit+1 bản ghi/projection; cursor gắn toàn bộ bộ lọc/sort. Sensors dùng digest của externalId + ID trong cursor đã ký, repository đọc một anchor để lấy khóa gốc (hỗ trợ mã trạm dài, không thêm maxLength); anchor đổi/xóa → 400 và bắt đầu lại. Readings cursor giữ ts + ID. Không hứa snapshot giữa các trang; ngân sách FE 2.000 điểm không giới hạn dataset hoặc Analysis.
 
-[B4 verification](../docs/backend/b4-verification.md) có fixture biên, E2E thật và số đo/explain 100k/500k. Chạy benchmark riêng bằng `npm run benchmark:query --workspace @pm25/server`: chỉ tạo DB mô phỏng tạm, không dùng DB người dùng; ghi báo cáo JSON vào docs/backend. Benchmark dùng timeout DB 10 giây để ghi nhận cả truy vấn chậm (runtime mặc định 2 giây), không chứng minh SLA 100 VU/10 phút, TLS hoặc peak memory riêng của Backend.
+[B4 verification](../docs/backend/b4-verification.md) có fixture biên, E2E thật và số đo/explain 100k/500k. Chạy benchmark truy vấn riêng bằng `npm run benchmark:query --workspace @pm25/server`. Script tạo DB mô phỏng tạm, dùng timeout 10 giây và ghi báo cáo JSON vào docs/backend. Bài [k6 100 VU trong 10 phút](../docs/backend/performance-audit.md#kiểm-thử-ngưỡng-srs) dùng fixture riêng.
 
 ## B3 và cấu hình nguồn persistent
 
@@ -164,7 +168,14 @@ Seed dùng cùng User service/hash/unique rule với Register. Chạy lại khô
 
 ## Kiểm thử
 
-Kịch bản k6 cho đọc, upload/import, analysis và review chạy trên MongoDB replica set tạm. Xem cấu hình, cách chạy lại và kết quả đối chiếu ở [báo cáo kiểm toán hiệu năng](../docs/backend/performance-audit.md).
+| Thư mục | Quy ước |
+| --- | --- |
+| [`tests/unit/`](tests/unit/) | `*.test.ts` cho unit, HTTP inject và contract checks chạy độc lập |
+| [`tests/integration/`](tests/integration/) | `*.integration.test.ts` cho luồng qua MongoDB thật, tiến trình native hoặc cả hai |
+| [`e2e/`](e2e/) | `*.spec.ts` cho luồng trình duyệt Playwright |
+| [`tests/fixtures/`](tests/fixtures/) | Dữ liệu mẫu và tiến trình hỗ trợ kiểm thử |
+
+Kịch bản k6 chạy bằng HTTP local trên MongoDB replica set tạm. Kịch bản đọc **100 VU trong 10 phút** đã đạt ngưỡng SRS, với **517 req/s**, **p95 tổng 330 ms** và **0 lỗi đọc**. Kịch bản hỗn hợp 30 giây hoàn tất **6 upload, 6 import và 9 run Analysis**, với đỉnh **3 run đồng thời** ở **5.760 readings mục tiêu/run**. Xem profile benchmark và lệnh chạy lại ở [báo cáo kiểm toán hiệu năng](../docs/backend/performance-audit.md).
 
 ```powershell
 # Unit/HTTP/contract, không cần DB bên ngoài.
@@ -174,15 +185,15 @@ npm run test:server:integration
 # Bao gồm unit và MongoDB integration.
 npm run test:coverage --workspace @pm25/server
 # Browser E2E FE online + Backend + mongod thật, không HTTP intercept.
-npm run test:e2e:b2
-npm run test:e2e:b3
-npm run test:e2e:b4
+npm exec --workspace @pm25/server -- playwright test --config playwright.config.ts auth-session.spec.ts dataset-import.spec.ts workspace-query.spec.ts
 # Kiểm tra cả client/server; integration thật là lệnh riêng phía trên.
 npm run check
 ```
 
+Các lệnh npm theo mốc như `test:e2e:b5` vẫn trỏ đến suite tương ứng để chạy được các quy trình đã dùng lệnh cũ.
+
 `mongodb-memory-server` quản lý binary/process và thư mục test; driver gửi lệnh tới MongoDB thật. Lần đầu cài/chạy cần tải binary từ MongoDB. Lỗi tải/khởi động làm integration thất bại, không bỏ qua/chuyển mock. Test không dùng `MONGODB_URI` của người dùng hoặc sửa DB có sẵn; mongod tạm đóng sau suite.
 
-Coverage tính `src/**` trừ `main.ts`; scripts/Python không nằm trong coverage V8, worker thread có execution evidence riêng. Unit orchestration dùng test doubles có nhãn; integration dùng engine/scrypt/JWT/DB thật. Browser suite tự tạo DB tạm, Backend và Vite online, không đụng DB người dùng. Nếu Chromium chưa có, chạy `npx playwright install chromium` trong server. E2E thật bao phủ M2–M6 statistical/poll/history/review/conflict/reload; B7 còn chờ. Mapbox token/tiles/FPS có nghiệm thu riêng. Fault hooks chỉ qua DI tests, main không bật; không intercept HTTP để báo thành công. Query100k/500k và Analysis30k/500k đã có số đo; chưa nghiệm thu stress/TLS/SLA hoặc tổng memory gồm Python/MongoDB trên triển khai thật.
+Coverage V8 tính `src/**` trừ `main.ts`. Worker thread có bằng chứng thực thi riêng. Unit orchestration dùng test doubles có nhãn và integration dùng engine/scrypt/JWT/DB thật. Browser suite tự tạo DB tạm, Backend và Vite online. Nếu Chromium chưa có, chạy `npx playwright install chromium` trong server. E2E thật bao phủ M2–M6 và Admin B7. Fault hooks chỉ được bật qua DI trong test. [Kiểm chứng B7](../docs/backend/b7-verification.md) · [Kết quả tải backend](../docs/backend/performance-audit.md).
 
 Tham chiếu triển khai: [Fastify validation](https://fastify.dev/docs/latest/Reference/Validation-and-Serialization/), [Fastify routing lookup](https://fastify.dev/docs/latest/Reference/Server/#findroute), [Official Driver timeout](https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/csot/). Connection dùng timeout theo giai đoạn. B5 dùng thêm budget15s cho `session.withTransaction` theo API Driver7.9 đang kiểm chứng; không suy ra HTTP abort hủy ngay commit DB đang bay. Xem B5 runbook về deadline/commit không xác định.

@@ -16,16 +16,16 @@ Không đổi Backend/OpenAPI/Shared Data Contract, không đổi màu/heatmap e
 - `npm run typecheck --workspace @pm25/client`, `npm run lint --workspace @pm25/client`, production build: đạt. Build còn cảnh báo kích thước chunk Three.js hiện có.
 - Toàn bộ FE unit tests: **123 tests / 19 files đạt**. Bao gồm completeness/ghép coverage/LRU/cancellation/race, biên Cube 1.999/2.000/2.001, snapshot vượt 2.000 raw readings và tie-break cache/network nhất quán, phân bố chia trạm/thời gian và từ chối số đếm/metadata sai.
 - Kiểm thử duyệt **500.000 readings mô phỏng / 5.000 trang**: truy cập đến record cuối, cache ≤50.000 records và ≤256 trang metadata; không xác nhận coverage khi records đã bị loại.
-- Playwright `shared-visualization.spec.ts`, Chromium online build, HTTP fixtures mô phỏng dataset 500.000 readings: **5 tests đạt**, chỉ Desktop. Kiểm tra T sâu ở reading thứ 360.000, giữ selection/focus/T, reuse coverage khi Cube → Mapbox không thêm raw request, giữ canvas qua lát/chế độ con, chặn Cube quá ngưỡng, chọn khoảng bằng histogram, duyệt 22 trang Mapbox và thay trang, sort/refresh, lỗi trang sau/retry, giữ/dịch cửa sổ 48 giờ. Không sửa assertions cũ để bỏ qua lỗi.
+- Playwright `map-cube-state-sharing.spec.ts`, Chromium online build, HTTP fixtures mô phỏng dataset 500.000 readings: **5 tests đạt**, chỉ Desktop. Kiểm tra T sâu ở reading thứ 360.000, giữ selection/focus/T, reuse coverage khi Cube → Mapbox không thêm raw request, giữ canvas qua lát/chế độ con, chặn Cube quá ngưỡng, chọn khoảng bằng histogram, duyệt 22 trang Mapbox và thay trang, sort/refresh, lỗi trang sau/retry, giữ/dịch cửa sổ 48 giờ. Không sửa assertions cũ để bỏ qua lỗi.
 - Screenshots đã kiểm tra trực quan: `client/test-results/shared-cube-1440.png` (1440×900), `client/test-results/shared-cube-1366.png` (1366×768), full page. Không phát hiện overflow ngang trong hai viewport. Chọn khoảng từ histogram cập nhật cả query lẫn trường thời gian đang hiển thị.
 
-Lệnh E2E: tại `client`, đặt `PM25_E2E_MOCK_PORT=5273`, `PM25_E2E_ONLINE_PORT=4273`, `VITE_MAPBOX_TOKEN=''`, chạy `npx playwright test e2e/shared-visualization.spec.ts --project=chromium-online --workers=1`. Các cổng thử riêng không chiếm 5173 của phiên làm việc. Các suite E2E khác không chạy trong lượt này; không chạy bước Mobile/Tablet cũ.
+Lệnh E2E: tại `client`, đặt `PM25_E2E_MOCK_PORT=5273`, `PM25_E2E_ONLINE_PORT=4273`, `VITE_MAPBOX_TOKEN=''`, chạy `npx playwright test e2e/map-cube-state-sharing.spec.ts --project=chromium-online --workers=1`. Các cổng thử riêng không chiếm 5173 của phiên làm việc. Các suite E2E khác không chạy trong lượt này; không chạy bước Mobile/Tablet cũ.
 
 ## File thay đổi
 
 - Cache/tải dữ liệu: `client/src/features/workspace/readings-cache.ts`, `cube-readings.ts`, `snapshot.ts`; nối cấp phiên tại `client/src/app/services.tsx`.
 - Ngữ cảnh/giao diện: `client/src/features/workspace/state.ts`, `cube-data.ts`, `cube-explorer.tsx`, `visualization.tsx`; histogram mới `reading-distribution-data.ts`, `reading-distribution.tsx`; Desktop CSS tại `client/src/app/styles.css`.
-- Kiểm thử: `client/src/features/workspace/readings-cache.test.ts`, `reading-distribution-data.test.ts`, `snapshot.test.ts`, `state.test.ts`; `client/e2e/shared-visualization.spec.ts`, `client/playwright.config.ts`.
+- Suite kiểm thử gồm `client/tests/integration/workspace/readings-cache-and-cube.integration.test.ts`, các unit tests tại `client/tests/unit/workspace/` và `client/e2e/map-cube-state-sharing.spec.ts`.
 - Tài liệu: `client/README.md`, `docs/frontend-online-plan.md`, `docs/frontend/heatmap-timeline.md`, tài liệu này.
 
 ## Giới hạn đã biết

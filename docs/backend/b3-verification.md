@@ -105,7 +105,7 @@ npm run test:e2e
 | Client regression E2E | PASS 18 cases; đây là mock/HTTP-interception tests riêng, không cộng vào bằng chứng Backend/ML thật |
 | Runtime dependencies | npm audit --omit=dev: 0 vulnerabilities tại thời điểm kiểm tra; không tuyên bố toàn bộ dev toolchain không có cảnh báo |
 
-File kiểm thử chính: [import unit](../../server/tests/import.test.ts), [B3 integration](../../server/tests/b3.integration.test.ts), [child crash fixture](../../server/tests/fixtures/b3-worker.ts), [B3 browser](../../server/e2e/b3.spec.ts), [schema/index contract](../../server/tests/contract.test.ts). Temp cleanup có kiểm tra root trước recursive remove; không xóa DB/nguồn bên ngoài fixture. Fault hooks chỉ là DI cho test, main không bật và không có HTTP fault endpoint.
+File kiểm thử chính: [import unit](../../server/tests/unit/import.test.ts), [B3 integration](../../server/tests/integration/dataset-import.integration.test.ts), [child crash fixture](../../server/tests/fixtures/import-recovery-worker.ts), [B3 browser](../../server/e2e/dataset-import.spec.ts), [schema/index contract](../../server/tests/unit/api-and-index-contract.test.ts). Temp cleanup có kiểm tra root trước recursive remove; không xóa DB/nguồn bên ngoài fixture. Fault hooks chỉ là DI cho test, main không bật và không có HTTP fault endpoint.
 
 Lượt full coverage ban đầu bị timeout test 5.000 rows khi chạy cùng nhiều browser; điều chỉnh timeout harness lên 60 giây và chạy riêng đã đạt, Backend deadline vẫn 120 giây. Test UI cũ được cập nhật theo thông báo D012, test transport làm nóng indexes trước đo deadline ngắn. Không thay production limit hoặc chuyển sang mock để pass.
 

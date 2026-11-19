@@ -30,7 +30,7 @@ Giá trị là một lượt đo cho mỗi bậc. Latency theo thứ tự p50 / 
 | 40 VU | 346 | 446 | 95 / 244 / 293 | 81 / 150 / 183 |
 | 100 VU | 290 | 492 | 308 / 610 / 724 | 188 / 342 / 411 |
 
-Đợt 100 VU ngắn ghi nhận 0 lỗi HTTP đọc ở cả hai bản. Riêng danh sách anomalies theo run, p95 giảm từ 736 xuống 424 ms. Mức cao nhất quan sát trong bốn bậc là 521 req/s ở 16 VU. Các bậc cao hơn tăng thời gian chờ nhưng throughput dao động quanh vùng bão hòa. Pool 48 ghi nhận tối đa 47 kết nối checkout đồng thời, p95 checkout 26 ms và event-loop delay p99 63 ms, so với 24 ms và 133 ms ở baseline.
+Đợt 100 VU ngắn ghi nhận 0 lỗi HTTP đọc ở cả hai bản. Riêng danh sách anomalies theo run, p95 giảm từ 736 xuống 424 ms. Trong bản tối ưu, từ 16 lên 40 VU, p95 tăng từ 52 lên 150 ms và throughput giảm từ 521 xuống 446 req/s. Đây là dấu hiệu bão hòa giữa hai bậc đã đo. Mỗi bậc chỉ có một lượt 10 giây nên độ chính xác của ngưỡng còn giới hạn. Ở 100 VU, pool 48 ghi nhận tối đa 47 kết nối checkout đồng thời, p95 checkout 26 ms và event-loop delay p99 63 ms, so với 24 ms và 133 ms ở baseline.
 
 | Tải hỗn hợp 30 giây | Baseline | Sau |
 | --- | ---: | ---: |
@@ -46,13 +46,13 @@ Giá trị là một lượt đo cho mỗi bậc. Latency theo thứ tự p50 / 
 | Lỗi hệ thống phía client | 4 | 0 |
 | Write conflict MongoDB | 2.134 | 137 |
 
-Baseline có 9 job được lưu. Hai POST vượt deadline client 15 giây và một job còn chạy khi kết thúc lấy mẫu. Bản tối ưu hoàn tất cả ba Z-score, ba IQR và ba Isolation Forest. Đọc hỗn hợp giảm p95 từ 274 xuống 198 ms cho readings và từ 522 xuống 287 ms cho danh sách anomalies. Các lượt đọc k6 chưa khởi chạy hoặc chưa hoàn tất được tính riêng với lỗi HTTP. Độ trễ event loop p99 hỗn hợp giảm từ 89 xuống 50 ms. RAM khả dụng thấp nhất lần lượt là 5,87 và 6,54 GiB. RSS lấy mẫu của Node là 445 và 449 MiB, của MongoDB là 316 và 230 MiB. Node gồm HTTP server, worker threads và bộ điều phối benchmark, tiêu thụ trung bình tương đương 1,13 và 0,94 luồng CPU đầy tải. k6 và Python chạy process riêng.
+Baseline có 9 job được lưu. Hai POST vượt deadline client 15 giây và một job còn chạy khi kết thúc lấy mẫu. Bản tối ưu hoàn tất cả ba Z-score, ba IQR và ba Isolation Forest. Đọc hỗn hợp giảm p95 từ 274 xuống 198 ms cho readings và từ 522 xuống 287 ms cho danh sách anomalies. k6 ghi nhận 217 `dropped_iterations` ở bản tối ưu và 0 lỗi HTTP đọc. Độ trễ event loop p99 hỗn hợp giảm từ 89 xuống 50 ms. RAM khả dụng thấp nhất lần lượt là 5,87 và 6,54 GiB. RSS lấy mẫu của Node là 445 và 449 MiB, của MongoDB là 316 và 230 MiB. Node gồm HTTP server, worker threads và bộ điều phối benchmark, tiêu thụ trung bình tương đương 1,13 và 0,94 luồng CPU đầy tải. k6 và Python chạy process riêng.
 
 PATCH riêng tăng từ 101 lên 123 request/giây, latency 69 / 1.541 / 3.386 ms xuống 259 / 273 / 291 ms. FIFO làm trung vị cao hơn khi mọi client liên tục ghi cùng một dataset. Đuôi latency giảm rõ rệt. Write conflict và transaction abort trong đợt này cùng giảm từ 8.144 xuống 0. Hai bản hoàn tất lần lượt 1.598 và 1.870 PATCH trong số tối đa 2.400 ở cửa sổ ngắn.
 
 ## Kiểm thử ngưỡng SRS
 
-**PASS** cho tập API đọc đã chọn ở 100 VU liên tục trong 10 phút. k6 ghi nhận 310.242 request, 517 req/s, 0 lỗi đọc và latency tổng p50 / p95 / p99 là 181 / 330 / 361 ms. Tất cả endpoint đều có p95 dưới 500 ms. RAM khả dụng thấp nhất là 6,63 GiB, Node RSS cao nhất lấy mẫu 474 MiB, MongoDB RSS 260 MiB. p95 checkout là 24 ms và p99 event-loop delay là 56 ms.
+**PASS** cho tập API đọc đã chọn ở 100 VU liên tục trong 10 phút. k6 ghi nhận 310.242 request, 517 req/s, 0 lỗi đọc và latency tổng p50 / p95 / p99 là 181 / 330 / 361 ms. Cả sáu kịch bản đều có p95 dưới 500 ms. RAM khả dụng thấp nhất là 6,63 GiB, Node RSS cao nhất lấy mẫu 474 MiB, MongoDB RSS 260 MiB. p95 checkout là 24 ms và p99 event-loop delay là 56 ms. [Mục tiêu SRS](../SRS.md) · [Kịch bản và ngưỡng k6](../../server/scripts/performance.k6.js).
 
 | API / kịch bản đọc | Request | p50 / p95 / p99 (ms) |
 | --- | ---: | ---: |
@@ -60,7 +60,7 @@ PATCH riêng tăng từ 101 lên 123 request/giây, latency 69 / 1.541 / 3.386 m
 | Sensors | 44.113 | 186 / 219 / 243 |
 | Readings, 100/trang | 88.447 | 187 / 221 / 245 |
 | Readings, cursor sâu | 44.578 | 188 / 221 / 246 |
-| Anomalies, theo run | 44.250 | 320 / 366 / 403 |
+| Anomalies, theo run đã hoàn tất và status `open` | 44.250 | 320 / 366 / 403 |
 | Anomaly, chi tiết | 44.312 | 145 / 173 / 192 |
 
 ## Chọn thông số cho workload đã đo
@@ -111,5 +111,3 @@ node server/scripts/benchmark-performance.mjs .local/performance-srs.json srs
 Để đối chiếu baseline, build commit `9e9eb67` ở checkout riêng, chép hai script benchmark vào `server/scripts` và chạy cùng kịch bản với cấu hình mặc định. Giữ cùng bộ Python và artifact. Để dùng index mới trên một database đã chọn, áp dụng bằng lệnh index hiện hành của server trên database đó. Kết quả ở đây dùng replica set tạm. Cấu hình trên là profile đo trên laptop, dùng mặc định bảo thủ trong `.env.example`.
 
 Số liệu gốc nằm trong `.local/performance-baseline.json`, `.local/performance-candidate3.json` và `.local/performance-srs.json`. Số liệu sweep có trong `.local/performance-tuning-2.json`, `.local/performance-tuning-3.json` và `.local/performance-pool24.json`. Báo cáo JSON giữ thống kê k6, explain, checkout, event loop, RAM và kết quả job theo phương pháp.
-
-Phạm vi số liệu là localhost, một account, fixture tổng hợp, một MongoDB node và bộ lọc anomalies theo run. Cần số đo bổ sung để suy rộng ra nhiều dataset, CSV gần giới hạn 100 MiB, truy vấn geo có độ chọn lọc khác, tải ML dài hạn, SSD và failover. Mức tối ưu còn phụ thuộc dữ liệu, tải nền của Windows và tỷ lệ các tác vụ.

@@ -19,8 +19,8 @@
 - `server/src/modules/users/users.service.ts`: tách prepareUser từ createUser hiện có để Admin hash/validate trước transaction, không giữ transaction trong lúc scrypt. createUser B2 vẫn dùng cùng logic.
 - `server/src/modules/users/users.repository.ts`: expose ensureIndexes/toPublicUser và optional session cho insert; dùng lại unique checks/mapping, không đổi dữ liệu cũ.
 - `client/src/features/admin-users/page.tsx`: thông báo409 và cho sửa duplicate username xác định.
-- Mới `server/tests/b7.integration.test.ts`; cập nhật `server/tests/contract.test.ts`: test chức năng và drift3 schemas/query/response.
-- Mới `server/e2e/b7.spec.ts`; `server/playwright.config.ts`, root/server `package.json`: một luồng Desktop thật và lệnh test. Không dependency/lockfile mới.
+- Mới `server/tests/integration/admin-users.integration.test.ts`; cập nhật `server/tests/unit/api-and-index-contract.test.ts`: test chức năng và drift3 schemas/query/response.
+- Mới `server/e2e/admin-users.spec.ts`; `server/playwright.config.ts`, root/server `package.json`: một luồng Desktop thật và lệnh test. Không dependency/lockfile mới.
 - `docs/backend-online-plan.md`, báo cáo này: tick B7 khi có đủ proof.
 
 ## Kết quả kiểm thử đã chạy
@@ -39,7 +39,7 @@ Targeted test ban đầu phát hiện limit=1e2 bị query coercion; đã dùng 
 ```powershell
 $env:MONGOMS_SYSTEM_BINARY='C:/Program Files/MongoDB/Server/9.0/bin/mongod.exe'
 $env:MONGOMS_SYSTEM_BINARY_VERSION_CHECK='false'
-npm exec --workspace @pm25/server -- vitest run tests/b7.integration.test.ts tests/contract.test.ts
+npm exec --workspace @pm25/server -- vitest run tests/integration/admin-users.integration.test.ts tests/unit/api-and-index-contract.test.ts
 npm run typecheck --workspace @pm25/server
 npm run lint --workspace @pm25/server
 npm run build --workspace @pm25/server
@@ -47,8 +47,8 @@ npm run typecheck --workspace @pm25/client
 npm run lint --workspace @pm25/client
 npm run build --workspace @pm25/client
 npm run test:e2e:b7
-npm exec --workspace @pm25/server -- vitest run tests/b7.integration.test.ts tests/auth.test.ts tests/b2.integration.test.ts tests/email.integration.test.ts tests/contract.test.ts
-npm exec --workspace @pm25/client -- vitest run src/shared/data-source/online.test.ts
+npm exec --workspace @pm25/server -- vitest run tests/integration/admin-users.integration.test.ts tests/unit/auth.test.ts tests/integration/auth-and-datasets.integration.test.ts tests/integration/email-auth.integration.test.ts tests/unit/api-and-index-contract.test.ts
+npm exec --workspace @pm25/client -- vitest run tests/integration/api/online-data-source.integration.test.ts
 ```
 
 Mongo tests dùng DB tạm riêng, actual mongod9.0.4 override harness8.2.6, không gửi email thật. Không sửa/xóa dữ liệu MongoDB development. Không benchmark/load/stress/k6/coverage/fault injection hoặc full-suite campaign. Build warning chunk size có sẵn được giữ, không tuning. Không commit/push.

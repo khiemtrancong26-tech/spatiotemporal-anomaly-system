@@ -1,6 +1,8 @@
 # Kế hoạch triển khai Backend P0 online — PM2.5
 
-**B7 hoàn tất17/11/2026:** ba API Admin thật, keyset/transaction idempotency và last-active-admin concurrency đã kiểm chứng; FE Admin list/create/update có E2E thật. [B7 verification](backend/b7-verification.md). Các dòng “B7 chờ” trong baseline cũ phía dưới là lịch sử; B8 vẫn chưa triển khai.
+**Kết quả hiệu năng B8 ngày 18/11/2026.** Bài k6 đạt mục tiêu đọc SRS trên HTTP local với 100 VU trong 10 phút. Báo cáo ghi thêm phép đo tải hỗn hợp và đối chiếu cấu hình. [Báo cáo hiệu năng](backend/performance-audit.md).
+
+**B7 hoàn tất17/11/2026:** ba API Admin thật, keyset/transaction idempotency và last-active-admin concurrency đã kiểm chứng; FE Admin list/create/update có E2E thật. [B7 verification](backend/b7-verification.md). Các dòng “B7 chờ” trong baseline cũ phía dưới là lịch sử.
 
 **D020 — 17/11/2026, kiến trúc hiện hành:** hệ thống chỉ dùng một Isolation Forest với `[value, temporal_delta, spatial_delta]`. Request ML là `method: "isolation_forest", config: {}`; Backend tự chọn artifact đã pin. Không có selector/flag/dispatch v1/v2. `modelVersion` chỉ là provenance do Server ghi; giữ nguyên ID/hash manifest C3, không train lại. `scoringSummary` bắt buộc trên completed ML, vắng ở statistical/queued/running/failed; partition và atomic fencing không đổi. Xem [kiểm chứng và demo một model](backend/c3-single-model-verification.md). Những mô tả dual-version/value-only bên dưới là lịch sử đã được thay thế, không phải hướng dẫn chạy hiện tại.
 
@@ -312,7 +314,7 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 
 ### B8 — Tích hợp online, hiệu năng và bàn giao
 
-- [ ] D008: integration thật cho tiếp nhận durable, queued/running/terminal, worker restart, mất response/replay cùng run, cạnh tranh cùng key, failed persist không lộ partial; nhiều client không vượt concurrency đã chốt. Đo acceptance, queue wait và execution riêng với CPU/RAM/event-loop, không dùng mock làm bằng chứng.
+- [x] **Tiếp nhận và phục hồi Analysis.** B5 đã kiểm thử lưu job trước khi trả `202`, worker restart, mất phản hồi và replay cùng run, cạnh tranh cùng key và ẩn kết quả ghi dở. B8 ghi riêng thời gian chờ claim, hoàn tất job, CPU, RAM và event loop trong tải hỗn hợp. [Bằng chứng B5](backend/b5-verification.md) · [Đối chiếu B8](backend/performance-audit.md#đối-chiếu-k6).
 
 
 **Mục tiêu:** Nghiệm thu toàn bộ Backend P0 online với FE thật, có bằng chứng DB/engine/hạ tầng và giới hạn thực tế.
@@ -323,8 +325,8 @@ Mã **B0–B8** là mốc Backend; **FE M0–M8** trỏ tới kế hoạch Front
 - [ ] Kiểm thử lỗi theo feature: auth, sai payload/media type, giới hạn upload, dữ liệu rỗng, cursor sai, DB/model unavailable, import thất bại, request trùng và mất response sau commit.
 - [ ] Chạy typecheck/lint/build/unit/contract/integration; báo cáo coverage server mục tiêu ≥80%. Khải báo coverage shared-core mục tiêu ≥90%, chất lượng detector riêng; không cộng test FE mock vào coverage Backend.
 - [ ] Cường dựng Docker/Nginx HTTPS `443`, smoke `/api/v1/health` và auth/routing; kiểm tra proxy timeout/body size đồng bộ với quyết định B3/B5, không lộ internal reading-batches. Không đưa JWT secret/DB URI nhạy cảm vào bundle FE.
-- [ ] Benchmark 200–500 trạm, 100k và 500k readings; explain time/geo/cursor, docs/keys examined, thời gian/memory import, analysis và số anomalies. Dataset giả được ghi nhãn, dataset thực phải có nguồn và tọa độ xác minh.
-- [ ] k6 theo SRS: 100 virtual users/10 phút, mục tiêu p95 <500 ms và lỗi <1% cho **danh sách API đọc đã chọn trước khi chạy**. Đo upload/ML riêng; không áp ngưỡng đọc cho mọi endpoint. Ghi máy, cấu hình, dữ liệu, kịch bản, kết quả và vấn đề còn tồn tại.
+- [x] **k6 theo SRS cho tập đọc local.** 100 VU trong 10 phút, 310.242 request, 517 req/s, p95 tổng 330 ms, p95 cao nhất theo kịch bản 366 ms và 0 lỗi đọc. Tập đọc gồm datasets, sensors, readings (kể cả deep cursor) và anomalies list/detail. Fixture gồm 48.000 readings, 12 trạm và 24.000 anomalies. [Bằng chứng và cách chạy lại](backend/performance-audit.md#kiểm-thử-ngưỡng-srs).
+- [x] **Tải hỗn hợp đối chiếu trước/sau.** Kịch bản 30 giây gồm đọc, upload/import, Analysis và review. Bản tối ưu hoàn tất 6.983/7.200 lượt đọc đã lên lịch, 6 upload, 6 import và 9 run Analysis, tối đa 3 run đồng thời với 5.760 readings mục tiêu/run. [Số liệu đối chiếu](backend/performance-audit.md#đối-chiếu-k6).
 - [ ] Hoàn thiện server README/env/scripts, cách tạo account test, seed/index, nguồn model, contract/method hỗ trợ, trạng thái từng endpoint và các giới hạn. Cập nhật tài liệu liên quan chỉ theo review được duyệt khi triển khai, không sửa OpenAPI tự động để hợp thức hóa test lỗi.
 
 **Dependency:** B1–B7 đạt tiêu chí riêng; detector/model thật từ Khải, môi trường từ Cường, FE M3–M7 đủ để chạy tích hợp. FE chưa sẵn sàng thì API integration vẫn có thể hoàn thành, nhưng không đánh dấu E2E FE M8 đã đạt.

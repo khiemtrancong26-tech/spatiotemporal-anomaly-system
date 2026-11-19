@@ -13,8 +13,8 @@ export default defineConfig({
   fullyParallel: true,
   use: { baseURL: mockUrl, trace: 'retain-on-failure' },
   projects: [
-    { name: 'chromium-mock', testMatch: 'foundation.spec.ts', use: { ...devices['Desktop Chrome'] } },
-    { name: 'chromium-online', testMatch: ['online.spec.ts', 'cube.spec.ts', 'analyst.spec.ts', 'shared-visualization.spec.ts'], use: { ...devices['Desktop Chrome'], baseURL: onlineUrl } },
+    { name: 'chromium-mock', testMatch: 'mock-application-workflows.spec.ts', use: { ...devices['Desktop Chrome'] } },
+    { name: 'chromium-online', testMatch: ['online-api-workflows.spec.ts', 'space-time-cube.spec.ts', 'analyst-exploration-and-review.spec.ts', 'map-cube-state-sharing.spec.ts'], use: { ...devices['Desktop Chrome'], baseURL: onlineUrl } },
   ],
   webServer: [
     { command: `npm run dev:mock -- --port ${mockPort}`, url: mockUrl, reuseExistingServer: false },

@@ -17,5 +17,5 @@
     "skipLibCheck": true,
     "types": ["vite/client", "geojson", "node", "@testing-library/jest-dom"]
   },
-  "include": ["src", "e2e", "*.ts"]
+  "include": ["src", "tests", "e2e", "*.ts"]
 }

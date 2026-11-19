@@ -1,5 +1,9 @@
 # Client — PM2.5 Explorer
 
+> Đây là phần chạy trên trình duyệt. Người dùng tải CSV, mở dữ liệu, lọc số đo, xem biểu đồ và yêu cầu backend chạy phân tích từ giao diện này.
+
+[Mã frontend](src/README.md) · [Unit và integration test](tests/README.md) · [E2E](e2e/README.md) · [Công cụ](scripts/README.md)
+
 **B2-Email Extension:** Register có email bắt buộc, xác minh email trước Login cho tài khoản tự đăng ký mới; Forgot/Reset Password có thu hồi JWT cũ. Legacy/admin/seed giữ hành vi. [Thiết lập Gmail SMTP, kiểm chứng và demo](../docs/backend/b2-email-verification.md). Mock email trả unavailable, không giả lập gửi thư.
 
 **D020:** Isolation Forest dùng model PM2.5 3 features duy nhất của Server, request `config:{}`. Không còn selector v1/v2; `modelVersion` trong kết quả chỉ là provenance. Completed ML hiển thị scored/target/unscorable và reasons; không coi unscorable là normal. Mock ML trả503 `MOCK_ML_NOT_IMPLEMENTED`; luồng native được kiểm bằng Desktop E2E C3. [Demo/proof hiện hành](../docs/backend/c3-single-model-verification.md).
@@ -31,18 +35,28 @@ Vite đọc env trong `client/`, không tự đọc `.env` root. `VITE_API_BASE_
 
 `VITE_MAPBOX_TOKEN` chỉ nhận public token `pk.`; có thể để trống đến M4. Không đặt token `sk.`, mật khẩu hoặc JWT secret trong biến `VITE_` vì chúng có thể vào bundle.
 
-Backend hiện chưa có implementation trong checkout. Adapter online đã sẵn sàng cho login/register/me/datasets; cần Backend cung cấp API và tài khoản thật để nghiệm thu tích hợp. Tài khoản mock không dùng được trên Backend thật.
+Chế độ online gọi API Fastify và dùng tài khoản lưu trong MongoDB của backend. [Mã và hướng dẫn backend](../server/README.md)
 
 ## Lệnh kiểm tra
 
+| Thư mục | Quy ước |
+|---|---|
+| [`tests/unit/`](tests/unit/) | `*.test.ts` cho logic độc lập và kiểm tra hợp đồng dữ liệu |
+| [`tests/integration/`](tests/integration/) | `*.integration.test.ts` hoặc `*.integration.test.tsx` cho luồng qua nhiều module, component, router hoặc HTTP adapter |
+| [`e2e/`](e2e/) | `*.spec.ts` cho luồng trình duyệt Playwright |
+
 ```powershell
 npm run check
+npm test --workspace @pm25/client
+npm run test:unit --workspace @pm25/client
+npm run test:integration --workspace @pm25/client
 npm run test:coverage --workspace @pm25/client
 npm exec --workspace @pm25/client -- playwright install chromium
 npm run test:e2e
 ```
 
 - `check`: sinh contract/routes, typecheck, lint, unit/integration tests và build online.
+- `npm test --workspace @pm25/client` chạy cả unit và integration. Hai lệnh riêng chọn theo thư mục. Vitest dùng chung [setup jsdom](tests/setup.ts).
 - `test:e2e`: build online, chạy Vite mock ở 5173 và preview online ở 4173, kiểm tra Chromium rồi tự đóng hai server. Cần các cổng này còn trống. Request Backend trong online E2E được Playwright intercept; đây không phải bằng chứng API thật đã triển khai.
 - `test:coverage`: báo cáo trong `client/coverage/`; phạm vi cấu hình là `shared/` và `mocks/`, loại generated types/schemas và tests. Không suy ra coverage của toàn bộ MVP.
 - `npm run build`: build online vào `client/dist`. Build online mặc định không chứa chunk fixture transport.

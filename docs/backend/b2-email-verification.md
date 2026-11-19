@@ -37,7 +37,7 @@ Backend config chỉ gmailUser/gmailAppPassword/appUrl; App Password được re
 ```powershell
 $env:MONGOMS_SYSTEM_BINARY='C:/Program Files/MongoDB/Server/9.0/bin/mongod.exe'
 $env:MONGOMS_SYSTEM_BINARY_VERSION_CHECK='false'
-npm exec --workspace @pm25/server -- vitest run tests/email.test.ts tests/email.integration.test.ts tests/auth.test.ts tests/b2.integration.test.ts tests/contract.test.ts
+npm exec --workspace @pm25/server -- vitest run tests/unit/email.test.ts tests/integration/email-auth.integration.test.ts tests/unit/auth.test.ts tests/integration/auth-and-datasets.integration.test.ts tests/unit/api-and-index-contract.test.ts
 npm run typecheck --workspace @pm25/server
 npm run lint --workspace @pm25/server
 npm run build --workspace @pm25/server
@@ -52,5 +52,5 @@ Chưa có kết quả gửi email thật tới Gmail trong task này; không coi
 - `server/src/modules/auth/email.ts`: sender Nodemailer Gmail duy nhất; giữ interface và links.
 - `server/src/config.ts`, `server/src/modules/auth/index.ts`, `server/src/app.ts`: Gmail env validation, startup warning và redaction.
 - `server/package.json`, `package-lock.json`: thêm Nodemailer10.6.0 và types8.0.2; không có dependency email provider khác.
-- `server/tests/email.test.ts`: mock transport, config/multiple recipients/SMTP failure. Auth integration dùng fake sender cũ, không đổi token tests.
+- `server/tests/unit/email.test.ts`: mock transport, config/multiple recipients/SMTP failure. Auth integration dùng fake sender cũ, không đổi token tests.
 - `.env.example`, root/server/client README, `docs/SDD.md`, báo cáo này: hướng dẫn Gmail hiện hành; không thay API/FE hoặc SRS requirements.

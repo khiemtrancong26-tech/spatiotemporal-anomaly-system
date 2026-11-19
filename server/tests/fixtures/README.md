@@ -1,5 +1,7 @@
 # Fixtures kiểm thử Backend và nhu cầu phân tích
 
+> Thư mục này chứa các tệp CSV mẫu và chương trình hỗ trợ kiểm thử backend. Test dùng chúng để tái hiện các kịch bản nhập dữ liệu, phân tích và khôi phục tác vụ khi worker gặp sự cố.
+
 CSV trong thư mục này là **dữ liệu mô phỏng có chủ đích**, không phải số đo quan trắc thật, dự báo hoặc bằng chứng độ chính xác detector. Các trạm `SYN-*`, tọa độ và giá trị đều được tạo để tái lập các tình huống dưới đây. Không tự đưa chúng vào online mode hoặc DB người dùng. Bộ dữ liệu thật nhiều trạm dùng demo được giữ riêng trong `.local/demo-datasets`.
 
 ## Chọn đúng file
@@ -7,8 +9,8 @@ CSV trong thư mục này là **dữ liệu mô phỏng có chủ đích**, khô
 | File | Vai trò |
 |---|---|
 | **[multistation-timeseries.csv](multistation-timeseries.csv)** | Bộ chính để kiểm thử nhu cầu so sánh nhiều trạm qua thời gian: **5 trạm ở 5 vị trí, 239 readings, 48 giờ**. Import hợp lệ, không trùng trạm/thời điểm. |
-| [b4-boundaries.csv](b4-boundaries.csv) | Bộ chuyên kiểm tra biên: **5 trạm, 8 readings**; bbox đóng, thời gian đóng, sai khác 1 ms, giá trị 0. Không dùng thay bộ chuỗi thời gian đầy đủ. |
-| `b3-worker.ts`, `b5-worker.ts` | Chương trình phụ tạo tiến trình để kiểm tra crash/recovery; không phải dữ liệu upload. |
+| [query-boundaries.csv](query-boundaries.csv) | Bộ chuyên kiểm tra biên: **5 trạm, 8 readings**; bbox đóng, thời gian đóng, sai khác 1 ms, giá trị 0. Không dùng thay bộ chuỗi thời gian đầy đủ. |
+| `import-recovery-worker.ts`, `analysis-recovery-worker.ts`, `ml-analysis-recovery-worker.ts` | Chương trình phụ tạo tiến trình để kiểm tra crash/recovery của import, Analysis và ML. |
 | `python-transport.py` | Chương trình phụ kiểm tra giao tiếp Python; không phải model hoặc dataset. |
 
 ## Cấu trúc bộ nhiều trạm
@@ -61,17 +63,17 @@ Các tests dưới đây xác minh Backend/import/detector; không tuyên bố �
 # Từ thư mục gốc repository; cần mongod cho MongoDB replica set tạm.
 npm run build --workspace @pm25/shared-core
 Set-Location server
-npx vitest run tests/b4.integration.test.ts tests/b5.integration.test.ts -t multistation
+npx vitest run tests/integration/sensor-reading-query.integration.test.ts tests/integration/analysis-runs.integration.test.ts -t multistation
 ```
 
-Nguồn kiểm thử: [B4](../b4.integration.test.ts), [B5](../b5.integration.test.ts). Tests tạo JWT, upload và import qua HTTP thật trong app, dùng DB/storage tạm; không dùng DB `.env` hoặc tự seed online. Không thay test biên, crash/recovery hoặc single-sensor đang có: chúng vẫn là hồi quy cần thiết.
+Các suite [truy vấn trạm và readings](../integration/sensor-reading-query.integration.test.ts) và [Analysis](../integration/analysis-runs.integration.test.ts) tạo JWT, upload và import qua HTTP thật trong app, dùng database và storage tạm. Bộ biên, crash/recovery và single-sensor tiếp tục dùng các fixture chuyên biệt.
 
 ## Beijing12 trạm — golden nghiệp vụ do chủ dự án cung cấp
 
 Ngày16/11/2026: copy nguyên bytes từ `.local/demo-datasets/beijing-12-stations-demo-2015-03.csv` sang [fixture](beijing-12-stations-demo-2015-03.csv), không sửa file nguồn. [Manifest](beijing-12-stations-demo-2015-03.manifest.json) pin bytes/SHA256/expected facts; `.gitattributes` tắt EOL normalization riêng fixture này để hash không đổi khi checkout.
 
-Đã tính độc lập bằng [beijing-fixture.test.ts](../beijing-fixture.test.ts):8782 rows,12 trạm,739 timestamps, không duplicate/invalid, min3/max369, offset+08,146 station–hours thiếu trên lưới12×31×24. Mốc16/03 19h+08 có12 trạm/mean315,5; Nongzhanguan26/03 21h có369, median11 trạm khác80 và không có mẫu22h/23h. Đây là thống kê mô tả, không phải labels anomaly hoặc định nghĩa spatial_delta.
+Đã tính độc lập bằng [beijing-fixture.test.ts](../unit/beijing-fixture.test.ts):8782 rows,12 trạm,739 timestamps, không duplicate/invalid, min3/max369, offset+08,146 station–hours thiếu trên lưới12×31×24. Mốc16/03 19h+08 có12 trạm/mean315,5; Nongzhanguan26/03 21h có369, median11 trạm khác80 và không có mẫu22h/23h. Đây là thống kê mô tả, không phải labels anomaly hoặc định nghĩa spatial_delta.
 
-[B6 integration](../b6.integration.test.ts) import CSV qua B3 thật, chạy Z-score B5 rồi list/detail/review qua B6; [browser E2E](../../e2e/b6.spec.ts) kiểm conflict/rebase/reload với API/DB thật. Không phụ thuộc file `.local` để chạy lại test. Không train ML v2 hoặc dùng golden này làm fit.
+[Integration về visibility và review](../integration/anomaly-visibility-and-review.integration.test.ts) import CSV, chạy Z-score rồi đọc và review anomalies qua API. [E2E review](../../e2e/anomaly-review.spec.ts) kiểm conflict, rebase và reload với API và database thật. Golden trong repo là nguồn fixture để chạy lại.
 
 Provenance hiện là file do chủ dự án cung cấp, với cột sourceFile/sourceRowNo tham chiếu PRSA_Data. Upstream extraction và độ chính xác nguồn tọa độ chưa được kiểm định độc lập; không tự tuyên bố toàn bộ G01/G04/G05 đã đóng hoặc dataset có anomaly ground truth. Fixture synthetic ở trên tiếp tục dùng cho lỗi/gaps/edge cases có chủ đích.

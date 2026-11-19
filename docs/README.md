@@ -10,11 +10,11 @@ Tài liệu phân tích yêu cầu, thiết kế và phối hợp phát triển 
 
 | Tài liệu | Đường dẫn | Dùng để làm gì? | Trạng thái |
 |---|---|---|---|
-| **SRS — Software Requirements Specification** | [SRS.md](SRS.md) | Mục tiêu, actor, chức năng, business rules, dữ liệu và yêu cầu phi chức năng | **v0.4** đã thống nhất các thay đổi chính |
-| **SDD — Software Design Description** | [SDD.md](SDD.md) | Kiến trúc tổng thể, ranh giới module, quan hệ logic, tích hợp dữ liệu, API và DB | **v0.3 draft** (Bước 1–3) |
+| **SRS — Software Requirements Specification** | [SRS.md](SRS.md) | Mục tiêu, actor, chức năng, business rules, dữ liệu và yêu cầu phi chức năng | **v0.6**, bổ sung kết quả kiểm thử tải backend và phạm vi nghiệm thu |
+| **SDD — Software Design Description** | [SDD.md](SDD.md) | Kiến trúc tổng thể, ranh giới module, quan hệ logic, tích hợp dữ liệu, API và DB | **v0.4 draft** (Bước 1–3), có bổ sung vận hành backend B8 |
 | **Shared Data Contract** | [shared-data-contract.md](shared-data-contract.md) | DTO, kiểu dữ liệu, enum, ràng buộc và đầu vào/đầu ra giữa các module | **v0.1 draft**, thuộc SDD Bước 2 |
 | **API Contract** | [api/README.md](api/README.md) · [openapi.yaml](api/openapi.yaml) | Endpoint, request/response, lỗi, JWT, phân trang, import và offline-sync | **v0.3.0-draft**, OpenAPI 3.0.3 / D008 async; chưa migrate runtime |
-| **MongoDB Physical Design** | [mongodb-physical-design.md](mongodb-physical-design.md) | Collections, cấu trúc document, indexes, import và transaction đồng bộ | **v0.3 draft**; index chưa được benchmark |
+| **MongoDB Physical Design** | [mongodb-physical-design.md](mongodb-physical-design.md) | Collections, cấu trúc document, indexes, import và transaction đồng bộ | **v0.3 draft**, có explain cho index đọc được đo ở B4/B8 |
 | **Module Ownership** | [ownership.md](ownership.md) | Phân công trách nhiệm và quy tắc phối hợp của 5 thành viên | Đã có |
 | **Frontend P0 online — Kế hoạch** | [frontend-online-plan.md](frontend-online-plan.md) | Lộ trình hoàn thiện UI/3D và tích hợp API online; loại trừ PWA, Offline/Sync, P1/P2 | M2 frontend đã triển khai/kiểm tra; M0 còn xác nhận interface với Duy |
 | **Frontend M0 — Đầu vào triển khai** | [frontend/m0-readiness.md](frontend/m0-readiness.md) · [UI spec](frontend/ui-spec.md) | Audit contract, ma trận API, interface online, fixtures và bố cục | Bản đầu để bắt đầu M1; chưa có runtime |
@@ -28,6 +28,7 @@ Tài liệu phân tích yêu cầu, thiết kế và phối hợp phát triển 
 | **C2 Data Exploration — Kết quả** | [contract D018](backend/c2-contract-proposal.md) · [verification/runbook](backend/c2-verification.md) · [query measurements](backend/c2-query-measurements.json) | Profile/quality, metadata CLI, coverage/timezone, per-station hour/day comparison và FE |19/22 online operations; C2 API/DB thật, G02/G03 khóa; C3/G04/G05 và B7/B8 còn chờ. Các số/status phía trên là lịch sử từng mốc |
 | **C3 Isolation Forest v2 — Kết quả** | [verification/contract/runbook](backend/c3-verification.md) · [model manifest](../server/ml/pm25-v2-manifest.json) | Shared TS3-feature builder/context/native inference, completed-only scoringSummary, dual-version recovery và Desktop parser |Lịch sử D019, đã thay thế setup/rollout bởi D020; giữ nguyên bằng chứng cũ |
 | **C3/D020 — Một model ML duy nhất** | [verification/demo](backend/c3-single-model-verification.md) · [manifest giữ nguyên](../server/ml/pm25-v2-manifest.json) | Config{}, 3 features, summary/review/recovery; không selector/flag/dispatch v1 | Functional/regression/Desktop PASS; C3/D019 phía trên là bằng chứng trước đơn giản hóa |
+| **Backend B8 — Hiệu năng** | [Báo cáo k6](backend/performance-audit.md) · [Checklist B8](backend-online-plan.md#b8--tích-hợp-online-hiệu-năng-và-bàn-giao) | Môi trường, kịch bản, số liệu trước/sau và cách chạy lại | Đạt mục tiêu đọc local 100 VU trong 10 phút. Có số liệu tải hỗn hợp 30 giây |
 
 
 ## 2. Sơ đồ thiết kế

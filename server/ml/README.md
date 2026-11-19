@@ -1,5 +1,7 @@
 # Isolation Forest — một model PM2.5
 
+> Thư mục này chứa mã Python cho Isolation Forest. Khi backend chạy phân tích, tiến trình Python nạp model đã huấn luyện và chấm điểm bất thường từ các đặc trưng do Node.js gửi. Khâu huấn luyện chạy riêng.
+
 D020 thay thế setup hai model trong D019. Hệ thống chỉ dùng artifact 3 features đã train tại C3: `[value, temporal_delta, spatial_delta]`, đúng thứ tự này. Request ML dùng `method: "isolation_forest", config: {}`. Không có flag bật model, selector hoặc training API.
 
 - [Manifest](pm25-v2-manifest.json), model ID `pm25-iforest-uci501-v2` là provenance cố định, không phải lựa chọn phiên bản của client.

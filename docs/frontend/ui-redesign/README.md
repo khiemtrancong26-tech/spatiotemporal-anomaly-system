@@ -49,7 +49,7 @@ Tất cả ảnh dùng **mock có nhãn**, không phải bằng chứng chạy d
 - Shell/design system: `client/src/app/styles.css`, `app/shell.tsx`, `shared/ui/primitives.tsx`, SVG `shared/ui/icons.tsx`.
 - Workspace: `features/workspace/page.tsx`, `visualization.tsx`, `renderer.tsx`; mới `heatmap.tsx`, `heatmap-data.ts`.
 - Các màn còn lại: `features/auth/pages.tsx`, `auth/register.tsx`, `datasets/page.tsx`, `dataset-import/page.tsx`, `analysis/page.tsx`, `analysis/results.tsx`, `anomalies/page.tsx`, `admin-users/page.tsx` (chỉ markup/presentation/accessibility).
-- Kiểm chứng: `client/e2e/foundation.spec.ts`, `features/workspace/heatmap-data.test.ts`, `renderer.test.tsx`, `client/scripts/capture-ui.mjs`.
+- Kiểm chứng qua `client/e2e/mock-application-workflows.spec.ts`, `client/tests/unit/workspace/heatmap-data.test.ts`, `client/tests/integration/workspace/mapbox-renderer.integration.test.tsx` và `client/scripts/capture-ui.mjs`.
 - Tài liệu: `client/README.md`, `docs/frontend-online-plan.md`, báo cáo và ảnh trong thư mục này. Các đường dẫn feature/shared bên trên tương đối với `client/src`.
 
 ## Giới hạn

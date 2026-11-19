@@ -10,7 +10,7 @@ Public Register yêu cầu username/email/password; tạo analyst active nhưng 
 
 
 **Đề tài:** Xây dựng hệ thống phân tích và phát hiện bất thường trong dữ liệu không gian – thời gian bằng trực quan 3D  
-**Phiên bản:** 0.5 — 12/11/2026  
+**Phiên bản:** 0.6 — 19/11/2026\
 **Nhóm:** 5 thành viên — Môn JavaScript/TypeScript — Thời gian dự kiến 4 tuần  
 **Người chủ trì yêu cầu:** Người 1 (Nhóm trưởng, Backend/Database)  
 **Trạng thái:** Bản đầu vào cho SDD, API Contract và Shared Schema; cần review các mục **[CHƯA CHỐT]** trước khi khóa thiết kế liên quan.
@@ -68,7 +68,6 @@ Người dùng chưa đăng nhập chỉ được truy cập những tài nguyê
 
 - MVP tập trung **một đại lượng PM2.5** với đơn vị chuẩn `µg/m³`; chưa cam kết hỗ trợ mọi loại cảm biến.
 - Trạm có vị trí cố định; mỗi lần đo gắn với một `sensor`, một `dataset` và một `timestamp`.
-- Quy mô **200–500 trạm và 100.000–500.000 readings** là mục tiêu thiết kế/kiểm thử, **chưa phải kết quả đạt được** và **không phải giới hạn cứng của mọi dataset**.
 - **Chưa chốt** chu kỳ đo của trạm, nhịp cập nhật batch, thời lượng tối đa của dataset hay nguồn dữ liệu thực làm chuẩn. Phải dựa trên đặc tính nguồn được chọn, không mặc định 5 phút/trạm hoặc 72 giờ chỉ từ ví dụ thảo luận.
 - Khi online, ứng dụng **tự động lưu cục bộ** các dữ liệu đã tải thành công theo phạm vi truy cập; không yêu cầu người dùng dự báo mất mạng hay bấm nút tải offline trước mỗi lần sử dụng. Chỉ dữ liệu **đã thực sự lưu thành công** mới bảo đảm có thể truy cập offline, không mặc nhiên là toàn bộ dataset.
 - Ứng dụng phải được truy cập/khởi tạo thành công khi còn mạng để chuẩn bị các tài nguyên khởi chạy cần thiết; không bảo đảm đăng nhập lần đầu khi offline. Bản đồ nền Mapbox có thể thiếu tiles/tòa nhà khi không có mạng; dữ liệu cảm biến đã lưu vẫn có thể được xem qua giao diện offline phù hợp.
@@ -289,21 +288,30 @@ Tên cột của file nguồn được phép khác tên trường chuẩn, ví d
 | **NFR-03** | Hệ thống chạy qua Nginx với HTTPS/TLS cổng `443`; nghiên cứu/sử dụng OpenSSL trong môi trường thử nghiệm. |
 | **NFR-04** | Ứng dụng có cơ chế lưu tài nguyên để mở lại giao diện, **tự động lưu dữ liệu đã tải và ngữ cảnh làm việc thiết yếu** vào bộ nhớ cục bộ; đáp ứng kịch bản mất mạng đột ngột và khôi phục sau khi đóng/mở tab nếu lưu thành công. Cho phép tải thêm dữ liệu theo yêu cầu; có trạng thái xác nhận lưu thành công và cảnh báo thất bại/hết dung lượng. |
 | **NFR-05** | Có cơ chế outbox bền vững, tự đồng bộ và xử lý gửi trùng/xung đột; phân biệt **đã lưu cục bộ** với **Server đã xác nhận**, không chỉ dựa vào trạng thái kết nối Internet của thiết bị. |
-| **NFR-06** | Có kiểm thử unit, integration, end-to-end, load/stress và báo cáo coverage. |
+| **NFR-06** | Có kiểm thử unit, integration, end-to-end, kiểm thử tải backend và báo cáo coverage. |
 | **NFR-07** | Có bằng chứng đánh giá hiệu năng truy vấn MongoDB, xử lý dữ liệu, thuật toán và hai chế độ trực quan 3D. |
 | **NFR-08** | Có xác thực, phân quyền phía Server; bảo vệ thông tin xác thực và giới hạn đầu vào upload phù hợp. |
 | **NFR-09** | Kết quả thuật toán có phương pháp/cấu hình/phiên bản; báo cáo phân biệt dữ liệu mô phỏng có nhãn và dữ liệu thực. |
 
-### 5.2. Mục tiêu đo thử của nhóm — không phải kết quả đã đạt
+### 5.2. Mục tiêu đo thử của nhóm
 
-- **Quy mô dữ liệu thử:** 200–500 trạm, 100k–500k readings.
-- **Backend load test:** Kịch bản 100 virtual users/10 phút, mục tiêu `p95 < 500 ms` và tỷ lệ lỗi `< 1%` đối với **các API đọc được chỉ định**, không tự áp dụng cho upload/ML.
+- **Backend load test:** Chạy 100 người dùng ảo (VU) trong 10 phút. Tập API đọc được chọn cần đạt `p95 < 500 ms` cho từng kịch bản và tỷ lệ lỗi đọc chung `< 1%`. Upload, import, Analysis và review được đo theo kịch bản riêng hoặc hỗn hợp.
 - **Frontend:** Đo FPS riêng Mapbox và Cube với 10k/50k/100k điểm; mức `≥ 50 FPS` tại 100k điểm là **mục tiêu khảo sát**, phụ thuộc máy và cách hiển thị.
 - **Coverage mục tiêu:** `shared-core ≥ 90%`, `server ≥ 80%`, logic client `≥ 70%`.
 - **Thuật toán:** Đánh giá precision/recall/F1 trên dữ liệu seed có nhãn; mốc recall `≥ 85%` và F1 `≥ 0,8` là **mục tiêu đánh giá**, không bảo đảm đạt trước thực nghiệm.
 - **Báo cáo:** Ghi rõ môi trường, cấu hình máy, số bản ghi, kịch bản và kết quả thực; so sánh trước/sau tối ưu.
 
 Redis là **tùy chọn**, không phải yêu cầu bắt buộc trong MVP. Công cụ, cấu trúc triển khai, index, cách kiểm thử cụ thể được mô tả trong SDD và test plan.
+
+### 5.3. Kết quả kiểm thử tải backend ngày 18/11/2026
+
+| Kịch bản đã chạy | Kết quả quan sát |
+|---|---|
+| **Đọc k6, 100 VU trong 10 phút** | **Đạt mục tiêu đọc ở mục 5.2** trên fixture local gồm **48.000 readings, 12 trạm và 24.000 anomalies**. Hoàn tất **310.242 request**, trung bình **517 request/giây**, p95 tổng **330 ms** và **0 lỗi đọc**. p95 cao nhất theo kịch bản là **366 ms**. |
+| **Tăng tải đọc ngắn, 10 giây mỗi bậc** | Dấu hiệu bão hòa xuất hiện giữa hai bậc đã đo **16 và 40 VU**. p95 tăng từ **52 lên 150 ms** trong khi throughput giảm từ **521 xuống 446 request/giây**. |
+| **Tải hỗn hợp trong 30 giây** | Hoàn tất **6.983/7.200 lượt đọc đã lên lịch**, **6 upload**, **6 import** và **9 run Analysis**. Quan sát tối đa **3 run Analysis đồng thời** với **5.760 readings mục tiêu/run**. |
+
+Tập đọc 10 phút dùng phương thức GET dưới tiền tố `/api/v1`, gồm `/datasets`, `/sensors`, `/readings` (100/trang, gồm trường hợp cursor sâu), `/anomalies` (lọc run đã hoàn tất và trạng thái `open`) và `/anomalies/{id}`. Môi trường đo là Windows, Ryzen 5 5500U, RAM 16 GB, HTTP localhost và MongoDB replica set tạm một node. [Cấu hình, kết quả từng API và cách chạy lại](backend/performance-audit.md#kiểm-thử-ngưỡng-srs).
 
 ---
 
@@ -315,7 +323,6 @@ Redis là **tùy chọn**, không phải yêu cầu bắt buộc trong MVP. Côn
 | **OPEN-03** | Thuật toán/model ML cuối cùng, feature và định dạng lưu model | ML, integration, analysis output | D009 chọn thuật toán Isolation Forest; method/config API, model artifact/features/version và train → load → predict còn cần chốt/kiểm chứng |
 | **OPEN-04** | Các ngưỡng cụ thể để ánh xạ score sang severity, cấu hình mặc định của detector | Engine, Shared Schema, UI | Không tự coi ngưỡng minh họa là ngưỡng đã được duyệt |
 | **OPEN-05** | Giới hạn file upload, kích thước batch và chính sách báo cáo lỗi quá nhiều dòng | Import, performance | Phải có giới hạn an toàn; thông số trong SDD |
-| **OPEN-06 / D008** | Đã chốt Analysis online async cho statistical/ml; còn mở cơ chế nền, concurrency, recovery/retention và chính sách tải | Analysis API, FE | ML chỉ Server; queue technology chưa chọn. Upload/Import không chuyển async. Cần benchmark, không suy ra hệ thống cũ quá tải |
 | **OPEN-07** | Chu kỳ đo trạm, độ dài dataset, nhịp thêm batch và nguồn dữ liệu thực dùng làm chuẩn | Dataset source, benchmarking | Phụ thuộc dataset thực được chọn; không khóa 5 phút/72 giờ hay giới hạn cứng khi chưa có căn cứ |
 
 **OPEN-01 đã được giải quyết** bằng BR-08 (phương án B: giữ bản ghi hợp lệ đầu tiên, bỏ trùng có báo cáo); không còn là quyết định mở.
@@ -333,6 +340,8 @@ Các mục còn lại **không được AI tự xem là đã chốt**. Nhóm tr�
 | `0.3` | 11/11/2026 | Làm rõ auto-cache khi online, sử dụng khi mất mạng đột ngột, tải trước tùy chọn, phạm vi dữ liệu offline, nghiệm thu UC-06; cập nhật FR-11, BR-20–22, NFR-04 |
 | `0.4` | 11/11/2026 | Chốt BR-08 phương án B: giữ bản ghi hợp lệ đầu tiên; báo cáo trùng hoàn toàn/xung đột, loại OPEN-01 khỏi danh sách chưa chốt; cập nhật UC-02 |
 | `0.5` | 12/11/2026 | Ưu tiên khôi phục ngữ cảnh làm việc, bảo toàn outbox/đồng bộ khi gián đoạn, tiêu chí AT-06E/F; giữ mở thông số thời gian và chu kỳ dataset |
+| `0.6` | 19/11/2026 | Ghi kết quả k6 ngày 18/11, phạm vi đạt mục tiêu đọc và tải hỗn hợp đã đo |
+
 ## C2 / D018 — Bổ sung yêu cầu Exploration đã khóa (16/11/2026)
 
 CR-02–05 của [Change Plan](backend-change-plan.md) được cụ thể hóa tại [C2 contract](backend/c2-contract-proposal.md): Analyst xem Profile toàn dataset/scoped, phân biệt source-quality/thiếu station–time/chưa tải, so sánh trạm trên hour/day buckets và đổi timezone hiển thị mà giữ instant UTC. Chỉ subset aggregation này được nâng online; không nâng spatial LOD, Offline/Sync hay ML v2. API đọc chỉ imported, kết quả đầy đủ trong ngân sách hoặc lỗi; sampling phải có cadence/anchor/expected interval tường minh. Nghiệm thu phần mềm qua CSV golden và API/DB thật, không coi spike/flag là ground truth hay xác nhận chất lượng ML.

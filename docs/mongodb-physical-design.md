@@ -7,6 +7,11 @@
 **Trạng thái:** Thiết kế vật lý **đề xuất cho MVP**, cần Khiêm review trước khi triển khai database chính thức. `indexes.js` là script tạo index gợi ý, **không phải migration đã chạy**.  
 **DB:** `spatiotemporal_anomaly` (tên đề xuất), MongoDB. **7 collections lõi ban đầu:** `users`, `datasets`, `sensors`, `readings`, `analysisRuns`, `anomalies`, `processedMutations`. D012/D015 bổ sung `idempotencyReceipts` và `analysisQueueState`; online hiện dùng8 collections, chưa khởi tạo processedMutations/Sync.
 
+## Index và pool đã đo trong B8 — 18/11/2026
+
+- B8 thêm `ix_anomalies_dataset_run_ts_id` theo thứ tự `(datasetId, analysisRunId, ts, _id)`. Truy vấn theo run kiểm tra run đã hoàn tất và quyền trên dataset trước khi đọc trang anomalies. Explain của lookup ghi nhận **101 khóa và 101 document cho 101 kết quả**. Phần lọc và sắp xếp của phép đo baseline duyệt **1.001 khóa và 1.001 document** cho cùng số bản ghi. [Báo cáo và explain](backend/performance-audit.md) · [Index trong backend](../server/src/shared/persistence/indexes.ts).
+- Bài HTTP local trên MongoDB replica set tạm đạt mục tiêu đọc 100 VU trong 10 phút với pool 48 kết nối và p95 chờ checkout 24 ms. Cấu hình pool của lượt đo được ghi cùng kịch bản tại [báo cáo k6](backend/performance-audit.md#kiểm-thử-ngưỡng-srs).
+
 ## Bổ sung Query B4 — D013, 14/11/2026
 
 - Hai GET sensors/readings đã có; DatasetReadAccess public của module Dataset kiểm tra imported trước đọc. Dataset không có/chưa imported và sensor khác dataset trả 422 theo D013, không lộ partial. Reading.location lấy từ snapshot đã lưu, không join để thay bằng Sensor hiện tại.

@@ -1,3 +1,4 @@
+
 import { createSession } from './features/auth/session';
 import { createWorkspaceStore } from './features/workspace/state';
 import type { Dataset } from './shared/api/generated/wire';
@@ -19,7 +20,15 @@ const router = createRouter({ routeTree, defaultPreload: 'intent' });
 declare module '@tanstack/react-router' { interface Register { router: typeof router } }
 
 async function bootstrap(root: HTMLElement) {
-  const config = readConfig(import.meta.env);
+  const loadedConfig = readConfig(import.meta.env);
+  const config = {
+    ...loadedConfig,
+    apiBaseUrl: new URL(
+      loadedConfig.apiBaseUrl,
+      window.location.origin
+    ).href.replace(/\/$/, ''),
+  };
+
   let transport = globalThis.fetch.bind(globalThis);
   let mock: Services['mock'];
   // Keep this condition statically evaluable so online builds omit fixture transport.
